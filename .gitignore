@@ -33,3 +33,6 @@ Desktop.ini
 
 ## Secrets (override locally)
 appsettings.*.local.json
+
+## Local tooling
+.tools/
