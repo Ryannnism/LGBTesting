@@ -31,22 +31,6 @@ public static class WorkflowConfigSeeder
                 acmeAdmin.Name = "Acme Client Admin";
             }
         }
-
-        if (!context.Users.Any(u => u.Email == "client@acme.test"))
-        {
-            context.Users.Add(new User
-            {
-                Email = "client@acme.test",
-                PasswordHash = PasswordHasher.Hash(CustomerClientAdminProvisioner.DefaultPassword),
-                Name = "Acme Client Staff",
-                Mobile = "",
-                Role = UserRoles.Client,
-                CustomerId = firstCustomer.CustomerId,
-                IsVerified = true,
-                MustChangePassword = true,
-                CreatedAt = DateTime.UtcNow,
-            });
-        }
     }
 
     private static void SeedFormTemplates(AppDbContext context)

@@ -1,8 +1,6 @@
 import { ArrowLeft, Check, ClipboardList, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DateInput } from './DateInput';
 import { UserAssignCell } from './UserAssignCell';
-import { formatDateDisplay, parseDateToIso } from '@/lib/dates';
 import {
   ApiError,
   advanceJobHandoff,
@@ -69,42 +67,6 @@ export function PackageWorkboard({
   useEffect(() => {
     void loadItems({ silent: hasLoaded.current });
   }, [loadItems, refreshKey]);
-
-  const handleScheduleSave = useCallback(async (jobId: number, unitNumber: number, isoValue: string) => {
-    const job = items.find((j) => j.id === jobId);
-    if (!job) return;
-
-    const unit = job.units?.find((u) => u.unitNumber === unitNumber);
-    const savedIso = unit?.scheduledDate ? parseDateToIso(unit.scheduledDate) ?? '' : '';
-    if (isoValue === savedIso) return;
-
-    const rollback = job;
-    const optimisticDisplay = isoValue ? formatDateDisplay(isoValue) : undefined;
-
-    setItems((prev) =>
-      prev.map((j) => {
-        if (j.id !== jobId) return j;
-        return {
-          ...j,
-          units: j.units?.map((u) =>
-            u.unitNumber === unitNumber ? { ...u, scheduledDate: optimisticDisplay } : u,
-          ),
-        };
-      }),
-    );
-
-    try {
-      const updated = await recordJobProgress(jobId, {
-        unitNumber,
-        scheduledDate: isoValue,
-      });
-      setItems((prev) => prev.map((j) => (j.id === jobId ? updated : j)));
-      onScheduleSaved?.();
-    } catch (err) {
-      setItems((prev) => prev.map((j) => (j.id === jobId ? rollback : j)));
-      onError(err instanceof ApiError ? err.message : 'Failed to save date.');
-    }
-  }, [items, onError, onScheduleSaved]);
 
   const handleAssignUnit = async (job: JobRequestResponse, unitNumber: number, userId: number, remove = false) => {
     try {
@@ -184,11 +146,9 @@ export function PackageWorkboard({
         <td className="px-4 py-2 text-center text-xs text-muted-foreground">
           {unit.status === 'Completed' ? '✓' : '—'}
         </td>
-        <td className="px-4 py-2">
-          <DateInput
-            value={unit.scheduledDate}
-            onChange={(iso) => void handleScheduleSave(job.id, unit.unitNumber, iso)}
-          />
+        <td className="px-4 py-2 text-sm text-muted-foreground">
+          {unit.scheduledDate || '—'}
+          <span className="block text-[10px]">Set by client</span>
         </td>
         <td className="px-4 py-2">
           <UserAssignCell

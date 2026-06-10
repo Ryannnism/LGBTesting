@@ -384,6 +384,15 @@ export interface ClientPortalSummaryDto {
   openJobs: number;
   completedJobs: number;
   teamMembers: number;
+  categoryProgress: TaskCategoryProgressDto[];
+}
+
+export interface TaskCategoryProgressDto {
+  category: string;
+  pending: number;
+  inProgress: number;
+  completed: number;
+  total: number;
 }
 
 function formatApiError(text: string, status: number): string {
@@ -675,7 +684,12 @@ export async function assignClientJob(
 
 export async function recordClientJobProgress(
   jobId: number,
-  data: { unitNumber?: number; markUnitComplete?: boolean; markUnitIncomplete?: boolean },
+  data: {
+    unitNumber?: number;
+    markUnitComplete?: boolean;
+    markUnitIncomplete?: boolean;
+    scheduledDate?: string;
+  },
 ): Promise<JobRequestResponse> {
   return request<JobRequestResponse>(`/api/clientjobs/${jobId}/progress`, {
     method: 'POST',

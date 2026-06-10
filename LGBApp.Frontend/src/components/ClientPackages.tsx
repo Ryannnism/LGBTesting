@@ -43,26 +43,43 @@ export function ClientPackages({ refreshKey = 0 }: ClientPackagesProps) {
       </div>
 
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-card border border-border rounded-lg p-4">
-            <p className="text-xs text-muted-foreground">Active packages</p>
-            <p className="text-2xl font-semibold mt-1">{summary.activePackages}</p>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-xs text-muted-foreground">Active packages</p>
+              <p className="text-2xl font-semibold mt-1">{summary.activePackages}</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-xs text-muted-foreground">Active value (MYR)</p>
+              <p className="text-2xl font-semibold mt-1">
+                {summary.activePackageValue.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-xs text-muted-foreground">Open tasks</p>
+              <p className="text-2xl font-semibold mt-1">{summary.openJobs}</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-xs text-muted-foreground">Completed tasks</p>
+              <p className="text-2xl font-semibold mt-1">{summary.completedJobs}</p>
+            </div>
           </div>
-          <div className="bg-card border border-border rounded-lg p-4">
-            <p className="text-xs text-muted-foreground">Active value (MYR)</p>
-            <p className="text-2xl font-semibold mt-1">
-              {summary.activePackageValue.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-          <div className="bg-card border border-border rounded-lg p-4">
-            <p className="text-xs text-muted-foreground">Open tasks</p>
-            <p className="text-2xl font-semibold mt-1">{summary.openJobs}</p>
-          </div>
-          <div className="bg-card border border-border rounded-lg p-4">
-            <p className="text-xs text-muted-foreground">Completed tasks</p>
-            <p className="text-2xl font-semibold mt-1">{summary.completedJobs}</p>
-          </div>
-        </div>
+          {summary.categoryProgress && summary.categoryProgress.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {summary.categoryProgress.map((cat) => (
+                <div key={cat.category} className="bg-card border border-border rounded-lg p-4">
+                  <p className="text-xs text-muted-foreground">{cat.category}</p>
+                  <p className="text-lg font-semibold mt-1">
+                    {cat.completed} / {cat.total} done
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {cat.pending + cat.inProgress} open
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <div className="bg-card border border-border rounded-lg overflow-hidden">

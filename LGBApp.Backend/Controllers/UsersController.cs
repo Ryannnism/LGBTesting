@@ -34,7 +34,7 @@ public class UsersController : ControllerBase
 
             query = query.Where(u =>
                 u.CustomerId == customerId
-                && u.Role == UserRoles.Client);
+                && u.Role == UserRoles.ClientAdmin);
         }
 
         var users = await query.OrderBy(u => u.Name).ToListAsync();

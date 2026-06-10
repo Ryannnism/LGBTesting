@@ -61,16 +61,6 @@ public class JobRequestsController : ControllerBase
             if (!customerId.HasValue)
                 return Ok(Array.Empty<JobRequestResponse>());
             jobs = jobs.Where(j => j.CustomerId == customerId).ToList();
-            if (AuthHelper.IsClientUser(User))
-            {
-                var userId = AuthHelper.CurrentUserId(User);
-                var name = AuthHelper.CurrentUserName(User);
-                jobs = jobs.Where(j =>
-                    (userId.HasValue && j.Units.Any(u => JobRequestUnitService.IsUserAssigned(u, userId.Value)))
-                    || j.AssignedUserId == userId
-                    || (!string.IsNullOrWhiteSpace(name) && string.Equals(j.AccountHolder, name, StringComparison.OrdinalIgnoreCase))
-                ).ToList();
-            }
         }
         else if (!AuthHelper.IsAdmin(User))
         {
@@ -267,6 +257,9 @@ public class JobRequestsController : ControllerBase
 
         if (request.ScheduledDate is not null)
         {
+            if (!AuthHelper.IsClientAdmin(User))
+                return BadRequest(new { message = "Scheduled dates are set by the client company." });
+
             unit.ScheduledDate = string.IsNullOrWhiteSpace(request.ScheduledDate)
                 ? null
                 : DateOnlyHelper.Parse(request.ScheduledDate);

@@ -19,7 +19,7 @@ interface UserManagementProps {
   description?: string;
 }
 
-const EXTERNAL_ROLES = [ROLES.ClientAdmin, ROLES.Client];
+const EXTERNAL_ROLES = [ROLES.ClientAdmin];
 
 interface EditFormState {
   name: string;
@@ -110,7 +110,7 @@ export function UserManagement({
         email: editForm.email,
         name: editForm.name,
         mobile: editForm.mobile,
-        role: isClientTeamMode ? ROLES.Client : editForm.role,
+        role: isClientTeamMode ? ROLES.ClientAdmin : editForm.role,
         jobTitle: isExternalRole || isClientTeamMode ? undefined : editForm.jobTitle || undefined,
         canRecommendMoi: isExternalRole || isClientTeamMode ? undefined : editForm.canRecommendMoi,
         customerId: isExternalRole || isClientTeamMode ? editForm.customerId : undefined,
@@ -279,10 +279,9 @@ export function UserManagement({
                   <option value={ROLES.Admin}>{roleLabel(ROLES.Admin)}</option>
                   <option value={ROLES.User}>{roleLabel(ROLES.User)}</option>
                   <option value={ROLES.ClientAdmin}>{roleLabel(ROLES.ClientAdmin)}</option>
-                  <option value={ROLES.Client}>{roleLabel(ROLES.Client)}</option>
                 </select>
               ) : (
-                <input type="text" disabled value={roleLabel(ROLES.Client)} className="w-full px-3 py-2 border border-border rounded-lg bg-muted/30" />
+                <input type="text" disabled value={roleLabel(ROLES.ClientAdmin)} className="w-full px-3 py-2 border border-border rounded-lg bg-muted/30" />
               )}
 
               {isExternalRole && !isClientTeamMode ? (

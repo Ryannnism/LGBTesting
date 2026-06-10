@@ -18,7 +18,7 @@ public class ClientJobsController : ControllerBase
     public ClientJobsController(AppDbContext context) => _context = context;
 
     [HttpGet("my-jobs")]
-    [Authorize(Roles = "Admin,ClientAdmin,Client")]
+    [Authorize(Roles = "Admin,ClientAdmin")]
     public async Task<ActionResult<IEnumerable<JobRequestResponse>>> GetMyCompanyJobs(
         [FromQuery] bool includeCompleted = false)
     {
@@ -42,17 +42,6 @@ public class ClientJobsController : ControllerBase
         var jobs = await query
             .OrderByDescending(j => j.DateRequested)
             .ToListAsync();
-
-        if (AuthHelper.IsClientUser(User))
-        {
-            var userId = AuthHelper.CurrentUserId(User);
-            var name = AuthHelper.CurrentUserName(User);
-            jobs = jobs.Where(j =>
-                (userId.HasValue && j.Units.Any(u => JobRequestUnitService.IsUserAssigned(u, userId.Value)))
-                || j.AssignedUserId == userId
-                || (!string.IsNullOrWhiteSpace(name) && string.Equals(j.AccountHolder, name, StringComparison.OrdinalIgnoreCase))
-            ).ToList();
-        }
 
         var responses = jobs.Select(JobRequestMapper.ToResponse).ToList();
         await JobFormLinkService.EnrichWithFormLinksAsync(_context, responses);
@@ -221,6 +210,14 @@ public class ClientJobsController : ControllerBase
         if (request.MarkUnitComplete && request.MarkUnitIncomplete)
             return BadRequest(new { message = "Cannot mark a unit complete and incomplete in the same request." });
 
+        if (request.ScheduledDate is not null)
+        {
+            unit.ScheduledDate = string.IsNullOrWhiteSpace(request.ScheduledDate)
+                ? null
+                : DateOnlyHelper.Parse(request.ScheduledDate);
+            await JobRequestUnitService.SyncUnitToTrackerAsync(_context, unit, job);
+        }
+
         if (request.MarkUnitComplete)
         {
             unit.Status = "Completed";
@@ -257,9 +254,9 @@ public class ClientJobsController : ControllerBase
             if (wasJobCompleted && job.Status != "Completed")
                 await JobRequestUnitService.RemoveLatestCompletedServiceRecordAsync(_context, job);
         }
-        else
+        else if (request.ScheduledDate is null)
         {
-            return BadRequest(new { message = "Specify markUnitComplete or markUnitIncomplete." });
+            return BadRequest(new { message = "Specify scheduledDate, markUnitComplete, or markUnitIncomplete." });
         }
 
         await _context.SaveChangesAsync();

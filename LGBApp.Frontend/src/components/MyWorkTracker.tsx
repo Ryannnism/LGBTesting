@@ -1,7 +1,5 @@
 import { CalendarDays, Check } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DateInput } from './DateInput';
-import { formatDateDisplay, parseDateToIso } from '@/lib/dates';
 import {
   ApiError,
   getMyWorkTracker,
@@ -56,31 +54,6 @@ export function MyWorkTracker({ refreshKey = 0, onOpenTask, onError, onSuccess }
     }
   };
 
-  const handleSchedule = useCallback(async (item: WorkTrackerItemDto, isoValue: string) => {
-    const savedIso = item.scheduledDate ? parseDateToIso(item.scheduledDate) ?? '' : '';
-    if (isoValue === savedIso) return;
-
-    const rollback = item;
-    setItems((prev) =>
-      prev.map((row) =>
-        row.unitId === item.unitId
-          ? { ...row, scheduledDate: isoValue ? formatDateDisplay(isoValue) : undefined }
-          : row,
-      ),
-    );
-
-    try {
-      await recordJobProgress(item.jobId, {
-        unitNumber: item.unitNumber,
-        scheduledDate: isoValue,
-      });
-      await load(true);
-    } catch (err) {
-      setItems((prev) => prev.map((row) => (row.unitId === item.unitId ? rollback : row)));
-      onError(err instanceof ApiError ? err.message : 'Failed to save date.');
-    }
-  }, [load, onError]);
-
   return (
     <div className="bg-card rounded-lg border border-border overflow-hidden">
       <div className="p-4 border-b border-border flex items-center gap-2">
@@ -127,11 +100,8 @@ export function MyWorkTracker({ refreshKey = 0, onOpenTask, onError, onSuccess }
                     </td>
                     <td className="px-4 py-3">#{item.unitNumber}</td>
                     <td className="px-4 py-3">{item.accountHolder || '—'}</td>
-                    <td className="px-4 py-3">
-                      <DateInput
-                        value={item.scheduledDate}
-                        onChange={(iso) => void handleSchedule(item, iso)}
-                      />
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      {item.scheduledDate || '—'}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">

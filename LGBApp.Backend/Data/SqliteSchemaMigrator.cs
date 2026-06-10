@@ -99,6 +99,10 @@ public static class SqliteSchemaMigrator
         EnsureColumn(context, "Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 1");
 
         context.Database.ExecuteSqlRaw("""
+            UPDATE "Users" SET "Role" = 'ClientAdmin' WHERE "Role" = 'Client';
+            """);
+
+        context.Database.ExecuteSqlRaw("""
             CREATE TABLE IF NOT EXISTS "ServiceJobForms" (
                 "ServiceJobFormId" INTEGER NOT NULL CONSTRAINT "PK_ServiceJobForms" PRIMARY KEY AUTOINCREMENT,
                 "JobRequestId" INTEGER NOT NULL,

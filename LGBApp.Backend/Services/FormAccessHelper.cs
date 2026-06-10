@@ -94,20 +94,7 @@ public static class FormAccessHelper
                 || f.Company == company);
         }
 
-        var userId = AuthHelper.CurrentUserId(user);
-        var name = AuthHelper.CurrentUserName(user);
-        var assignedJobIds = await context.JobRequests
-            .Include(j => j.Units).ThenInclude(u => u.Assignees)
-            .Where(j => j.CustomerId == customerId)
-            .ToListAsync();
-
-        var allowedJobIds = assignedJobIds
-            .Where(j => AuthHelper.CanAccessJob(user, j))
-            .Select(j => j.JobRequestId)
-            .ToHashSet();
-
-        return query.Where(f =>
-            f.JobRequestId.HasValue && allowedJobIds.Contains(f.JobRequestId.Value));
+        return query.Where(_ => false);
     }
 
     public static async Task<List<MOAForm>> FilterMoaFormsAsync(AppDbContext context, ClaimsPrincipal user, List<MOAForm> forms)

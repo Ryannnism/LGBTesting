@@ -24,7 +24,7 @@ interface CreateUserModalProps {
   onSubmit: (data: Omit<CreateUserFormData, 'confirmPassword'>) => void;
 }
 
-const EXTERNAL_ROLES = [ROLES.ClientAdmin, ROLES.Client];
+const EXTERNAL_ROLES = [ROLES.ClientAdmin];
 
 export function CreateUserModal({
   isOpen,
@@ -41,7 +41,7 @@ export function CreateUserModal({
     mobile: '',
     password: '',
     confirmPassword: '',
-    role: isClientTeamMode ? ROLES.Client : ROLES.User,
+    role: isClientTeamMode ? ROLES.ClientAdmin : ROLES.User,
     jobTitle: '',
     canRecommendMoi: false,
     customerId: undefined,
@@ -56,7 +56,7 @@ export function CreateUserModal({
       mobile: '',
       password: '',
       confirmPassword: '',
-      role: isClientTeamMode ? ROLES.Client : ROLES.User,
+      role: isClientTeamMode ? ROLES.ClientAdmin : ROLES.User,
       jobTitle: '',
       canRecommendMoi: false,
       customerId: fixedCustomerId,
@@ -77,7 +77,7 @@ export function CreateUserModal({
     const { confirmPassword: _, ...payload } = formData;
     onSubmit({
       ...payload,
-      role: isClientTeamMode ? ROLES.Client : payload.role,
+      role: isClientTeamMode ? ROLES.ClientAdmin : payload.role,
       customerId: isExternalRole || isClientTeamMode ? customerId : undefined,
       jobTitle: formData.jobTitle || undefined,
       canRecommendMoi: formData.canRecommendMoi || undefined,
@@ -183,14 +183,13 @@ export function CreateUserModal({
                   <option value={ROLES.Admin}>{roleLabel(ROLES.Admin)}</option>
                   <option value={ROLES.User}>{roleLabel(ROLES.User)}</option>
                   <option value={ROLES.ClientAdmin}>{roleLabel(ROLES.ClientAdmin)}</option>
-                  <option value={ROLES.Client}>{roleLabel(ROLES.Client)}</option>
                 </select>
               </div>
             )}
 
             {isClientTeamMode && (
               <p className="text-sm text-muted-foreground border border-border rounded-lg p-3">
-                New users are invited as <strong>{roleLabel(ROLES.Client)}</strong> for your company. They can be assigned MOI and form tasks after they sign in.
+                New users are invited as <strong>{roleLabel(ROLES.ClientAdmin)}</strong> for your company. They can issue MOI and manage your company&apos;s tasks.
               </p>
             )}
 

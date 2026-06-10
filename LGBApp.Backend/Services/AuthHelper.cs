@@ -21,11 +21,7 @@ public static class AuthHelper
     public static bool IsClientAdmin(ClaimsPrincipal user) =>
         string.Equals(CurrentRole(user), UserRoles.ClientAdmin, StringComparison.OrdinalIgnoreCase);
 
-    public static bool IsClientUser(ClaimsPrincipal user) =>
-        string.Equals(CurrentRole(user), UserRoles.Client, StringComparison.OrdinalIgnoreCase);
-
-    public static bool IsExternalUser(ClaimsPrincipal user) =>
-        IsClientAdmin(user) || IsClientUser(user);
+    public static bool IsExternalUser(ClaimsPrincipal user) => IsClientAdmin(user);
 
     public static int? CurrentUserId(ClaimsPrincipal user)
     {
@@ -87,21 +83,7 @@ public static class AuthHelper
             if (!CanAccessCustomer(user, job.CustomerId))
                 return false;
 
-            // Client admin sees all jobs for their company
-            if (IsClientAdmin(user))
-                return true;
-
-            // Client staff: assigned units, name matches account holder, or assignee
-            var userId = CurrentUserId(user);
-            var name = CurrentUserName(user);
-            if (!string.IsNullOrWhiteSpace(name)
-                && string.Equals(name, job.AccountHolder, StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            if (userId.HasValue && job.Units.Any(u => JobRequestUnitService.IsUserAssigned(u, userId.Value)))
-                return true;
-
-            return CanAccessJob(user, job.AssignedUserId, job.JobAssignedTo);
+            return true;
         }
 
         var internalUserId = CurrentUserId(user);
@@ -125,7 +107,7 @@ public static class AuthHelper
         if (IsAdmin(user))
             return UserRoles.All;
         if (IsClientAdmin(user))
-            return [UserRoles.Client];
+            return [UserRoles.ClientAdmin];
         return [];
     }
 
@@ -141,7 +123,7 @@ public static class AuthHelper
         if (!customerId.HasValue || target.CustomerId != customerId)
             return false;
 
-        return string.Equals(target.Role, UserRoles.Client, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(target.Role, UserRoles.ClientAdmin, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool CanAssignClientJob(ClaimsPrincipal user, JobRequest job, User assignee)
@@ -157,7 +139,7 @@ public static class AuthHelper
             return false;
 
         return assignee.CustomerId == customerId
-            && string.Equals(assignee.Role, UserRoles.Client, StringComparison.OrdinalIgnoreCase);
+            && string.Equals(assignee.Role, UserRoles.ClientAdmin, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Client admin can assign, unassign, complete, and revert jobs for their company only.</summary>

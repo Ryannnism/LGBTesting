@@ -13,6 +13,7 @@ import { CreateProductModal } from './components/CreateProductModal';
 import { UserManagement } from './components/UserManagement';
 import { AdminWorkflowConfig } from './components/AdminWorkflowConfig';
 import { AdminFormTemplates } from './components/AdminFormTemplates';
+import { AdminPackageOverview } from './components/AdminPackageOverview';
 import { ClientPortal } from './components/ClientPortal';
 import { ClientPackages } from './components/ClientPackages';
 import { CreateUserModal } from './components/CreateUserModal';
@@ -52,7 +53,6 @@ import {
   isAdmin,
   canManageUsers,
   isClientAdmin,
-  isClientStaff,
   isExternalUser,
   isInternalStaff,
   roleLabel,
@@ -166,7 +166,6 @@ export default function App() {
   const userIsAdmin = isAdmin(currentUser);
   const userIsExternal = isExternalUser(currentUser);
   const userIsClientAdmin = isClientAdmin(currentUser);
-  const userIsClientStaff = isClientStaff(currentUser);
   const userIsInternal = isInternalStaff(currentUser);
   const userCanManageTeam = canManageUsers(currentUser);
 
@@ -182,7 +181,7 @@ export default function App() {
 
   useEffect(() => {
     if (!currentUser) return;
-    if (userIsAdmin && (activeTab === 'customers' || activeTab === 'tracking' || activeTab === 'admin')) {
+    if (userIsAdmin && (activeTab === 'customers' || activeTab === 'tracking' || activeTab === 'admin' || activeTab === 'dashboard')) {
       loadCustomers();
       loadProducts();
     }
@@ -202,14 +201,12 @@ export default function App() {
 
   useEffect(() => {
     if (!currentUser) return;
-    if (userIsClientStaff && activeTab !== 'dashboard') {
-      setActiveTab('dashboard');
-    } else if (userIsClientAdmin && !['dashboard', 'packages', 'team'].includes(activeTab)) {
+    if (userIsClientAdmin && !['dashboard', 'packages', 'team'].includes(activeTab)) {
       setActiveTab('dashboard');
     } else if (!userIsAdmin && !userIsExternal && activeTab !== 'dashboard') {
       setActiveTab('dashboard');
     }
-  }, [currentUser, userIsAdmin, userIsClientAdmin, userIsClientStaff, userIsExternal, activeTab]);
+  }, [currentUser, userIsAdmin, userIsClientAdmin, userIsExternal, activeTab]);
 
   const clientAdminTabs: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
     { id: 'dashboard', label: 'Portal', icon: LayoutDashboard },
@@ -218,10 +215,6 @@ export default function App() {
   ];
 
   const navigateToTab = (tab: Tab) => {
-    if (userIsClientStaff && tab !== 'dashboard') {
-      setActiveTab('dashboard');
-      return;
-    }
     if (userIsClientAdmin && !clientAdminTabs.some((t) => t.id === tab)) {
       setActiveTab('dashboard');
       return;
@@ -966,35 +959,39 @@ export default function App() {
       <main className="p-6 overflow-auto" style={{ height: 'calc(100% - 129px)' }}>
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {(userIsClientAdmin || userIsClientStaff) && currentUser ? (
+            {userIsClientAdmin && currentUser ? (
               <ClientPortal
                 currentUser={currentUser}
                 refreshKey={refreshKey}
                 onOpenForm={handleOpenClientForm}
               />
             ) : userIsAdmin ? (
-              <>
-                <StatsCards refreshKey={refreshKey} />
-                <div className="bg-card rounded-lg border border-border p-6">
-                  <h2 className="font-medium mb-2">Package work</h2>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Open a customer under the Customers tab, then click <strong>Manage package</strong> on
-                    a specific order to track deliverables, dates, quantities, and form tasks (MOI, MOI
-                    Approval, MOA).
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('customers')}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
-                  >
-                    Go to Customers
-                  </button>
-                </div>
-                <CompletedServicesTable
+              selectedPackageWork ? (
+                <PackageWorkboard
+                  customer={selectedPackageWork.customer}
+                  package={selectedPackageWork.package}
+                  users={apiUsers}
+                  userIsAdmin={userIsAdmin}
                   refreshKey={refreshKey}
-                  onViewHistory={() => setIsHistoryModalOpen(true)}
+                  onBack={() => setSelectedPackageWork(null)}
+                  onOpenTask={handleOpenFormTask}
+                  onError={showToast}
+                  onSuccess={bumpRefresh}
+                  onScheduleSaved={() => setScheduleRefreshKey((k) => k + 1)}
                 />
-              </>
+              ) : (
+                <>
+                  <AdminPackageOverview
+                    refreshKey={refreshKey}
+                    onManagePackage={(customer, pkg) => setSelectedPackageWork({ customer, package: pkg })}
+                  />
+                  <StatsCards refreshKey={refreshKey} />
+                  <CompletedServicesTable
+                    refreshKey={refreshKey}
+                    onViewHistory={() => setIsHistoryModalOpen(true)}
+                  />
+                </>
+              )
             ) : (
               <>
                 <MyWorkTracker
@@ -1024,8 +1021,8 @@ export default function App() {
         {activeTab === 'team' && userIsClientAdmin && (
           <UserManagement
             mode="clientTeam"
-            title="Your team"
-            description="Invite client staff and assign them MOI / form tasks from the Portal tab."
+            title="Client admins"
+            description="Invite other client admins for your company. All admins can issue MOI and set target dates."
             refreshKey={userRefreshKey}
             onCreateUser={() => setIsCreateUserModalOpen(true)}
           />

@@ -8,4 +8,5 @@ public class ClientPortalSummaryDto
     public int OpenJobs { get; set; }
     public int CompletedJobs { get; set; }
     public int TeamMembers { get; set; }
+    public List<TaskCategoryProgressDto> CategoryProgress { get; set; } = [];
 }

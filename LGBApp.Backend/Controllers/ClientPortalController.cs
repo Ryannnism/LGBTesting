@@ -10,7 +10,7 @@ namespace LGBApp.Backend.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize(Roles = "ClientAdmin,Client")]
+[Authorize(Roles = "ClientAdmin")]
 public class ClientPortalController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -55,16 +55,19 @@ public class ClientPortalController : ControllerBase
         var now = DateTime.UtcNow;
         var activeValue = packages.Sum(p => PackageProration.GetActiveValue(p, now));
 
-        var jobsQuery = _context.JobRequests.Where(j => j.CustomerId == customerId);
-        var openJobs = await jobsQuery.CountAsync(j => j.Status == "Pending" || j.Status == "In Progress");
-        var completedJobs = await jobsQuery.CountAsync(j => j.Status == "Completed");
+        var jobs = await _context.JobRequests
+            .Include(j => j.Units)
+            .Where(j => j.CustomerId == customerId)
+            .ToListAsync();
 
-        var teamCount = 0;
-        if (AuthHelper.IsClientAdmin(User))
-        {
-            teamCount = await _context.Users.CountAsync(u =>
-                u.CustomerId == customerId && u.Role == UserRoles.Client);
-        }
+        var openJobs = jobs.Count(j => j.Status == "Pending" || j.Status == "In Progress");
+        var completedJobs = jobs.Count(j => j.Status == "Completed");
+
+        var currentUserId = AuthHelper.CurrentUserId(User);
+        var teamCount = await _context.Users.CountAsync(u =>
+            u.CustomerId == customerId
+            && u.Role == UserRoles.ClientAdmin
+            && (!currentUserId.HasValue || u.UserId != currentUserId.Value));
 
         return new ClientPortalSummaryDto
         {
@@ -74,6 +77,7 @@ public class ClientPortalController : ControllerBase
             OpenJobs = openJobs,
             CompletedJobs = completedJobs,
             TeamMembers = teamCount,
+            CategoryProgress = ClientPortalSummaryBuilder.BuildCategoryProgress(jobs),
         };
     }
 }

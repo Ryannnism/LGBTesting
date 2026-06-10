@@ -4,7 +4,6 @@ export const ROLES = {
   Admin: 'Admin',
   User: 'User',
   ClientAdmin: 'ClientAdmin',
-  Client: 'Client',
 } as const;
 
 export type AppRole = (typeof ROLES)[keyof typeof ROLES];
@@ -25,12 +24,13 @@ export function isClientAdmin(user: UserResponse | null): boolean {
   return user?.role === ROLES.ClientAdmin;
 }
 
-export function isClientStaff(user: UserResponse | null): boolean {
-  return user?.role === ROLES.Client;
+/** @deprecated Client staff role removed — use isClientAdmin */
+export function isClientStaff(_user: UserResponse | null): boolean {
+  return false;
 }
 
 export function isExternalUser(user: UserResponse | null): boolean {
-  return isClientAdmin(user) || isClientStaff(user);
+  return isClientAdmin(user);
 }
 
 export function canManageUsers(user: UserResponse | null): boolean {
@@ -42,7 +42,13 @@ export function roleLabel(role: string): string {
     case ROLES.Admin: return 'Admin (internal)';
     case ROLES.User: return 'User (internal secretary)';
     case ROLES.ClientAdmin: return 'Client Admin (external)';
-    case ROLES.Client: return 'Client (external staff)';
     default: return role;
   }
+}
+
+export const JOB_CATEGORIES = ['MOI', 'MOI Approval', 'MOA', 'Services'] as const;
+
+export function jobCategory(taskType: string): (typeof JOB_CATEGORIES)[number] {
+  if (taskType === 'MOI' || taskType === 'MOI Approval' || taskType === 'MOA') return taskType;
+  return 'Services';
 }
