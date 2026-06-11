@@ -49,3 +49,4 @@ LGBApp.Backend/lgbapp.db-*
 
 ## Docs tooling (optional PDF build)
 docs/node_modules/
+uploads/
