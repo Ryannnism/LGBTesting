@@ -209,6 +209,42 @@ export function canSignatoryStartMoi(
   return holder.localeCompare(user.name.trim(), undefined, { sensitivity: 'accent' }) === 0;
 }
 
+/** Client may edit MOI while still in Draft (before Submit for approval). */
+export function canClientEditMoiDraft(
+  job: JobRequestResponse,
+  options: {
+    workflowState?: string;
+    isClientAdmin?: boolean;
+    isSignatory?: boolean;
+    userName?: string;
+  },
+): boolean {
+  if (job.taskType === 'MOI Approval')
+    return false;
+  if (job.taskType !== 'MOI' && job.taskType !== 'Service')
+    return false;
+
+  const state = options.workflowState ?? job.moiWorkflowState ?? 'Draft';
+  if (state !== 'Draft')
+    return false;
+
+  if (options.isClientAdmin)
+    return true;
+
+  if (options.isSignatory && options.userName) {
+    const holder = (job.accountHolder ?? '').trim();
+    if (!holder)
+      return job.taskType === 'Service';
+    return holder.localeCompare(options.userName.trim(), undefined, { sensitivity: 'accent' }) === 0;
+  }
+
+  return false;
+}
+
+export function canInternalEditMoi(workflowState?: string): boolean {
+  return workflowState === 'PendingPrep' || workflowState === 'PendingRecommendation';
+}
+
 export function canOpenMoiForm(job: JobRequestResponse): boolean {
   return job.taskType === 'MOI' || job.taskType === 'MOI Approval' || job.taskType === 'Service';
 }

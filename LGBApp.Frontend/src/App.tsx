@@ -28,7 +28,11 @@ import { PackageTracking } from './components/PackageTracking';
 import { PackageWorkboard } from './components/PackageWorkboard';
 import { MyWorkTracker } from './components/MyWorkTracker';
 import { buildCustomerAddOnLines } from './lib/packagePricing';
-import { canOpenMoaForJob, canSignatoryStartMoi } from './lib/packageItemStatus';
+import {
+  canClientEditMoiDraft,
+  canInternalEditMoi,
+  canOpenMoaForJob,
+} from './lib/packageItemStatus';
 import {
   ApiError,
   assignJobRequest,
@@ -629,9 +633,23 @@ export default function App() {
         // fall through to empty shell
       }
     }
+    const resolveMoiEditable = (workflowState?: string) => {
+      const state = workflowState ?? job.moiWorkflowState ?? 'Draft';
+      const clientCanEdit = canClientEditMoiDraft(job, {
+        workflowState: state,
+        isClientAdmin: userIsClientAdmin,
+        isSignatory: userIsSignatory,
+        userName: currentUser?.name,
+      });
+      const internalCanEdit = userIsInternal && canInternalEditMoi(state);
+      return clientCanEdit || internalCanEdit;
+    };
+
     if (moiForm) {
+      const workflowState = String(moiForm.workflowState ?? job.moiWorkflowState ?? 'Draft');
       setSelectedMOIForm({
         ...moiForm,
+        workflowState,
         status: job.status,
         service: job.service,
         typeOfDocument: job.service,
@@ -639,10 +657,7 @@ export default function App() {
         unitNumber: job.activeUnitNumber,
         activeUnitNumber: job.activeUnitNumber,
       });
-      const clientCanEdit = moiForm.workflowState === 'Draft'
-        && job.taskType !== 'MOI Approval'
-        && (userIsClientAdmin || (userIsSignatory && canSignatoryStartMoi(job, currentUser!)));
-      setIsMOIViewMode(!clientCanEdit);
+      setIsMOIViewMode(!resolveMoiEditable(workflowState));
     } else {
       setSelectedMOIForm({
         id: job.linkedFormId,
@@ -654,10 +669,12 @@ export default function App() {
         service: job.service,
         typeOfDocument: job.service,
         jobId: job.id,
+        unitNumber: job.activeUnitNumber,
+        activeUnitNumber: job.activeUnitNumber,
+        workflowState: job.moiWorkflowState ?? 'Draft',
       });
-      const clientCanEdit = job.taskType !== 'MOI Approval'
-        && (userIsClientAdmin || (userIsSignatory && canSignatoryStartMoi(job, currentUser!)));
-      setIsMOIViewMode(Boolean(job.linkedFormId) && viewMode && !clientCanEdit);
+      const editable = resolveMoiEditable(job.moiWorkflowState ?? 'Draft');
+      setIsMOIViewMode(!editable && Boolean(job.linkedFormId) && viewMode);
     }
     setIsMOIFormOpen(true);
   };
