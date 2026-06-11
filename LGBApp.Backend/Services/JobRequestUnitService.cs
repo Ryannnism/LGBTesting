@@ -303,6 +303,7 @@ public static class JobRequestUnitService
             Service = job.Service,
             AccountHolder = job.AccountHolder,
             ScheduledDate = DateOnlyHelper.Format(unit.ScheduledDate),
+            DateRequested = job.DateRequested.ToString("yyyy-MM-dd"),
             Status = unit.Status,
             AssignedUserId = primary?.UserId ?? unit.AssignedUserId,
             AssignedUserName = assignees.Count > 0

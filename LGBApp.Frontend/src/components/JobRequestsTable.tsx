@@ -1,6 +1,10 @@
 import { Briefcase, Edit } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { WorkQueueDragHandle } from './WorkQueueDragHandle';
+import { WorkQueueOrderHint } from './WorkQueueOrderHint';
+import { useWorkQueueOrder } from '@/hooks/useWorkQueueOrder';
 import { ApiError, getJobRequests, updateJobRequest, type JobRequestResponse } from '@/lib/api';
+import { formatQueueDate, parseQueueSortDate } from '@/lib/workQueueOrder';
 
 type JobRequest = JobRequestResponse;
 
@@ -11,6 +15,19 @@ interface JobRequestsTableProps {
   onActionError?: (message: string) => void;
   onActionSuccess?: () => void;
   isAdmin?: boolean;
+  userId?: number;
+}
+
+function jobKey(job: JobRequest): string {
+  return `job-${job.id}`;
+}
+
+function jobSortDate(job: JobRequest): number {
+  return parseQueueSortDate(job.scheduledDate, job.dateRequested);
+}
+
+function jobDisplayDate(job: JobRequest): string {
+  return formatQueueDate(job.scheduledDate, job.dateRequested);
 }
 
 export function JobRequestsTable({
@@ -20,11 +37,14 @@ export function JobRequestsTable({
   onActionError,
   onActionSuccess,
   isAdmin = false,
+  userId,
 }: JobRequestsTableProps) {
   const [jobRequests, setJobRequests] = useState<JobRequest[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  const [dropTargetKey, setDropTargetKey] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -39,6 +59,15 @@ export function JobRequestsTable({
       })
       .finally(() => setLoading(false));
   }, [refreshKey]);
+
+  const getKey = useCallback((job: JobRequest) => jobKey(job), []);
+
+  const {
+    sortedItems: orderedJobs,
+    moveItem,
+    resetOrder,
+    hasCustomOrder,
+  } = useWorkQueueOrder(userId, 'job-requests', jobRequests, getKey, jobSortDate);
 
   const handleStatusChange = async (job: JobRequest, newStatus: 'Completed' | 'Canceled') => {
     try {
@@ -69,6 +98,12 @@ export function JobRequestsTable({
     }
   };
 
+  const handleDrop = (targetKey: string) => {
+    if (draggingKey) moveItem(draggingKey, targetKey);
+    setDraggingKey(null);
+    setDropTargetKey(null);
+  };
+
   return (
     <div className="bg-card rounded-lg border border-border overflow-hidden">
       <div className="p-4 border-b border-border">
@@ -76,6 +111,11 @@ export function JobRequestsTable({
           <Briefcase className="w-5 h-5 text-muted-foreground" />
           <h2>Current Job Requests</h2>
         </div>
+        {orderedJobs.length > 0 && (
+          <div className="mt-2">
+            <WorkQueueOrderHint hasCustomOrder={hasCustomOrder} onReset={resetOrder} />
+          </div>
+        )}
         {error && (
           <p className="mt-2 text-sm text-destructive">{error}</p>
         )}
@@ -85,10 +125,11 @@ export function JobRequestsTable({
         <table className="w-full">
           <thead className="bg-muted/50 sticky top-0">
             <tr>
+              <th className="px-2 py-3 w-8" aria-label="Reorder" />
+              <th className="px-4 py-3 text-left">Date</th>
               <th className="px-4 py-3 text-left">Customer</th>
               <th className="px-4 py-3 text-left">Task</th>
               <th className="px-4 py-3 text-center">Usage</th>
-              <th className="px-4 py-3 text-left">Date Requested</th>
               <th className="px-4 py-3 text-left">Send To (signer)</th>
               <th className="px-4 py-3 text-left">User</th>
               <th className="px-4 py-3 text-center">Status</th>
@@ -98,24 +139,52 @@ export function JobRequestsTable({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={isAdmin ? 8 : 7} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={isAdmin ? 9 : 8} className="px-4 py-8 text-center text-muted-foreground">
                   Loading job requests...
                 </td>
               </tr>
-            ) : jobRequests.length === 0 ? (
+            ) : orderedJobs.length === 0 ? (
               <tr>
-                <td colSpan={isAdmin ? 8 : 7} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={isAdmin ? 9 : 8} className="px-4 py-8 text-center text-muted-foreground">
                   {isAdmin ? 'No active job requests.' : 'No job requests assigned to you.'}
                 </td>
               </tr>
             ) : (
-              jobRequests.map((job) => {
+              orderedJobs.map((job) => {
+                const key = jobKey(job);
                 const taskLabel = job.taskType || job.service;
+                const isDragging = draggingKey === key;
+                const isDropTarget = dropTargetKey === key && draggingKey !== key;
                 return (
                 <tr
-                  key={job.id}
-                  className="border-t border-border hover:bg-muted/30 transition-colors"
+                  key={key}
+                  draggable
+                  onDragStart={() => setDraggingKey(key)}
+                  onDragEnd={() => {
+                    setDraggingKey(null);
+                    setDropTargetKey(null);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDropTargetKey(key);
+                  }}
+                  onDragLeave={() => {
+                    if (dropTargetKey === key) setDropTargetKey(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleDrop(key);
+                  }}
+                  className={`border-t border-border hover:bg-muted/30 transition-colors ${
+                    isDragging ? 'opacity-50 bg-muted/40' : ''
+                  } ${isDropTarget ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''}`}
                 >
+                  <td className="px-2 py-3">
+                    <WorkQueueDragHandle />
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground whitespace-nowrap">
+                    {jobDisplayDate(job)}
+                  </td>
                   <td
                     className="px-4 py-3 font-medium cursor-pointer"
                     onClick={() => onViewJob(job)}
@@ -134,7 +203,6 @@ export function JobRequestsTable({
                     {taskLabel}
                   </td>
                   <td className="px-4 py-3 text-center">{job.usedQty}/{job.totalQty}</td>
-                  <td className="px-4 py-3">{job.dateRequested}</td>
                   <td className="px-4 py-3">
                     <div>{job.accountHolder || '—'}</div>
                     {(job.accountHolderEmail || job.accountHolderPhone) && (

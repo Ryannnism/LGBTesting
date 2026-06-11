@@ -1390,12 +1390,14 @@ export default function App() {
               <>
                 <MyWorkTracker
                   refreshKey={refreshKey}
+                  userId={currentUser?.userId}
                   onOpenTask={(jobId, _taskType, unitNumber) => void handleOpenTrackerTask(jobId, unitNumber)}
                   onError={showToast}
                   onSuccess={bumpRefresh}
                 />
                 <JobRequestsTable
                   refreshKey={refreshKey}
+                  userId={currentUser?.userId}
                   onViewJob={handleViewJob}
                   onOpenTask={handleOpenFormTask}
                   onActionError={showToast}

@@ -31,6 +31,7 @@ public class WorkTrackerItemDto
     public string Service { get; set; } = string.Empty;
     public string AccountHolder { get; set; } = string.Empty;
     public string? ScheduledDate { get; set; }
+    public string DateRequested { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public int? AssignedUserId { get; set; }
     public string AssignedUserName { get; set; } = string.Empty;

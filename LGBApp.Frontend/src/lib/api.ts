@@ -160,6 +160,7 @@ export interface WorkTrackerItemDto {
   service: string;
   accountHolder: string;
   scheduledDate?: string;
+  dateRequested?: string;
   status: string;
   assignedUserId?: number;
   assignedUserName: string;
