@@ -7,11 +7,19 @@ public static class WorkflowConfigSeeder
 {
     public static void Seed(AppDbContext context)
     {
+        SeedReferenceData(context);
+        SeedClientUsers(context);
+        context.SaveChanges();
+    }
+
+    /// <summary>
+    /// Idempotent MOI/MOA templates, workflow definitions, and division groups (safe for production).
+    /// </summary>
+    public static void SeedReferenceData(AppDbContext context)
+    {
         SeedFormTemplates(context);
         SeedWorkflowTemplates(context);
         SeedDivisionGroups(context);
-        SeedClientUsers(context);
-        context.SaveChanges();
     }
 
     private static void SeedClientUsers(AppDbContext context)

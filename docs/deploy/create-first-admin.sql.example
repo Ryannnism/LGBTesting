@@ -1,0 +1,10 @@
+-- Run once against a fresh production database after migrations.
+-- Replace email, name, and generate a bcrypt/ASP.NET Identity-style hash via the API or a one-off script.
+--
+-- Easier path: temporarily expose the API, POST /api/users as an existing admin, or use the
+-- bootstrap endpoint documented in DEPLOYMENT.md.
+--
+-- This file is a placeholder reminder — passwords must be hashed with the app's PasswordHasher.
+
+-- INSERT INTO Users (Email, PasswordHash, Name, Role, IsVerified, MustChangePassword, CreatedAt, ...)
+-- VALUES ('sharon@yourcompany.com', '<hash>', 'Sharon', 'Admin', 1, 1, GETUTCDATE(), ...);

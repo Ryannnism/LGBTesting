@@ -9,13 +9,26 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? Array.Empty<string>();
+var useRestrictedCors = !builder.Environment.IsDevelopment() && corsOrigins.Length > 0;
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFigmaFrontend", policy =>
+    options.AddPolicy("AppCors", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        if (useRestrictedCors)
+        {
+            policy.WithOrigins(corsOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+        else
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
 
@@ -104,7 +117,12 @@ using (var scope = app.Services.CreateScope())
         JobFormProvisioner.EnsureFormsForJobsAsync(context, allJobs).GetAwaiter().GetResult();
     }
     else
+    {
         context.Database.Migrate();
+        WorkflowConfigSeeder.SeedReferenceData(context);
+        context.SaveChanges();
+        FigmaProductCatalog.SyncCatalog(context);
+    }
 }
 
 if (app.Environment.IsDevelopment())
@@ -113,7 +131,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("AllowFigmaFrontend");
+app.UseCors("AppCors");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

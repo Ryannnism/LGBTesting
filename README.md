@@ -90,12 +90,18 @@ npm install @mermaid-js/mermaid-cli   # if not already installed
 python3 build-user-roles-pdf.py
 ```
 
-## Production notes
+## Production / go-live
 
-- Set `Database:Provider` to `SqlServer` and configure `ConnectionStrings:DefaultConnection` in `appsettings.json`.
-- Change `Jwt:Key` and use secrets management — never commit production credentials.
-- `lgbapp-dev.db`, `lgbapp.db`, and all `node_modules/` folders are intentionally **not** in git.
+Local dev uses SQLite and seeded demo accounts. For a real deployment (SQL Server, HTTPS, many users, persistent uploads), follow **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+
+Quick pointers:
+
+- Set `ASPNETCORE_ENVIRONMENT=Production` and `Database:Provider` to `SqlServer`
+- Override `ConnectionStrings:DefaultConnection` and `Jwt:Key` via environment variables (see `appsettings.Production.json`)
+- Build the UI with `npm run build`; sample nginx and Azure configs live in `docs/deploy/`
+- `lgbapp-dev.db`, `uploads/`, and all `node_modules/` folders are intentionally **not** in git
 
 ## Further reading
 
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment runbook
 - [docs/USER_ROLES.md](docs/USER_ROLES.md) — role hierarchy and MOI/MOA pipeline
