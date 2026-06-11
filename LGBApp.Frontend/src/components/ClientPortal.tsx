@@ -1,28 +1,71 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, FileText, Plus, Undo2, X } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Check, ChevronDown, ChevronRight, FileText, Plus, Undo2 } from 'lucide-react';
+import { JobItemFolderPanel } from './JobItemFolderPanel';
 import { DateInput } from './DateInput';
 import { parseDateToIso } from '@/lib/dates';
 import {
   ApiError,
-  assignClientJob,
   getClientJobs,
   getClientPortalSummary,
   getMOIForms,
-  getUsers,
+  getMyCompany,
+  issueMoiForJob,
   issueMoiJob,
   recordClientJobProgress,
+  updateMoiApprovalMode,
   type ClientPortalSummaryDto,
   type JobRequestResponse,
   type JobRequestUnitDto,
   type UserResponse,
 } from '@/lib/api';
-import { JOB_CATEGORIES, jobCategory } from '@/lib/roles';
-import { handoffLabel } from '@/lib/handoff';
+import {
+  canClientStartMoi,
+  canSignatoryStartMoi,
+  signatoryCanSignMoi,
+  canOpenMoaForm,
+  canOpenMoiForm,
+  displayStatusKeyForUnit,
+  displayStatusLabelForUnit,
+  unitHasMoaForm,
+  unitHasMoiForm,
+  packageItemStatusBadgeClass,
+} from '@/lib/packageItemStatus';
+import { ALL_SERVICES, resolveServiceCategory, SERVICE_CATEGORY_ORDER } from '@/lib/serviceCategory';
 
 interface ClientPortalProps {
   currentUser: UserResponse;
   onOpenForm: (job: JobRequestResponse) => void;
   refreshKey?: number;
+  mode?: 'admin' | 'signatory';
+}
+
+function jobForUnit(job: JobRequestResponse, unit: JobRequestUnitDto): JobRequestResponse {
+  if ((job.totalQty ?? 1) <= 1) return job;
+  return {
+    ...job,
+    linkedFormId: unit.linkedFormId,
+    linkedFormKind: unit.linkedFormKind,
+    hasMoiForm: unit.hasMoiForm,
+    hasMoaForm: unit.hasMoaForm,
+    moiWorkflowState: unit.moiWorkflowState,
+    activeUnitNumber: unit.unitNumber,
+  };
+}
+
+function canOpenJobForm(
+  job: JobRequestResponse,
+  unit: JobRequestUnitDto,
+  isSignatoryView: boolean,
+  currentUser?: UserResponse,
+): boolean {
+  const ctx = jobForUnit(job, unit);
+  if (isSignatoryView) {
+    if (currentUser && signatoryCanSignMoi(job, currentUser, unit)) return true;
+    if (Boolean(ctx.linkedFormId)) return true;
+    if (currentUser && canSignatoryStartMoi(job, currentUser)) return true;
+    return canOpenMoaForm(job) && Boolean(ctx.linkedFormId);
+  }
+  return canOpenMoiForm(job) || canOpenMoaForm(job);
 }
 
 function jobUnits(job: JobRequestResponse): JobRequestUnitDto[] {
@@ -37,17 +80,26 @@ function jobUnits(job: JobRequestResponse): JobRequestUnitDto[] {
   }];
 }
 
-function CategoryCounter({ label, pending, inProgress, completed, total }: {
+function CategoryCounter({ label, pending, inProgress, completed, total, highlight = false, onClick }: {
   label: string;
   pending: number;
   inProgress: number;
   completed: number;
   total: number;
+  highlight?: boolean;
+  onClick?: () => void;
 }) {
   if (total === 0) return null;
   const open = pending + inProgress;
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <div className="bg-card border border-border rounded-lg p-4">
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`bg-card border rounded-lg p-4 text-left w-full ${
+        highlight ? 'border-primary ring-1 ring-primary/30' : 'border-border'
+      } ${onClick ? 'hover:border-primary/60 transition-colors cursor-pointer' : ''}`}
+    >
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-2xl font-semibold mt-1">{completed}<span className="text-base font-normal text-muted-foreground"> / {total}</span></p>
       <p className="text-xs mt-2 text-muted-foreground">
@@ -59,20 +111,23 @@ function CategoryCounter({ label, pending, inProgress, completed, total }: {
           style={{ width: total ? `${(completed / total) * 100}%` : '0%' }}
         />
       </div>
-    </div>
+    </Tag>
   );
 }
 
-export function ClientPortal({ currentUser, onOpenForm, refreshKey = 0 }: ClientPortalProps) {
+export function ClientPortal({ currentUser, onOpenForm, refreshKey = 0, mode = 'admin' }: ClientPortalProps) {
+  const isSignatoryView = mode === 'signatory';
   const [jobs, setJobs] = useState<JobRequestResponse[]>([]);
   const [summary, setSummary] = useState<ClientPortalSummaryDto | null>(null);
-  const [team, setTeam] = useState<UserResponse[]>([]);
   const [teamHint, setTeamHint] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [issuing, setIssuing] = useState(false);
   const [showIssue, setShowIssue] = useState(false);
+  const [moiApprovalMode, setMoiApprovalMode] = useState<'AllRequired' | 'AnyOne'>('AllRequired');
+  const [savingMode, setSavingMode] = useState(false);
+  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
+  const [activeCategory, setActiveCategory] = useState<string>(ALL_SERVICES);
   const [issueForm, setIssueForm] = useState({
     service: '',
     typeOfDocument: '',
@@ -84,15 +139,19 @@ export function ClientPortal({ currentUser, onOpenForm, refreshKey = 0 }: Client
     setLoading(true);
     setError('');
     try {
-      const [data, portalSummary, members] = await Promise.all([
+      const [data, portalSummary, company] = await Promise.all([
         getClientJobs(true),
         getClientPortalSummary(),
-        getUsers(),
+        isSignatoryView ? Promise.resolve(null) : getMyCompany(),
       ]);
       setJobs(data);
       setSummary(portalSummary);
-      setTeam(members.filter((m) => m.userId !== currentUser.userId));
-      if (portalSummary.teamMembers === 0) {
+      if (company?.moiApprovalMode) {
+        setMoiApprovalMode(company.moiApprovalMode);
+      }
+      if (isSignatoryView) {
+        setTeamHint('');
+      } else if (portalSummary.teamMembers === 0) {
         setTeamHint('Invite additional client admins under the Team tab.');
       } else {
         setTeamHint('');
@@ -102,40 +161,38 @@ export function ClientPortal({ currentUser, onOpenForm, refreshKey = 0 }: Client
     } finally {
       setLoading(false);
     }
-  }, [currentUser.userId]);
+  }, [currentUser.userId, isSignatoryView]);
 
   useEffect(() => {
     void load();
   }, [load, refreshKey]);
 
-  const filteredJobs = useMemo(() => {
-    if (activeCategory === 'All') return jobs;
-    return jobs.filter((j) => jobCategory(j.taskType) === activeCategory);
-  }, [jobs, activeCategory]);
-
   const categoryTabs = useMemo(() => {
-    const present = new Set(jobs.map((j) => jobCategory(j.taskType)));
-    return ['All', ...JOB_CATEGORIES.filter((c) => present.has(c))];
+    const present = new Set(
+      jobs
+        .filter((j) => j.taskType === 'Service')
+        .map((j) => resolveServiceCategory(j.service)),
+    );
+    return SERVICE_CATEGORY_ORDER.filter((c) => c === ALL_SERVICES || present.has(c));
   }, [jobs]);
 
-  const handleAssign = async (job: JobRequestResponse, userId: number, unitNumber = 1) => {
-    setError('');
-    try {
-      await assignClientJob(job.id, { userId, unitNumber });
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to assign task.');
-    }
-  };
+  const filteredJobs = useMemo(() => {
+    if (activeCategory === ALL_SERVICES) return jobs;
+    return jobs.filter((j) => {
+      if (j.taskType !== 'Service') return false;
+      return resolveServiceCategory(j.service) === activeCategory;
+    });
+  }, [jobs, activeCategory]);
 
-  const handleRemove = async (job: JobRequestResponse, userId: number, unitNumber: number) => {
-    setError('');
-    try {
-      await assignClientJob(job.id, { userId, unitNumber, remove: true });
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to remove assignee.');
-    }
+  const formActionLabel = (job: JobRequestResponse, unit: JobRequestUnitDto) => {
+    const ctx = jobForUnit(job, unit);
+    if (isSignatoryView && signatoryCanSignMoi(job, currentUser, unit))
+      return 'Sign MOI';
+    if (canClientStartMoi(job, unit) && (!isSignatoryView || canSignatoryStartMoi(job, currentUser)))
+      return 'Start MOI';
+    if (ctx.linkedFormKind === 'MOA')
+      return 'Sign MOA';
+    return 'Open MOI';
   };
 
   const handleSchedule = async (job: JobRequestResponse, unitNumber: number, isoValue: string) => {
@@ -196,77 +253,182 @@ export function ClientPortal({ currentUser, onOpenForm, refreshKey = 0 }: Client
     }
   };
 
-  const openJobForm = async (job: JobRequestResponse) => {
-    if (job.linkedFormId) {
-      onOpenForm(job);
-      return;
-    }
-    if (job.taskType === 'MOI' || job.taskType === 'MOI Approval') {
-      const forms = await getMOIForms(job.id);
-      if (forms[0]) {
-        onOpenForm({ ...job, linkedFormId: forms[0].id, linkedFormKind: 'MOI' });
-      }
+  const unitKey = (jobId: number, unitNumber: number) => `${jobId}-${unitNumber}`;
+
+  const toggleExpanded = (jobId: number, unitNumber: number) => {
+    const key = unitKey(jobId, unitNumber);
+    setExpandedUnits((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleMoiApprovalModeChange = async (mode: 'AllRequired' | 'AnyOne') => {
+    if (mode === moiApprovalMode) return;
+    setSavingMode(true);
+    setError('');
+    try {
+      const updated = await updateMoiApprovalMode(mode);
+      setMoiApprovalMode(updated.moiApprovalMode ?? mode);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to update MOI signing policy.');
+    } finally {
+      setSavingMode(false);
     }
   };
 
-  const renderAssignees = (job: JobRequestResponse, unit: JobRequestUnitDto) => {
-    const assignees = unit.assignees ?? [];
-    if (assignees.length === 0 && unit.assignedUserName) {
-      return <span className="text-xs text-muted-foreground">{unit.assignedUserName}</span>;
+  const showFormAction = (job: JobRequestResponse, unit: JobRequestUnitDto) =>
+    canOpenJobForm(job, unit, isSignatoryView, currentUser)
+    && (unitHasMoiForm(job, unit) || unitHasMoaForm(job, unit) || canClientStartMoi(job, unit)
+      || (isSignatoryView && signatoryCanSignMoi(job, currentUser, unit)));
+
+  const openJobForm = async (job: JobRequestResponse, unit: JobRequestUnitDto) => {
+    if (!canOpenJobForm(job, unit, isSignatoryView, currentUser)) return;
+    const ctx = jobForUnit(job, unit);
+    setError('');
+    try {
+      if (job.taskType === 'MOA' || ctx.linkedFormKind === 'MOA') {
+        if (canOpenMoaForm(job) && ctx.linkedFormId) {
+          onOpenForm(ctx);
+        }
+        return;
+      }
+
+      if (!canOpenMoiForm(job)) return;
+
+      if (canClientStartMoi(job, unit)) {
+        const updated = await issueMoiForJob(job.id, {
+          service: job.service,
+          typeOfDocument: job.service,
+          requestedBy: currentUser.name,
+          unitNumber: unit.unitNumber,
+        });
+        await load();
+        const refreshedUnit = updated.units?.find((u) => u.unitNumber === unit.unitNumber) ?? unit;
+        onOpenForm(jobForUnit(updated, refreshedUnit));
+        return;
+      }
+
+      if (ctx.linkedFormId) {
+        onOpenForm(ctx);
+        return;
+      }
+
+      const forms = await getMOIForms(job.id, unit.unitNumber);
+      if (forms[0]) {
+        onOpenForm({
+          ...ctx,
+          linkedFormId: forms[0].id,
+          linkedFormKind: 'MOI',
+        });
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to open form.');
     }
-    if (assignees.length === 0) {
-      return <span className="text-xs text-muted-foreground">Unassigned</span>;
-    }
-    return (
-      <div className="flex flex-wrap gap-1">
-        {assignees.map((a) => (
-          <span key={a.userId} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-muted">
-            {a.userName}
-            <button
-              type="button"
-              title="Remove from task"
-              className="hover:text-destructive"
-              onClick={() => void handleRemove(job, a.userId, unit.unitNumber)}
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </span>
-        ))}
-      </div>
-    );
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold">Client portal</h2>
+          <h2 className="text-xl font-semibold">{isSignatoryView ? 'My documents' : 'Client portal'}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {currentUser.customerName ?? 'Your company'} — issue MOI, set target dates, and track progress by category.
+            {isSignatoryView
+              ? `${currentUser.customerName ?? 'Your company'} — each package item has its own MOI/MOA; open a line to fill or sign.`
+              : `${currentUser.customerName ?? 'Your company'} — each package line has its own MOI/MOA workflow; set dates and track every item.`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowIssue(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Issue MOI
-        </button>
+        {!isSignatoryView && (
+          <button
+            type="button"
+            onClick={() => setShowIssue(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Issue MOI
+          </button>
+        )}
       </div>
 
       {summary?.categoryProgress && summary.categoryProgress.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {summary.categoryProgress.map((cat) => (
-            <CategoryCounter
-              key={cat.category}
-              label={cat.category}
-              pending={cat.pending}
-              inProgress={cat.inProgress}
-              completed={cat.completed}
-              total={cat.total}
-            />
-          ))}
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Package services progress</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {summary.categoryProgress.map((cat) => (
+              <CategoryCounter
+                key={cat.category}
+                label={cat.category}
+                pending={cat.pending}
+                inProgress={cat.inProgress}
+                completed={cat.completed}
+                total={cat.total}
+                highlight={activeCategory === cat.category}
+                onClick={() => setActiveCategory(cat.category)}
+              />
+            ))}
+          </div>
+          {categoryTabs.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {categoryTabs.map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveCategory(tab)}
+                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
+                    activeCategory === tab
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card border-border text-muted-foreground hover:border-primary/50'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isSignatoryView && (
+        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+          <div>
+            <h3 className="text-sm font-medium">MOI signing policy</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Choose how many client approvers must sign each MOI before it is released to LGB.
+              MOA always requires every listed MOA signatory.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 text-sm">
+            <label className={`flex items-start gap-2 border rounded-lg px-3 py-2 cursor-pointer ${moiApprovalMode === 'AllRequired' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+              <input
+                type="radio"
+                name="moiApprovalMode"
+                className="mt-1"
+                checked={moiApprovalMode === 'AllRequired'}
+                disabled={savingMode}
+                onChange={() => void handleMoiApprovalModeChange('AllRequired')}
+              />
+              <span>
+                <span className="font-medium">All approvers must sign</span>
+                <span className="block text-xs text-muted-foreground">Every MOI approver signs before LGB intake.</span>
+              </span>
+            </label>
+            <label className={`flex items-start gap-2 border rounded-lg px-3 py-2 cursor-pointer ${moiApprovalMode === 'AnyOne' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+              <input
+                type="radio"
+                name="moiApprovalMode"
+                className="mt-1"
+                checked={moiApprovalMode === 'AnyOne'}
+                disabled={savingMode}
+                onChange={() => void handleMoiApprovalModeChange('AnyOne')}
+              />
+              <span>
+                <span className="font-medium">Any one approver can sign</span>
+                <span className="block text-xs text-muted-foreground">One MOI approver is enough to release to LGB.</span>
+              </span>
+            </label>
+          </div>
         </div>
       )}
 
@@ -316,23 +478,6 @@ export function ClientPortal({ currentUser, onOpenForm, refreshKey = 0 }: Client
         </form>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        {categoryTabs.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveCategory(tab)}
-            className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-              activeCategory === tab
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border hover:bg-muted'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
       <div className="bg-card border border-border rounded-lg overflow-hidden">
         {loading ? (
           <p className="p-6 text-sm text-muted-foreground">Loading jobs…</p>
@@ -342,105 +487,142 @@ export function ClientPortal({ currentUser, onOpenForm, refreshKey = 0 }: Client
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
+                <th className="px-4 py-3 w-8" />
                 <th className="px-4 py-3 text-left">Task</th>
                 <th className="px-4 py-3 text-left">Service</th>
                 <th className="px-4 py-3 text-left">Target date</th>
                 <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Handoff</th>
-                <th className="px-4 py-3 text-left">Assigned</th>
                 <th className="px-4 py-3 text-left">Form</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredJobs.map((job) =>
-                jobUnits(job).map((unit) => (
-                  <tr key={`${job.id}-${unit.unitNumber}`} className="border-t border-border">
-                    <td className="px-4 py-3">
-                      {job.taskType}
-                      {(job.totalQty ?? 1) > 1 && (
-                        <span className="ml-1 text-xs text-muted-foreground">#{unit.unitNumber}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">{job.service}</td>
-                    <td className="px-4 py-3">
-                      <DateInput
-                        value={unit.scheduledDate}
-                        onChange={(iso) => void handleSchedule(job, unit.unitNumber, iso)}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        unit.status === 'Completed' ? 'bg-green-100 text-green-800'
-                          : unit.status === 'In Progress' ? 'bg-blue-100 text-blue-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {unit.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs">{handoffLabel(job.internalHandoffStatus)}</td>
-                    <td className="px-4 py-3">
-                      {renderAssignees(job, unit)}
-                      <select
-                        className="mt-1 text-xs border border-border rounded px-2 py-1 max-w-full"
-                        defaultValue=""
-                        onChange={(e) => {
-                          const id = Number(e.target.value);
-                          if (id) void handleAssign(job, id, unit.unitNumber);
-                          e.target.value = '';
-                        }}
-                      >
-                        <option value="">+ Assign admin…</option>
-                        {team.map((m) => (
-                          <option key={m.userId} value={m.userId}>{m.name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                      {job.linkedFormId ? (
-                        <span className="text-xs px-2 py-0.5 rounded bg-primary/10">{job.linkedFormKind} #{job.linkedFormId}</span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2 flex-wrap">
-                        {unit.status === 'Completed' ? (
-                          <button
-                            type="button"
-                            title="Undo completion"
-                            onClick={() => void handleUndo(job, unit.unitNumber)}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted"
-                          >
-                            <Undo2 className="w-3 h-3" />
-                            Undo
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            title="Mark done"
-                            onClick={() => void handleMarkDone(job, unit.unitNumber)}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                          >
-                            <Check className="w-3 h-3" />
-                            Done
-                          </button>
-                        )}
-                        {['MOI', 'MOI Approval', 'MOA'].includes(job.taskType) && (
-                          <button
-                            type="button"
-                            onClick={() => void openJobForm(job)}
-                            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                          >
-                            <FileText className="w-4 h-4" />
-                            Form
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )),
-              )}
+              {filteredJobs.map((job) => {
+                const units = jobUnits(job);
+                return (
+                  <Fragment key={job.id}>
+                    {units.map((unit) => {
+                      const isExpanded = expandedUnits.has(unitKey(job.id, unit.unitNumber));
+                      return (
+                        <Fragment key={`${job.id}-${unit.unitNumber}`}>
+                          <tr className="border-t border-border">
+                            <td className="px-2 py-3 align-top">
+                              <button
+                                type="button"
+                                title={isExpanded ? 'Hide folder' : 'Show session folder'}
+                                onClick={() => toggleExpanded(job.id, unit.unitNumber)}
+                                className="p-1 rounded hover:bg-muted text-muted-foreground"
+                              >
+                                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                              </button>
+                            </td>
+                            <td className="px-4 py-3">
+                              {canOpenJobForm(job, unit, isSignatoryView, currentUser) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void openJobForm(job, unit)}
+                                  className="text-primary hover:underline font-medium text-left"
+                                >
+                                  {job.taskType === 'Service' ? job.service : job.taskType}
+                                  {(job.totalQty ?? 1) > 1 && (
+                                    <span className="ml-1 text-xs text-muted-foreground">#{unit.unitNumber}</span>
+                                  )}
+                                </button>
+                              ) : (
+                                <span className="font-medium">
+                                  {job.taskType === 'Service' ? job.service : job.taskType}
+                                  {(job.totalQty ?? 1) > 1 && (
+                                    <span className="ml-1 text-xs text-muted-foreground">#{unit.unitNumber}</span>
+                                  )}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {(job.totalQty ?? 1) > 1 ? `Session ${unit.unitNumber}` : 'Package item'}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isSignatoryView ? (
+                                <span className="text-muted-foreground">{unit.scheduledDate || '—'}</span>
+                              ) : (
+                                <DateInput
+                                  value={unit.scheduledDate}
+                                  onChange={(iso) => void handleSchedule(job, unit.unitNumber, iso)}
+                                />
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${packageItemStatusBadgeClass(displayStatusKeyForUnit(job, unit))}`}>
+                                {displayStatusLabelForUnit(job, unit)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {showFormAction(job, unit) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void openJobForm(job, unit)}
+                                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  {formActionLabel(job, unit)}
+                                </button>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-2 flex-wrap">
+                                {!isSignatoryView && unit.status === 'Completed' ? (
+                                  <button
+                                    type="button"
+                                    title="Undo completion"
+                                    onClick={() => void handleUndo(job, unit.unitNumber)}
+                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted"
+                                  >
+                                    <Undo2 className="w-3 h-3" />
+                                    Undo
+                                  </button>
+                                ) : !isSignatoryView ? (
+                                  <button
+                                    type="button"
+                                    title="Mark done"
+                                    onClick={() => void handleMarkDone(job, unit.unitNumber)}
+                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    Done
+                                  </button>
+                                ) : null}
+                                {canOpenJobForm(job, unit, isSignatoryView, currentUser) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void openJobForm(job, unit)}
+                                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                                  >
+                                    <FileText className="w-4 h-4" />
+                                    {formActionLabel(job, unit)}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="border-t border-border bg-muted/20">
+                              <td colSpan={7} className="px-4 py-3">
+                                <JobItemFolderPanel
+                                  job={jobForUnit(job, unit)}
+                                  unitNumber={unit.unitNumber}
+                                  onOpenMoi={() => void openJobForm(job, unit)}
+                                  onOpenMoa={() => void openJobForm(job, unit)}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         )}

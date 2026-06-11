@@ -19,15 +19,47 @@ public class MOIFormsController : ControllerBase
     public MOIFormsController(AppDbContext context) => _context = context;
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<FormResponse>>> GetForms([FromQuery] int? jobId)
+    public async Task<ActionResult<IEnumerable<FormResponse>>> GetForms(
+        [FromQuery] int? jobId,
+        [FromQuery] int? unitNumber)
     {
         var query = _context.MOIForms.AsQueryable();
         if (jobId.HasValue)
             query = query.Where(f => f.JobRequestId == jobId.Value);
 
+        if (jobId.HasValue && unitNumber.HasValue)
+        {
+            var jobMeta = await _context.JobRequests
+                .Where(j => j.JobRequestId == jobId)
+                .Select(j => new { j.TotalQty })
+                .FirstOrDefaultAsync();
+
+            var unitId = await _context.JobRequestUnits
+                .Where(u => u.JobRequestId == jobId && u.UnitNumber == unitNumber)
+                .Select(u => (int?)u.JobRequestUnitId)
+                .FirstOrDefaultAsync();
+
+            if (unitId.HasValue)
+            {
+                query = jobMeta is { TotalQty: > 1 }
+                    ? query.Where(f => f.JobRequestUnitId == unitId)
+                    : query.Where(f => f.JobRequestUnitId == unitId || f.JobRequestUnitId == null);
+            }
+            else
+            {
+                query = query.Where(f => false);
+            }
+        }
+
         query = await FormAccessHelper.ScopeMoiFormsAsync(_context, User, query);
         var forms = await query.OrderByDescending(f => f.UpdatedAt).ToListAsync();
-        return forms.Select(f => FormMapper.ToMoiResponse(f)).ToList();
+        var results = new List<FormResponse>();
+        foreach (var form in forms)
+        {
+            var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+            results.Add(FormMapper.ToMoiResponse(form, customer: customer));
+        }
+        return results;
     }
 
     [HttpGet("{id}")]
@@ -37,12 +69,21 @@ public class MOIFormsController : ControllerBase
         if (form == null) return NotFound();
         if (!await FormAccessHelper.CanAccessMoiFormAsync(_context, User, form))
             return Forbid();
-        return FormMapper.ToMoiResponse(form);
+        var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+        return FormMapper.ToMoiResponse(form, customer: customer);
     }
 
     [HttpPost]
     public async Task<ActionResult<FormResponse>> CreateForm(FormRequest request)
     {
+        if (request.JobId.HasValue)
+        {
+            var job = await _context.JobRequests.FindAsync(request.JobId.Value);
+            if (job == null) return NotFound();
+            if (AuthHelper.IsExternalUser(User) && !AuthHelper.CanManageClientJob(User, job) && !AuthHelper.IsSignatoryForJob(User, job))
+                return Forbid();
+        }
+
         var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, request.Company);
         DivisionGroup? group = null;
         if (customer != null && !string.IsNullOrWhiteSpace(customer.DivisionGroupCode))
@@ -57,13 +98,17 @@ public class MOIFormsController : ControllerBase
         var templateCode = request.FormTemplateCode
             ?? await WorkflowService.ResolveMoiTemplateCodeAsync(_context, customer, group, serviceName);
 
+        var workflowState = AuthHelper.IsExternalUser(User)
+            ? MoiWorkflowStates.Draft
+            : DetermineInitialState(customer, formData);
+
         var form = new MOIForm
         {
             JobRequestId = request.JobId,
             Company = request.Company,
             FormDataJson = JsonHelper.Serialize(formData),
             FormTemplateCode = templateCode,
-            WorkflowState = DetermineInitialState(customer, formData),
+            WorkflowState = workflowState,
             FinanceRelated = request.FinanceRelated,
             BankSignatoryMatter = request.BankSignatoryMatter,
             CreatedAt = DateTime.UtcNow,
@@ -82,6 +127,32 @@ public class MOIFormsController : ControllerBase
         var form = await _context.MOIForms.FindAsync(id);
         if (form == null) return NotFound();
 
+        if (!await FormAccessHelper.CanAccessMoiFormAsync(_context, User, form))
+            return Forbid();
+
+        if (AuthHelper.IsExternalUser(User))
+        {
+            if (form.WorkflowState is "PendingRecommendation" or "Recommended" or "PendingMoiApproval")
+                form.WorkflowState = MoiWorkflowStates.Draft;
+
+            if (form.WorkflowState != MoiWorkflowStates.Draft)
+                return BadRequest("MOI can only be edited while in Draft.");
+
+            if (form.JobRequestId.HasValue)
+            {
+                var linkedJob = await _context.JobRequests.FindAsync(form.JobRequestId.Value);
+                if (linkedJob != null
+                    && !TaskFormVisibilityHelper.CanEditMoiForm(User, linkedJob, form.WorkflowState))
+                    return Forbid();
+            }
+            else
+            {
+                var linkedCustomer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+                if (!AuthHelper.CanAccessCustomer(User, linkedCustomer?.CustomerId))
+                    return Forbid();
+            }
+        }
+
         var formData = new Dictionary<string, object?>(request.Data);
         if (request.JobId.HasValue)
             formData["jobId"] = request.JobId.Value;
@@ -94,13 +165,13 @@ public class MOIFormsController : ControllerBase
         if (!string.IsNullOrWhiteSpace(request.FormTemplateCode))
             form.FormTemplateCode = request.FormTemplateCode;
 
-        if (form.WorkflowState == "PendingPrep"
+        if (form.WorkflowState == MoiWorkflowStates.PendingPrep
             && AuthHelper.IsInternalStaff(User)
             && form.JobRequestId.HasValue)
         {
             var linkedJob = await _context.JobRequests.FindAsync(form.JobRequestId.Value);
             if (linkedJob != null && !TaskFormVisibilityHelper.AwaitingIntakeApproval(linkedJob))
-                form.WorkflowState = "PendingRecommendation";
+                form.WorkflowState = MoiWorkflowStates.PendingRecommendation;
         }
 
         form.UpdatedAt = DateTime.UtcNow;
@@ -116,6 +187,88 @@ public class MOIFormsController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id}/submit-for-approval")]
+    public async Task<ActionResult<FormResponse>> SubmitForApproval(int id)
+    {
+        var user = await GetCurrentUserAsync();
+        if (user == null) return Unauthorized();
+
+        var form = await _context.MOIForms.FindAsync(id);
+        if (form == null) return NotFound();
+
+        if (form.WorkflowState != MoiWorkflowStates.Draft)
+            return BadRequest("MOI can only be submitted for approval from Draft.");
+
+        if (!form.JobRequestId.HasValue)
+            return BadRequest("MOI must be linked to a job.");
+
+        var job = await _context.JobRequests.FindAsync(form.JobRequestId.Value);
+        if (job == null) return NotFound();
+
+        if (!AuthHelper.CanManageClientJob(User, job) && !AuthHelper.IsSignatoryForJob(User, job))
+            return Forbid();
+
+        var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+        if (customer == null) return BadRequest("Customer not found.");
+
+        await JobHandoffService.OnMoiSubmittedForApprovalAsync(_context, job, form, customer);
+        return FormMapper.ToMoiResponse(form, customer: customer);
+    }
+
+    [HttpPost("{id}/client-approve")]
+    public async Task<ActionResult<FormResponse>> ClientApprove(int id, ClientApproveRequest request)
+    {
+        var user = await GetCurrentUserAsync();
+        if (user == null) return Unauthorized();
+
+        if (!AuthHelper.IsExternalUser(User))
+            return Forbid();
+
+        var form = await _context.MOIForms.FindAsync(id);
+        if (form == null) return NotFound();
+
+        if (form.WorkflowState != MoiWorkflowStates.PendingClientMoiApproval)
+            return BadRequest("MOI is not awaiting client approval.");
+
+        var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+        if (customer == null) return BadRequest("Customer not found.");
+
+        var required = ClientApprovalService.GetRequiredMoiApproverNames(customer);
+        var holder = customer.AccountHolders.FirstOrDefault(h =>
+            h.UserId == user.UserId && h.NeedsMoiApproval)
+            ?? customer.AccountHolders.FirstOrDefault(h =>
+                h.NeedsMoiApproval
+                && h.Name.Equals(user.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (holder == null)
+            return Forbid();
+
+        var holderName = holder.Name.Trim();
+
+        var records = ClientApprovalService.ParseMoi(form);
+        if (ClientApprovalService.HasSigned(records, holderName))
+            return BadRequest("You have already approved this MOI.");
+
+        records.Add(new ClientApprovalRecord
+        {
+            UserId = user.UserId,
+            AccountHolderName = holderName,
+            Comments = request.Comments ?? string.Empty,
+            SignatureFileName = request.SignatureFileName,
+            SignatureDataUrl = request.SignatureDataUrl,
+            SignedAt = DateTime.UtcNow,
+        });
+        ClientApprovalService.SaveMoi(form, records);
+
+        if (!form.JobRequestId.HasValue)
+            return BadRequest("MOI must be linked to a job.");
+
+        var job = await _context.JobRequests.FindAsync(form.JobRequestId.Value);
+        if (job == null) return NotFound();
+
+        await JobHandoffService.OnClientMoiApprovalRecordedAsync(_context, job, form, customer);
+        return FormMapper.ToMoiResponse(form, customer: customer);
+    }
+
     [HttpPost("{id}/recommend")]
     public async Task<ActionResult<FormResponse>> Recommend(int id, RecommendMoiRequest request)
     {
@@ -125,8 +278,8 @@ public class MOIFormsController : ControllerBase
         var form = await _context.MOIForms.FindAsync(id);
         if (form == null) return NotFound();
 
-        if (form.WorkflowState is "Recommended" or "Approved")
-            return BadRequest("MOI already recommended or approved.");
+        if (form.WorkflowState == MoiWorkflowStates.Approved)
+            return BadRequest("MOI already approved.");
 
         var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
         if (customer == null) return BadRequest("Customer not found for company.");
@@ -138,32 +291,24 @@ public class MOIFormsController : ControllerBase
         form.RecommendedByUserId = user.UserId;
         form.RecommendedAt = DateTime.UtcNow;
         form.RecommendationComments = request.Comments;
-        form.WorkflowState = "PendingMoiApproval";
         form.UpdatedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
         await JobHandoffService.OnMoiRecommendedAsync(_context, form);
 
-        return FormMapper.ToMoiResponse(form);
+        return FormMapper.ToMoiResponse(form, customer: customer);
     }
 
     [HttpPost("{id}/approve")]
     public async Task<ActionResult<FormResponse>> ApproveMoi(int id, ApproveWorkflowStepRequest request)
     {
-        if (!AuthHelper.CanApproveMoiIntake(User))
+        if (!AuthHelper.CanApproveMoi(User))
             return Forbid();
 
         var form = await _context.MOIForms.FindAsync(id);
         if (form == null) return NotFound();
 
-        if (form.WorkflowState != "PendingMoiApproval" && form.WorkflowState != "Recommended")
-            return BadRequest("MOI is not pending approval.");
-
-        form.WorkflowState = "Approved";
-        form.UpdatedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
         await JobHandoffService.OnMoiApprovedAsync(_context, form);
-
-        return FormMapper.ToMoiResponse(form);
+        var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+        return FormMapper.ToMoiResponse(form, customer: customer);
     }
 
     [HttpPost("{id}/admin-override")]

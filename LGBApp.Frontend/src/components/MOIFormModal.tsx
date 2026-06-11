@@ -1,11 +1,13 @@
 import { X, Upload, Paperclip, ArrowRight } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { resolveFormTemplate, type FormTemplateDto } from '@/lib/api';
+import { moiWorkflowStateLabel } from '@/lib/packageItemStatus';
 
 interface Customer {
   id: number;
   company: string;
   package: string;
+  packageNames?: string[];
   accountHolders: { id: number; name: string; moi: boolean; moiApproval: boolean; moa: boolean }[];
 }
 
@@ -25,13 +27,17 @@ interface ServiceUsage {
 interface MOIFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: any) => void | Promise<void>;
   onConvertToMOA?: (data: any) => void;
   onAccept?: (jobId: number, assignedTo: string, comments: string) => void;
   onRecommend?: (formId: number, comments: string) => void;
-  onApproveMoi?: (formId: number, comments: string) => void;
+  onSubmitForApproval?: (formId: number) => void;
+  onClientApprove?: (formId: number, payload: { comments: string; signatureFileName?: string; signatureDataUrl?: string }) => void;
+  currentUserName?: string;
   onAdminOverride?: (formId: number, comments: string) => void;
   userIsAdmin?: boolean;
+  isClientUser?: boolean;
+  isMoiApprovalTask?: boolean;
   viewMode?: boolean;
   initialData?: any;
   jobId?: number;
@@ -43,12 +49,33 @@ interface MOIFormModalProps {
 }
 
 export function MOIFormModal({
-  isOpen, onClose, onSubmit, onConvertToMOA, onAccept, onRecommend, onApproveMoi, onAdminOverride,
-  userIsAdmin = false, viewMode = false, initialData, jobId, jobStatus, users = [], customers, products, serviceUsage,
+  isOpen, onClose, onSubmit, onConvertToMOA, onAccept, onRecommend, onSubmitForApproval, onClientApprove, onAdminOverride,
+  userIsAdmin = false, isClientUser = false, isMoiApprovalTask = false,
+  viewMode = false, initialData, jobId, jobStatus, users = [], customers, products, serviceUsage,
+  currentUserName = '',
 }: MOIFormModalProps) {
   const [formTemplate, setFormTemplate] = useState<FormTemplateDto | null>(null);
   const [workflowState, setWorkflowState] = useState('Draft');
   const [recommendComments, setRecommendComments] = useState('');
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  const pendingApprovers: string[] = initialData?.pendingApprovers ?? [];
+  const requiredApprovers: string[] = initialData?.requiredApprovers ?? [];
+  const clientApprovals: { accountHolderName?: string }[] = initialData?.clientApprovals ?? [];
+  const nameMatches = (n: string) =>
+    n.localeCompare(currentUserName, undefined, { sensitivity: 'accent' }) === 0;
+  const alreadySigned = clientApprovals.some((a) => a.accountHolderName && nameMatches(a.accountHolderName));
+  const canSignMoi = Boolean(
+    isClientUser
+    && initialData?.id
+    && currentUserName
+    && workflowState === 'PendingClientMoiApproval'
+    && !alreadySigned
+    && (
+      pendingApprovers.some(nameMatches)
+      || requiredApprovers.some(nameMatches)
+    ),
+  );
+
   const [formData, setFormData] = useState({
     company: '',
     documentTitle: '',
@@ -123,9 +150,10 @@ export function MOIFormModal({
   // Reset or populate when modal opens
   useEffect(() => {
     if (!isOpen) return;
-    if (!viewMode) {
+    if (!viewMode && !initialData?.id) {
       setFormData(emptyFormData);
       setAcceptanceData({ assignedTo: '', comments: '' });
+      setWorkflowState('Draft');
       return;
     }
     if (initialData) {
@@ -160,12 +188,46 @@ export function MOIFormModal({
     }
   }, [isOpen, viewMode, initialData]);
 
+  useEffect(() => {
+    if (!isOpen || viewMode) return;
+    const sole = (customers || []).length === 1 ? customers![0] : null;
+    if (sole && !formData.company) {
+      setFormData((prev) => ({ ...prev, company: sole.company }));
+    }
+  }, [isOpen, viewMode, customers, formData.company]);
+
   const selectedCompany = customers?.find(c => c.company === formData.company);
   const moiPersons = selectedCompany?.accountHolders?.filter(h => h.moi) || [];
 
-  // Get customer's package and available services
-  const customerPackage = selectedCompany && products ? products.find(p => p.packageName === selectedCompany.package) : null;
-  const availableServices = customerPackage?.services || [];
+  const packageNames = useMemo(() => {
+    if (!selectedCompany) return [];
+    const names = selectedCompany.packageNames?.length
+      ? selectedCompany.packageNames
+      : selectedCompany.package
+        ? [selectedCompany.package]
+        : [];
+    return [...new Set(names.filter(Boolean))];
+  }, [selectedCompany]);
+
+  const customerPackage = selectedCompany && products
+    ? products.find((p) => packageNames.includes(p.packageName)) ?? products.find((p) => p.packageName === selectedCompany.package)
+    : null;
+
+  const availableServices = useMemo(() => {
+    const services = new Set<string>();
+    if (initialData?.service) services.add(String(initialData.service));
+    if (initialData?.typeOfDocument) services.add(String(initialData.typeOfDocument));
+    if (formData.typeOfDocument) services.add(formData.typeOfDocument);
+    if (products?.length) {
+      products.forEach((product) => {
+        if (packageNames.includes(product.packageName)) {
+          product.services?.forEach((service) => services.add(service));
+        }
+      });
+    }
+    customerPackage?.services?.forEach((service) => services.add(service));
+    return [...services];
+  }, [products, packageNames, customerPackage, formData.typeOfDocument, initialData?.service, initialData?.typeOfDocument]);
 
   // Get usage info for selected service
   const selectedServiceUsage = serviceUsage?.find(
@@ -213,8 +275,12 @@ export function MOIFormModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-    onClose();
+    void Promise.resolve(onSubmit({
+      ...formData,
+      id: initialData?.id,
+      jobId: jobId ?? initialData?.jobId,
+      workflowState,
+    }));
   };
 
   const handleAccept = () => {
@@ -303,7 +369,9 @@ export function MOIFormModal({
               {workflowState && (
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-sm text-muted-foreground">Workflow:</span>
-                  <span className="text-sm font-medium px-2 py-0.5 rounded bg-primary/10">{workflowState}</span>
+                  <span className="text-sm font-medium px-2 py-0.5 rounded bg-primary/10">
+                    {moiWorkflowStateLabel(workflowState)}
+                  </span>
                 </div>
               )}
             </div>
@@ -815,14 +883,52 @@ export function MOIFormModal({
                   </button>
                 </div>
               )}
-              {viewMode && initialData?.id && workflowState === 'PendingMoiApproval' && onApproveMoi && (
-                <button
-                  type="button"
-                  onClick={() => onApproveMoi(initialData.id, recommendComments)}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
-                >
-                  Approve MOI
-                </button>
+              {viewMode && initialData?.id && onClientApprove && canSignMoi && (
+                <div className="space-y-3 max-w-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Review the MOI below, attach your signature, and sign to continue.
+                  </p>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Upload className="w-4 h-4 text-muted-foreground" />
+                    <span>{signatureFile ? signatureFile.name : 'Attach signature (image or PDF)'}</span>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => setSignatureFile(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  <input
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                    placeholder="Comments (optional)"
+                    value={recommendComments}
+                    onChange={(e) => setRecommendComments(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!signatureFile) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        onClientApprove(initialData.id, {
+                          comments: recommendComments,
+                          signatureFileName: signatureFile.name,
+                          signatureDataUrl: String(reader.result ?? ''),
+                        });
+                      };
+                      reader.readAsDataURL(signatureFile);
+                    }}
+                    disabled={!signatureFile}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm disabled:opacity-50"
+                  >
+                    Sign MOI
+                  </button>
+                </div>
+              )}
+              {viewMode && workflowState === 'PendingClientMoiApproval' && pendingApprovers.length > 0 && !canSignMoi && (
+                <p className="text-sm text-muted-foreground">
+                  Awaiting signature from: {pendingApprovers.join(', ')}
+                </p>
               )}
               {userIsAdmin && viewMode && initialData?.id && workflowState !== 'Approved' && onAdminOverride && (
                 <button
@@ -847,7 +953,16 @@ export function MOIFormModal({
                   type="submit"
                   className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
-                  Submit MOI
+                  Save MOI
+                </button>
+              )}
+              {!viewMode && isClientUser && workflowState === 'Draft' && initialData?.id && onSubmitForApproval && !isMoiApprovalTask && (
+                <button
+                  type="button"
+                  onClick={() => onSubmitForApproval(initialData.id)}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Submit for approval
                 </button>
               )}
               {isPendingJob && (

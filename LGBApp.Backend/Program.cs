@@ -88,16 +88,18 @@ using (var scope = app.Services.CreateScope())
     if (string.Equals(dbProvider, "Sqlite", StringComparison.OrdinalIgnoreCase))
     {
         context.Database.EnsureCreated();
-        DevDataSeeder.SeedIfEmpty(context);
         SqliteSchemaMigrator.Apply(context);
+        DevDataSeeder.SeedIfEmpty(context);
         WorkflowConfigSeeder.Seed(context);
-        InternalStaffSeeder.Seed(context);
+        InternalStaffSeeder.Seed(context, app.Environment.IsDevelopment());
         BillingPartyService.SeedFromLegacyCustomerFieldsAsync(context).GetAwaiter().GetResult();
         CustomerClientAdminProvisioner.EnsureAllCustomersHaveClientAdminAsync(context).GetAwaiter().GetResult();
+        CustomerSignatoryProvisioner.EnsureAllCustomerSignatoriesAsync(context).GetAwaiter().GetResult();
         FigmaProductCatalog.SyncCatalog(context);
         JobRequestSyncService.LinkOrphanJobs(context);
         context.SaveChanges();
         JobRequestSyncService.SyncAllCustomersAsync(context).GetAwaiter().GetResult();
+        JobWorkflowIntegrityService.RepairAllAsync(context).GetAwaiter().GetResult();
         var allJobs = context.JobRequests.ToList();
         JobFormProvisioner.EnsureFormsForJobsAsync(context, allJobs).GetAwaiter().GetResult();
     }

@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import {
   adminOverrideMoaStep,
@@ -38,12 +38,14 @@ interface MOAFormModalProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
   onStartWorkflow?: (moaFormId: number) => void;
+  onClientApprove?: (moaFormId: number, payload: { comments: string; signatureFileName?: string; signatureDataUrl?: string }) => void;
   viewMode?: boolean;
   initialData?: any;
   moiData?: any;
   users?: User[];
   customers: Customer[];
   userIsAdmin?: boolean;
+  isClientUser?: boolean;
 }
 
 export function MOAFormModal({
@@ -51,18 +53,22 @@ export function MOAFormModal({
   onClose,
   onSubmit,
   onStartWorkflow,
+  onClientApprove,
   viewMode = false,
   initialData,
   moiData,
   users = [],
   customers,
   userIsAdmin = false,
+  isClientUser = false,
 }: MOAFormModalProps) {
   const [formTemplate, setFormTemplate] = useState<FormTemplateDto | null>(null);
   const [workflow, setWorkflow] = useState<WorkflowInstanceDto | null>(null);
   const [packChecklist, setPackChecklist] = useState<MoaPackChecklistDto>(emptyPackChecklist);
   const [packErrors, setPackErrors] = useState<string[]>([]);
   const [stepComments, setStepComments] = useState('');
+  const [clientSignComments, setClientSignComments] = useState('');
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     company: '',
@@ -674,7 +680,54 @@ export function MOAFormModal({
             </div>
           </div>
 
-          <div className="p-6 border-t border-border flex justify-end gap-3">
+          <div className="p-6 border-t border-border flex justify-between items-center gap-3">
+            <div>
+              {isClientUser && viewMode && onClientApprove && initialData?.id && (
+                <div className="space-y-3 max-w-lg">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Upload className="w-4 h-4 text-muted-foreground" />
+                    <span>{signatureFile ? signatureFile.name : 'Attach signature (image or PDF)'}</span>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => setSignatureFile(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  <input
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                    placeholder="Comments (optional)"
+                    value={clientSignComments}
+                    onChange={(e) => setClientSignComments(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!signatureFile) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        onClientApprove(initialData.id, {
+                          comments: clientSignComments,
+                          signatureFileName: signatureFile.name,
+                          signatureDataUrl: String(reader.result ?? ''),
+                        });
+                      };
+                      reader.readAsDataURL(signatureFile);
+                    }}
+                    disabled={!signatureFile}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm disabled:opacity-50"
+                  >
+                    Sign MOA
+                  </button>
+                </div>
+              )}
+              {initialData?.pendingApprovers?.length > 0 && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Awaiting sign-off from: {initialData.pendingApprovers.join(', ')}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-3">
             <button
               type="button"
               onClick={handleClose}
@@ -682,7 +735,7 @@ export function MOAFormModal({
             >
               {viewMode ? 'Close' : 'Cancel'}
             </button>
-            {!viewMode && !workflow && (
+            {!viewMode && !workflow && !isClientUser && (
               <button
                 type="submit"
                 disabled={submitting}
@@ -691,11 +744,12 @@ export function MOAFormModal({
                 {submitting ? 'Submitting…' : 'Submit MOA'}
               </button>
             )}
-            {workflow && (
+            {workflow && !isClientUser && (
               <button type="button" onClick={handleClose} className="px-6 py-2 bg-primary text-primary-foreground rounded-lg">
                 Done
               </button>
             )}
+            </div>
           </div>
         </form>
       </div>

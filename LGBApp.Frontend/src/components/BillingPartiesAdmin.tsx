@@ -18,7 +18,7 @@ export function BillingPartiesAdmin() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setItems(await getBillingParties(false));
+      setItems(await getBillingParties());
       setError('');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load billing parties.');
@@ -43,12 +43,13 @@ export function BillingPartiesAdmin() {
     }
   };
 
-  const handleDeactivate = async (id: number) => {
+  const handleDelete = async (item: BillingPartyDto) => {
+    if (!window.confirm(`Delete "${item.name}"? This removes it from all customer selections.`)) return;
     try {
-      await deleteBillingParty(id);
+      await deleteBillingParty(item.id);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to remove entry.');
+      setError(err instanceof ApiError ? err.message : 'Failed to delete entry.');
     }
   };
 
@@ -93,13 +94,14 @@ export function BillingPartiesAdmin() {
 
       {loading ? (
         <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+      ) : items.length === 0 ? (
+        <p className="p-4 text-sm text-muted-foreground">No billing entities yet.</p>
       ) : (
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
               <th className="px-4 py-2 text-left">Name</th>
               <th className="px-4 py-2 text-left">Category</th>
-              <th className="px-4 py-2 text-center">Active</th>
               <th className="px-4 py-2 text-right">Actions</th>
             </tr>
           </thead>
@@ -108,18 +110,15 @@ export function BillingPartiesAdmin() {
               <tr key={item.id} className="border-t border-border">
                 <td className="px-4 py-2">{item.name}</td>
                 <td className="px-4 py-2">{item.category}</td>
-                <td className="px-4 py-2 text-center">{item.isActive ? 'Yes' : 'No'}</td>
                 <td className="px-4 py-2 text-right">
-                  {item.isActive && (
-                    <button
-                      type="button"
-                      onClick={() => void handleDeactivate(item.id)}
-                      className="inline-flex items-center gap-1 text-xs text-destructive hover:underline"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Deactivate
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(item)}
+                    className="inline-flex items-center gap-1 text-xs text-destructive hover:underline"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}

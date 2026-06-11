@@ -35,6 +35,10 @@ public class JwtTokenService
             claims.Add(new Claim("must_change_password", "true"));
         if (user.CanApproveMoiIntake)
             claims.Add(new Claim("can_approve_moi_intake", "true"));
+        if (user.CanApproveMoi)
+            claims.Add(new Claim("can_approve_moi", "true"));
+        if (user.CanApproveMoa)
+            claims.Add(new Claim("can_approve_moa", "true"));
 
         var token = new JwtSecurityToken(
             issuer: _configuration["Jwt:Issuer"],

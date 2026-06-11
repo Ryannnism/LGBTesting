@@ -281,6 +281,7 @@ public static class JobRequestUnitService
             Assignees = assignees,
             ScheduledDate = DateOnlyHelper.Format(unit.ScheduledDate),
             Status = unit.Status,
+            InternalHandoffStatus = unit.InternalHandoffStatus,
         };
     }
 

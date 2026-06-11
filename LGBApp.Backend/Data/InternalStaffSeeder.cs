@@ -3,16 +3,20 @@ using LGBApp.Backend.Services;
 
 namespace LGBApp.Backend.Data;
 
-/// <summary>Seeds LGB internal team from MOI/MOA workflow (Sharon intake, reso prep team).</summary>
+/// <summary>
+/// Seeds LGB internal team: Sharon (admin + intake/MOI/MOA sign-off), resolution prep staff (assigned work only).
+/// Default password for seeded accounts: password123 (must change on first login).
+/// </summary>
 public static class InternalStaffSeeder
 {
-    private static readonly (string Email, string Name, string Role, string JobTitle, bool CanApproveMoiIntake, bool CanRecommendMoi)[] Staff =
+    private static readonly (string Email, string Name, string Role, string JobTitle,
+        bool CanApproveMoiIntake, bool CanRecommendMoi, bool CanApproveMoi, bool CanApproveMoa)[] Staff =
     [
-        ("sharon@lgb.test", "Sharon", UserRoles.Admin, "MOI intake & assignment", true, false),
-        ("ngpohli@lgb.test", "Ng Poh Li", UserRoles.User, "Resolution preparation", false, false),
-        ("nita@lgb.test", "Nita", UserRoles.User, "Resolution preparation", false, false),
-        ("siti@lgb.test", "Siti", UserRoles.User, "Resolution preparation", false, false),
-        ("nadia@lgb.test", "Nadia", UserRoles.User, "Resolution preparation", false, false),
+        ("sharon@lgb.test", "Sharon", UserRoles.Admin, "MOI intake & assignment", true, true, true, true),
+        ("ngpohli@lgb.test", "Ng Poh Li", UserRoles.User, "Resolution preparation", false, false, false, false),
+        ("nita@lgb.test", "Nita", UserRoles.User, "Resolution preparation", false, false, false, false),
+        ("siti@lgb.test", "Siti", UserRoles.User, "Resolution preparation", false, false, false, false),
+        ("nadia@lgb.test", "Nadia", UserRoles.User, "Resolution preparation", false, false, false, false),
     ];
 
     private static readonly string[] IntakeApproverEmails =
@@ -22,9 +26,9 @@ public static class InternalStaffSeeder
         "danra69@gmail.com",
     ];
 
-    public static void Seed(AppDbContext context)
+    public static void Seed(AppDbContext context, bool resetPasswordsInDevelopment = false)
     {
-        foreach (var (email, name, role, jobTitle, canApproveIntake, canRecommend) in Staff)
+        foreach (var (email, name, role, jobTitle, canApproveIntake, canRecommend, canApproveMoi, canApproveMoa) in Staff)
         {
             var existing = context.Users.FirstOrDefault(u => u.Email == email);
             if (existing != null)
@@ -34,6 +38,13 @@ public static class InternalStaffSeeder
                 existing.JobTitle = jobTitle;
                 existing.CanApproveMoiIntake = canApproveIntake;
                 existing.CanRecommendMoi = canRecommend;
+                existing.CanApproveMoi = canApproveMoi;
+                existing.CanApproveMoa = canApproveMoa;
+                if (resetPasswordsInDevelopment)
+                {
+                    existing.PasswordHash = PasswordHasher.Hash("password123");
+                    existing.MustChangePassword = true;
+                }
                 continue;
             }
 
@@ -47,6 +58,8 @@ public static class InternalStaffSeeder
                 JobTitle = jobTitle,
                 CanApproveMoiIntake = canApproveIntake,
                 CanRecommendMoi = canRecommend,
+                CanApproveMoi = canApproveMoi,
+                CanApproveMoa = canApproveMoa,
                 IsVerified = true,
                 MustChangePassword = true,
                 CreatedAt = DateTime.UtcNow,

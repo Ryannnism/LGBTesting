@@ -19,5 +19,8 @@ public class CreateUserRequest
     public string JobTitle { get; set; } = string.Empty;
     public bool CanRecommendMoi { get; set; }
     public bool CanApproveMoiIntake { get; set; }
+    public bool CanApproveMoi { get; set; }
+    public bool CanApproveMoa { get; set; }
+    public bool IsInternalSignatory { get; set; }
     public int? CustomerId { get; set; }
 }

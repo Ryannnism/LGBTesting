@@ -10,7 +10,7 @@ namespace LGBApp.Backend.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize(Roles = "ClientAdmin")]
+[Authorize(Roles = "ClientAdmin,ClientSignatory")]
 public class ClientPortalController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -77,7 +77,32 @@ public class ClientPortalController : ControllerBase
             OpenJobs = openJobs,
             CompletedJobs = completedJobs,
             TeamMembers = teamCount,
-            CategoryProgress = ClientPortalSummaryBuilder.BuildCategoryProgress(jobs),
+            CategoryProgress = await ClientPortalSummaryBuilder.BuildCategoryProgressAsync(_context, jobs),
         };
+    }
+
+    /// <summary>Client admin: toggle whether one MOI approver is enough or all must sign.</summary>
+    [HttpPatch("moi-approval-mode")]
+    [Authorize(Roles = "ClientAdmin")]
+    public async Task<ActionResult<CustomerResponse>> UpdateMoiApprovalMode(
+        [FromBody] UpdateMoiApprovalModeRequest request)
+    {
+        var customerId = AuthHelper.CurrentCustomerId(User);
+        if (!customerId.HasValue)
+            return BadRequest("Your account is not linked to a customer company.");
+
+        var mode = request.MoiApprovalMode?.Trim() ?? MoiApprovalModes.AllRequired;
+        if (mode is not (MoiApprovalModes.AllRequired or MoiApprovalModes.AnyOne))
+            return BadRequest("moiApprovalMode must be AllRequired or AnyOne.");
+
+        var customer = await _context.Customers
+            .Include(c => c.AccountHolders)
+            .Include(c => c.Packages)
+            .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+        if (customer == null) return NotFound();
+
+        customer.MoiApprovalMode = mode;
+        await _context.SaveChangesAsync();
+        return CustomerMapper.ToResponse(customer);
     }
 }

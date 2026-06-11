@@ -112,7 +112,7 @@ export function CustomerDetails({ customer, products = [], onClose, onEdit, onDe
         <div className="border-t border-border pt-6 mb-6">
           <h3 className="mb-4">Account Holders</h3>
           <p className="text-xs text-muted-foreground mb-3">
-            MOI, MOI Approval, and MOA forms are completed in-app via the package workboard.
+            Contacts flagged for MOI/MOA get a signatory login (scoped to this company). Client-added signatories are marked below.
           </p>
           <div className="space-y-3">
             {(customer.accountHolders || []).map((holder) => {
@@ -122,9 +122,15 @@ export function CustomerDetails({ customer, products = [], onClose, onEdit, onDe
               return (
                 <div key={holder.id} className="bg-muted/30 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Users className="w-4 h-4 text-muted-foreground" />
                       <span className="font-medium">{holder.name}</span>
+                      {holder.userId && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">Account #{holder.userId}</span>
+                      )}
+                      {holder.clientAdded && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">Client-added</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-4">
                       <label className="flex items-center gap-2 cursor-pointer">

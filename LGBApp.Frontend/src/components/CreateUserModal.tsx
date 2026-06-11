@@ -13,6 +13,9 @@ export interface CreateUserFormData {
   jobTitle?: string;
   canRecommendMoi?: boolean;
   canApproveMoiIntake?: boolean;
+  canApproveMoi?: boolean;
+  canApproveMoa?: boolean;
+  isInternalSignatory?: boolean;
   customerId?: number;
 }
 
@@ -25,7 +28,7 @@ interface CreateUserModalProps {
   onSubmit: (data: Omit<CreateUserFormData, 'confirmPassword'>) => void;
 }
 
-const EXTERNAL_ROLES = [ROLES.ClientAdmin];
+const EXTERNAL_ROLES = [ROLES.ClientAdmin, ROLES.ClientSignatory];
 
 export function CreateUserModal({
   isOpen,
@@ -46,6 +49,9 @@ export function CreateUserModal({
     jobTitle: '',
     canRecommendMoi: false,
     canApproveMoiIntake: false,
+    canApproveMoi: false,
+    canApproveMoa: false,
+    isInternalSignatory: false,
     customerId: undefined,
   });
 
@@ -61,6 +67,9 @@ export function CreateUserModal({
       role: isClientTeamMode ? ROLES.ClientAdmin : ROLES.User,
       jobTitle: '',
       canRecommendMoi: false,
+      canApproveMoiIntake: false,
+      canApproveMoi: false,
+      canApproveMoa: false,
       customerId: fixedCustomerId,
     });
   };
@@ -185,6 +194,7 @@ export function CreateUserModal({
                   <option value={ROLES.Admin}>{roleLabel(ROLES.Admin)}</option>
                   <option value={ROLES.User}>{roleLabel(ROLES.User)}</option>
                   <option value={ROLES.ClientAdmin}>{roleLabel(ROLES.ClientAdmin)}</option>
+                  <option value={ROLES.ClientSignatory}>{roleLabel(ROLES.ClientSignatory)}</option>
                 </select>
               </div>
             )}
@@ -246,6 +256,30 @@ export function CreateUserModal({
                     onChange={(e) => setFormData({ ...formData, canApproveMoiIntake: e.target.checked })}
                   />
                   Can approve MOI intake (named intake approver)
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(formData.canApproveMoi)}
+                    onChange={(e) => setFormData({ ...formData, canApproveMoi: e.target.checked })}
+                  />
+                  Can sign off MOI (sees MOI before assignment)
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(formData.canApproveMoa)}
+                    onChange={(e) => setFormData({ ...formData, canApproveMoa: e.target.checked })}
+                  />
+                  Can sign off MOA (sees MOA before assignment)
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(formData.isInternalSignatory)}
+                    onChange={(e) => setFormData({ ...formData, isInternalSignatory: e.target.checked })}
+                  />
+                  MOA workflow signatory (internal named approver)
                 </label>
               </>
             )}

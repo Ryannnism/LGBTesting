@@ -96,6 +96,34 @@ public static class BillingPartyService
         await context.SaveChangesAsync();
     }
 
+    public static async Task RemovePartyFromAllCustomersAsync(AppDbContext context, int billingPartyId)
+    {
+        var customers = await context.Customers.ToListAsync();
+        foreach (var customer in customers)
+        {
+            var invoiceIds = ParsePartyIds(customer.InvoiceByPartyIdsJson)
+                .Where(id => id != billingPartyId)
+                .ToList();
+            var chargeIds = ParsePartyIds(customer.ChargeToPartyIdsJson)
+                .Where(id => id != billingPartyId)
+                .ToList();
+
+            if (invoiceIds.Count != ParsePartyIds(customer.InvoiceByPartyIdsJson).Count)
+            {
+                customer.InvoiceByPartyIdsJson = JsonHelper.Serialize(invoiceIds);
+                customer.InvoiceBy = await FormatPartyNamesAsync(context, customer.InvoiceByPartyIdsJson);
+            }
+
+            if (chargeIds.Count != ParsePartyIds(customer.ChargeToPartyIdsJson).Count)
+            {
+                customer.ChargeToPartyIdsJson = JsonHelper.Serialize(chargeIds);
+                customer.ChargeTo = await FormatPartyNamesAsync(context, customer.ChargeToPartyIdsJson);
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
+
     private static async Task<List<int>> ResolveIdsForNamesAsync(AppDbContext context, string csv)
     {
         var names = csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

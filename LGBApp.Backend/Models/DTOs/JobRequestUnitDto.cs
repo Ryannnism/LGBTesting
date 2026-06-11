@@ -9,6 +9,14 @@ public class JobRequestUnitDto
     public List<UnitAssigneeDto> Assignees { get; set; } = [];
     public string? ScheduledDate { get; set; }
     public string Status { get; set; } = "Pending";
+    public string InternalHandoffStatus { get; set; } = string.Empty;
+    public string? LinkedFormKind { get; set; }
+    public int? LinkedFormId { get; set; }
+    public bool HasMoiForm { get; set; }
+    public bool HasMoaForm { get; set; }
+    public string? MoiWorkflowState { get; set; }
+    public string DisplayStatus { get; set; } = string.Empty;
+    public string DisplayStatusKey { get; set; } = string.Empty;
 }
 
 public class WorkTrackerItemDto

@@ -12,6 +12,7 @@ public static class WorkflowService
         if (string.IsNullOrWhiteSpace(company))
             return null;
         return await context.Customers
+            .Include(c => c.AccountHolders)
             .FirstOrDefaultAsync(c => c.Company == company);
     }
 
@@ -134,6 +135,15 @@ public static class WorkflowService
         var order = 1;
         foreach (var step in applicableSteps)
         {
+            var assigneeUserId = step.AssigneeUserId;
+            var assigneeName = ResolveAssigneeName(step, customer);
+            if (assigneeUserId.HasValue)
+            {
+                var linked = await context.Users.FindAsync(assigneeUserId.Value);
+                if (linked != null)
+                    assigneeName = linked.Name;
+            }
+
             instance.Steps.Add(new WorkflowStepInstance
             {
                 StepOrder = order,
@@ -141,8 +151,8 @@ public static class WorkflowService
                 DisplayName = step.DisplayName,
                 ConditionType = step.ConditionType,
                 AssigneeType = step.AssigneeType,
-                AssigneeUserId = step.AssigneeUserId,
-                AssigneeName = ResolveAssigneeName(step, customer),
+                AssigneeUserId = assigneeUserId,
+                AssigneeName = assigneeName,
                 Status = order == 1 ? "Active" : "Pending",
             });
             order++;
@@ -216,9 +226,14 @@ public static class WorkflowService
     public static async Task<bool> CanUserApproveStepAsync(
         AppDbContext context, User user, WorkflowStepInstance step, Customer? customer, bool isAdmin)
     {
-        if (isAdmin) return true;
+        if (isAdmin || user.CanApproveMoa) return true;
 
         if (step.AssigneeUserId.HasValue && step.AssigneeUserId == user.UserId)
+            return true;
+
+        if (step.AssigneeType is "NamedUser" or "InternalSignatory"
+            && user.IsInternalSignatory
+            && step.AssigneeName.Equals(user.Name, StringComparison.OrdinalIgnoreCase))
             return true;
 
         if (step.AssigneeType == "DivisionRecommender" && customer != null)

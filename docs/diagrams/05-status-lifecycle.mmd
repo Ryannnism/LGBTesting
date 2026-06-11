@@ -1,0 +1,34 @@
+stateDiagram-v2
+  direction LR
+
+  [*] --> MoiNotReceived: Service line synced
+  MoiNotReceived --> AwaitingIntake: ClientAdmin / Signatory issues MOI
+  AwaitingIntake --> ResolutionPrep: CanApproveMoiIntake approves
+  ResolutionPrep --> PendingRecommendation: Secretary completes prep
+  PendingRecommendation --> MoiSignOff: CanRecommendMoi
+  MoiSignOff --> MoiApproved: CanApproveMoi signs off
+  MoiApproved --> MoaPrepInternal: Assign secretarial team
+  MoaPrepInternal --> ReadyForMoa: Admin approve for MOA
+  ReadyForMoa --> MoaCirculation: Start MOA workflow
+  MoaCirculation --> Completed: Workflow + client sign-off
+  Completed --> [*]
+
+  note right of AwaitingIntake
+    Role: CanApproveMoiIntake
+    e.g. Sharon
+  end note
+
+  note right of ResolutionPrep
+    Role: User (assigned)
+    Secretarial team
+  end note
+
+  note right of ReadyForMoa
+    Role: ClientSignatory
+    sees MOA form
+  end note
+
+  note right of MoaCirculation
+    Role: IsInternalSignatory
+    + CanApproveMoa oversight
+  end note

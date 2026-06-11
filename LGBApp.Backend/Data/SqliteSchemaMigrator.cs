@@ -80,6 +80,7 @@ public static class SqliteSchemaMigrator
             SELECT u."JobRequestUnitId", u."AssignedUserId"
             FROM "JobRequestUnits" u
             WHERE u."AssignedUserId" IS NOT NULL
+              AND EXISTS (SELECT 1 FROM "Users" us WHERE us."UserId" = u."AssignedUserId")
               AND NOT EXISTS (
                   SELECT 1 FROM "JobRequestUnitAssignees" a
                   WHERE a."JobRequestUnitId" = u."JobRequestUnitId" AND a."UserId" = u."AssignedUserId"
@@ -98,12 +99,22 @@ public static class SqliteSchemaMigrator
         EnsureColumn(context, "Users", "InvitedByUserId", "INTEGER NULL");
         EnsureColumn(context, "Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 1");
         EnsureColumn(context, "Users", "CanApproveMoiIntake", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn(context, "Users", "CanApproveMoi", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn(context, "Users", "CanApproveMoa", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn(context, "Users", "IsInternalSignatory", "INTEGER NOT NULL DEFAULT 0");
         EnsureColumn(context, "Customers", "InvoiceByPartyIdsJson", "TEXT NOT NULL DEFAULT '[]'");
         EnsureColumn(context, "Customers", "ChargeToPartyIdsJson", "TEXT NOT NULL DEFAULT '[]'");
 
         context.Database.ExecuteSqlRaw("""
             UPDATE "Users" SET "Role" = 'ClientAdmin' WHERE "Role" = 'Client';
             """);
+
+        EnsureColumn(context, "AccountHolders", "NeedsMoi", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn(context, "AccountHolders", "NeedsMoiApproval", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn(context, "AccountHolders", "NeedsMoa", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn(context, "AccountHolders", "UserId", "INTEGER NULL");
+        EnsureColumn(context, "AccountHolders", "ClientAdded", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn(context, "AccountHolders", "AddedByUserId", "INTEGER NULL");
 
         EnsureColumn(context, "FormTemplates", "PackageServiceName", "TEXT NOT NULL DEFAULT ''");
 
@@ -143,12 +154,15 @@ public static class SqliteSchemaMigrator
         EnsureColumn(context, "MOIForms", "RecommendedByUserId", "INTEGER NULL");
         EnsureColumn(context, "MOIForms", "RecommendedAt", "TEXT NULL");
         EnsureColumn(context, "MOIForms", "RecommendationComments", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(context, "MOIForms", "ClientApprovalsJson", "TEXT NOT NULL DEFAULT '[]'");
 
         EnsureColumn(context, "MOAForms", "FormTemplateCode", "TEXT NOT NULL DEFAULT ''");
         EnsureColumn(context, "MOAForms", "FinanceRelated", "INTEGER NOT NULL DEFAULT 0");
         EnsureColumn(context, "MOAForms", "BankSignatoryMatter", "INTEGER NOT NULL DEFAULT 0");
         EnsureColumn(context, "MOAForms", "ShareMovement", "INTEGER NOT NULL DEFAULT 0");
         EnsureColumn(context, "MOAForms", "PackChecklistJson", "TEXT NOT NULL DEFAULT '{}'");
+        EnsureColumn(context, "MOAForms", "ClientApprovalsJson", "TEXT NOT NULL DEFAULT '[]'");
+        EnsureColumn(context, "MOAForms", "SharonApprovedAt", "TEXT NULL");
         EnsureColumn(context, "MOAForms", "JobRequestId", "INTEGER NULL");
 
         context.Database.ExecuteSqlRaw("""
@@ -271,6 +285,35 @@ public static class SqliteSchemaMigrator
             );
             """);
 
+        EnsureColumn(context, "Customers", "MoiApprovalMode", "TEXT NOT NULL DEFAULT 'AllRequired'");
+        EnsureColumn(context, "MOIForms", "JobRequestUnitId", "INTEGER NULL");
+        EnsureColumn(context, "MOAForms", "JobRequestUnitId", "INTEGER NULL");
+        EnsureColumn(context, "JobRequestUnits", "InternalHandoffStatus", "TEXT NOT NULL DEFAULT ''");
+
+        context.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS "JobItemDocuments" (
+                "JobItemDocumentId" INTEGER NOT NULL CONSTRAINT "PK_JobItemDocuments" PRIMARY KEY AUTOINCREMENT,
+                "JobRequestId" INTEGER NOT NULL,
+                "JobRequestUnitId" INTEGER NULL,
+                "Folder" TEXT NOT NULL DEFAULT 'supporting',
+                "FileName" TEXT NOT NULL DEFAULT '',
+                "StorageKey" TEXT NOT NULL DEFAULT '',
+                "ContentType" TEXT NOT NULL DEFAULT 'application/octet-stream',
+                "UploadedByUserId" INTEGER NOT NULL DEFAULT 0,
+                "UploadedByName" TEXT NOT NULL DEFAULT '',
+                "UploadedAt" TEXT NOT NULL,
+                "VisibleToInternal" INTEGER NOT NULL DEFAULT 0,
+                CONSTRAINT "FK_JobItemDocuments_JobRequests_JobRequestId" FOREIGN KEY ("JobRequestId") REFERENCES "JobRequests" ("JobRequestId") ON DELETE CASCADE
+            );
+            """);
+
+        EnsureColumn(context, "JobItemDocuments", "JobRequestUnitId", "INTEGER NULL");
+
+        context.Database.ExecuteSqlRaw("""
+            CREATE INDEX IF NOT EXISTS "IX_JobItemDocuments_JobRequestId_Folder"
+            ON "JobItemDocuments" ("JobRequestId", "Folder");
+            """);
+
         context.Database.ExecuteSqlRaw("""
             CREATE TABLE IF NOT EXISTS "PackageScheduleItems" (
                 "PackageScheduleItemId" INTEGER NOT NULL CONSTRAINT "PK_PackageScheduleItems" PRIMARY KEY AUTOINCREMENT,
@@ -292,12 +335,40 @@ public static class SqliteSchemaMigrator
 
     private static void EnsureColumn(AppDbContext context, string table, string column, string definition)
     {
-        if (ColumnExists(context, table, column))
+        if (!TableExists(context, table) || ColumnExists(context, table, column))
             return;
 
         // Brace-doubling: ExecuteSqlRaw treats { } as format placeholders
         var escaped = definition.Replace("{", "{{").Replace("}", "}}");
         context.Database.ExecuteSqlRaw($"""ALTER TABLE "{table}" ADD COLUMN "{column}" {escaped};""");
+    }
+
+    private static bool TableExists(AppDbContext context, string table)
+    {
+        var connection = context.Database.GetDbConnection();
+        var wasOpen = connection.State == System.Data.ConnectionState.Open;
+        if (!wasOpen)
+            connection.Open();
+
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT 1 FROM sqlite_master
+                WHERE type = 'table' AND name = $name
+                LIMIT 1;
+                """;
+            var param = command.CreateParameter();
+            param.ParameterName = "$name";
+            param.Value = table;
+            command.Parameters.Add(param);
+            return command.ExecuteScalar() != null;
+        }
+        finally
+        {
+            if (!wasOpen)
+                connection.Close();
+        }
     }
 
     private static bool ColumnExists(AppDbContext context, string table, string column)

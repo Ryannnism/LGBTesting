@@ -10,4 +10,6 @@ public class IssueMoiRequest
     public string? InitiationDate { get; set; }
     public string? RequestedBy { get; set; }
     public bool AdHoc { get; set; }
+    /// <summary>Required when the package item has multiple sessions (TotalQty &gt; 1).</summary>
+    public int? UnitNumber { get; set; }
 }

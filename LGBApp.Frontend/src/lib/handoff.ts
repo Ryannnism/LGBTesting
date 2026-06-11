@@ -3,8 +3,10 @@ export const HANDOFF_LABELS: Record<string, string> = {
   PendingPrep: 'Pending prep',
   ResoInProgress: 'Reso in progress',
   AdminReview: 'Admin review',
+  MoaSharonApproved: 'MOA approved (internal)',
   ReadyForMoa: 'Ready for MOA',
   MoaCirculation: 'MOA circulation',
+  PendingExecute: 'Pending execute',
   Completed: 'Completed',
 };
 

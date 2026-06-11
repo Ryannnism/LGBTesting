@@ -17,7 +17,9 @@ public static class JobRequestSyncService
             .ToListAsync();
 
         var products = await context.Products.ToListAsync();
-        var productsByName = products.ToDictionary(p => p.PackageName, StringComparer.OrdinalIgnoreCase);
+        var productsByName = products
+            .GroupBy(p => p.PackageName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         foreach (var customer in customers)
             await SyncCustomerWorkAsync(context, customer, productsByName);
@@ -27,6 +29,8 @@ public static class JobRequestSyncService
         var jobs = await context.JobRequests.ToListAsync();
         foreach (var job in jobs)
             await JobRequestUnitService.SyncUnitsForJobAsync(context, job);
+
+        await JobWorkflowIntegrityService.RepairAllAsync(context);
     }
 
     public static async Task SyncCustomerWorkAsync(
@@ -35,93 +39,31 @@ public static class JobRequestSyncService
         Dictionary<string, Product>? productsByName = null)
     {
         productsByName ??= (await context.Products.ToListAsync())
-            .ToDictionary(p => p.PackageName, StringComparer.OrdinalIgnoreCase);
+            .GroupBy(p => p.PackageName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         await context.Entry(customer).Collection(c => c.Packages).LoadAsync();
         await context.Entry(customer).Collection(c => c.AccountHolders).LoadAsync();
 
-        await SyncCustomerFormJobsAsync(context, customer);
+        await RemoveLegacyFormJobsAsync(context, customer);
         foreach (var package in customer.Packages)
             await SyncPackageServiceJobsAsync(context, customer, package, productsByName);
     }
 
-    public static async Task SyncCustomerFormJobsAsync(AppDbContext context, Customer customer)
+    /// <summary>
+    /// MOI/MOA workflow runs per package service line — not as standalone customer-level form jobs.
+    /// Remove legacy MOI / MOI Approval / MOA rows that predate per-item workflow.
+    /// </summary>
+    public static async Task RemoveLegacyFormJobsAsync(AppDbContext context, Customer customer)
     {
-        var moi = JsonHelper.Deserialize<List<string>>(customer.MoiJson);
-        var moiApproval = JsonHelper.Deserialize<List<string>>(customer.MoiApprovalJson);
-        var moa = JsonHelper.Deserialize<List<string>>(customer.MoaJson);
-
-        var desired = new List<(string TaskType, string Holder)>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        void AddDesired(string taskType, IEnumerable<string> names)
-        {
-            foreach (var name in names.Where(n => !string.IsNullOrWhiteSpace(n)))
-            {
-                var holder = name.Trim();
-                var key = $"{taskType}|{holder}";
-                if (seen.Add(key))
-                    desired.Add((taskType, holder));
-            }
-        }
-
-        AddDesired("MOI", moi);
-        AddDesired("MOI Approval", moiApproval);
-        AddDesired("MOA", moa);
-
-        var existing = await context.JobRequests
-            .Where(j => j.CustomerId == customer.CustomerId && j.CustomerPackageId == null)
+        var legacy = await context.JobRequests
+            .Where(j => j.CustomerId == customer.CustomerId
+                && j.CustomerPackageId == null
+                && FormTaskTypes.Contains(j.TaskType))
             .ToListAsync();
-        existing = existing.Where(j => FormTaskTypes.Contains(j.TaskType)).ToList();
 
-        foreach (var (taskType, holder) in desired)
-        {
-            var job = existing.FirstOrDefault(j =>
-                j.TaskType == taskType &&
-                string.Equals(j.AccountHolder, holder, StringComparison.OrdinalIgnoreCase));
-
-            var (email, phone) = ResolveHolderContact(customer, holder);
-
-            if (job == null)
-            {
-                context.JobRequests.Add(new JobRequest
-                {
-                    CustomerId = customer.CustomerId,
-                    CustomerPackageId = null,
-                    Customer = customer.Company,
-                    TaskType = taskType,
-                    Service = taskType,
-                    AccountHolder = holder,
-                    AccountHolderEmail = email,
-                    AccountHolderPhone = phone,
-                    Status = "Pending",
-                    DateRequested = DateTime.UtcNow,
-                    TotalQty = 1,
-                    UsedQty = 0,
-                    JobAssignedTo = string.Empty,
-                });
-            }
-            else
-            {
-                job.Customer = customer.Company;
-                job.AccountHolderEmail = email;
-                job.AccountHolderPhone = phone;
-            }
-        }
-
-        foreach (var job in existing)
-        {
-            if (job.Status is "Completed" or "Canceled")
-                continue;
-
-            var stillNeeded = desired.Any(d =>
-                d.TaskType == job.TaskType &&
-                string.Equals(d.Holder, job.AccountHolder, StringComparison.OrdinalIgnoreCase));
-
-            if (!stillNeeded)
-                context.JobRequests.Remove(job);
-        }
-
-        RemoveDuplicateJobs(context, existing);
+        foreach (var job in legacy)
+            context.JobRequests.Remove(job);
     }
 
     public static async Task SyncPackageServiceJobsAsync(

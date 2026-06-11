@@ -65,18 +65,33 @@ export function ClientPackages({ refreshKey = 0 }: ClientPackagesProps) {
             </div>
           </div>
           {summary.categoryProgress && summary.categoryProgress.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {summary.categoryProgress.map((cat) => (
-                <div key={cat.category} className="bg-card border border-border rounded-lg p-4">
-                  <p className="text-xs text-muted-foreground">{cat.category}</p>
-                  <p className="text-lg font-semibold mt-1">
-                    {cat.completed} / {cat.total} done
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {cat.pending + cat.inProgress} open
-                  </p>
-                </div>
-              ))}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Package services progress</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {summary.categoryProgress.map((cat) => (
+                  <div
+                    key={cat.category}
+                    className={`bg-card border rounded-lg p-4 ${
+                      cat.category === 'All services' ? 'border-primary ring-1 ring-primary/30' : 'border-border'
+                    }`}
+                  >
+                    <p className="text-xs text-muted-foreground">{cat.category}</p>
+                    <p className="text-2xl font-semibold mt-1">
+                      {cat.completed}
+                      <span className="text-base font-normal text-muted-foreground"> / {cat.total}</span>
+                    </p>
+                    <p className="text-xs mt-2 text-muted-foreground">
+                      {cat.pending + cat.inProgress} open · {cat.completed} done
+                    </p>
+                    <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-600 rounded-full"
+                        style={{ width: cat.total ? `${(cat.completed / cat.total) * 100}%` : '0%' }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </>

@@ -9,8 +9,14 @@ export interface UserResponse {
   jobTitle: string;
   canRecommendMoi: boolean;
   canApproveMoiIntake: boolean;
+  canApproveMoi: boolean;
+  canApproveMoa: boolean;
+  isInternalSignatory?: boolean;
   customerId?: number;
   customerName?: string;
+  needsMoi?: boolean;
+  needsMoiApproval?: boolean;
+  needsMoa?: boolean;
   isVerified: boolean;
   mustChangePassword: boolean;
   createdAt: string;
@@ -26,6 +32,12 @@ export interface AccountHolderDto {
   name: string;
   email: string;
   phone: string;
+  moi?: boolean;
+  moiApproval?: boolean;
+  moa?: boolean;
+  userId?: number;
+  clientAdded?: boolean;
+  addedByUserId?: number;
 }
 
 export interface AddOnLineDto {
@@ -92,6 +104,7 @@ export interface CustomerResponse {
   moaFormTemplateCode?: string;
   moi: string[];
   moiApproval: string[];
+  moiApprovalMode?: 'AllRequired' | 'AnyOne';
   moa: string[];
   purchasedDate: string;
   expiryDate: string;
@@ -126,6 +139,14 @@ export interface JobRequestUnitDto {
   assignees?: UnitAssigneeDto[];
   scheduledDate?: string;
   status: 'Pending' | 'In Progress' | 'Completed';
+  internalHandoffStatus?: string;
+  linkedFormKind?: string;
+  linkedFormId?: number;
+  hasMoiForm?: boolean;
+  hasMoaForm?: boolean;
+  moiWorkflowState?: string;
+  displayStatus?: string;
+  displayStatusKey?: string;
 }
 
 export interface WorkTrackerItemDto {
@@ -165,9 +186,16 @@ export interface JobRequestResponse {
   units?: JobRequestUnitDto[];
   linkedFormKind?: string;
   linkedFormId?: number;
+  hasMoiForm?: boolean;
+  hasMoaForm?: boolean;
+  moiWorkflowState?: string;
   internalHandoffStatus?: string;
   awaitingIntakeApproval?: boolean;
   taskPhase?: string;
+  displayStatus?: string;
+  displayStatusKey?: string;
+  /** Active session when opening a per-unit MOI from the portal. */
+  activeUnitNumber?: number;
 }
 
 export interface BillingPartyDto {
@@ -274,6 +302,13 @@ export interface DivisionGroupDto {
   recommenders: { id: number; userId?: number; displayName: string }[];
 }
 
+export interface ClientApprovalDto {
+  userId: number;
+  accountHolderName: string;
+  comments: string;
+  signedAt: string;
+}
+
 export interface FormResponse {
   id: number;
   jobId?: number;
@@ -288,6 +323,10 @@ export interface FormResponse {
   packChecklist?: MoaPackChecklistDto;
   packValidationErrors?: string[];
   workflow?: WorkflowInstanceDto;
+  clientApprovals?: ClientApprovalDto[];
+  requiredApprovers?: string[];
+  pendingApprovers?: string[];
+  sharonApprovedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -385,11 +424,30 @@ export {
   isAdmin,
   isInternalStaff,
   isClientAdmin,
+  isClientSignatory,
   isClientStaff,
   isExternalUser,
   canManageUsers,
   roleLabel,
 } from '@/lib/roles';
+
+export async function addClientSignatory(data: {
+  name: string;
+  email: string;
+  phone?: string;
+  moi?: boolean;
+  moiApproval?: boolean;
+  moa?: boolean;
+}): Promise<AccountHolderDto> {
+  return request<AccountHolderDto>('/api/clientsignatories', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getClientSignatories(): Promise<AccountHolderDto[]> {
+  return request<AccountHolderDto[]>('/api/clientsignatories');
+}
 
 export interface ClientPortalSummaryDto {
   companyName: string;
@@ -513,6 +571,9 @@ export async function createUser(data: {
   jobTitle?: string;
   canRecommendMoi?: boolean;
   canApproveMoiIntake?: boolean;
+  canApproveMoi?: boolean;
+  canApproveMoa?: boolean;
+  isInternalSignatory?: boolean;
   customerId?: number;
 }): Promise<UserResponse> {
   return request<UserResponse>('/api/users', {
@@ -531,6 +592,9 @@ export async function updateUser(
     jobTitle?: string;
     canRecommendMoi?: boolean;
     canApproveMoiIntake?: boolean;
+    canApproveMoi?: boolean;
+    canApproveMoa?: boolean;
+    isInternalSignatory?: boolean;
     customerId?: number;
   },
 ): Promise<void> {
@@ -657,6 +721,12 @@ export async function recordJobProgress(
   });
 }
 
+export async function assignSecretarialTeam(jobId: number): Promise<JobRequestResponse> {
+  return request<JobRequestResponse>(`/api/jobrequests/${jobId}/assign-secretarial-team`, {
+    method: 'POST',
+  });
+}
+
 export async function assignJobRequest(
   id: number,
   data: {
@@ -694,6 +764,91 @@ export async function getMyCompany(): Promise<CustomerResponse> {
 
 export async function getClientPortalSummary(): Promise<ClientPortalSummaryDto> {
   return request<ClientPortalSummaryDto>('/api/clientportal/summary');
+}
+
+export async function updateMoiApprovalMode(
+  mode: 'AllRequired' | 'AnyOne',
+): Promise<CustomerResponse> {
+  return request<CustomerResponse>('/api/clientportal/moi-approval-mode', {
+    method: 'PATCH',
+    body: JSON.stringify({ moiApprovalMode: mode }),
+  });
+}
+
+export interface JobItemDocumentDto {
+  id: number;
+  jobId: number;
+  folder: string;
+  fileName: string;
+  contentType: string;
+  uploadedByName: string;
+  uploadedAt: string;
+  visibleToInternal: boolean;
+}
+
+export interface JobItemFolderDto {
+  folder: string;
+  documents: JobItemDocumentDto[];
+}
+
+export interface JobItemFoldersResponse {
+  jobId: number;
+  service: string;
+  moiFormId?: number;
+  moaFormId?: number;
+  moiWorkflowState?: string;
+  folders: JobItemFolderDto[];
+}
+
+export async function getJobItemFolders(
+  jobId: number,
+  unitNumber?: number,
+): Promise<JobItemFoldersResponse> {
+  const params = unitNumber ? `?unitNumber=${unitNumber}` : '';
+  return request<JobItemFoldersResponse>(`/api/jobs/${jobId}/documents/folders${params}`);
+}
+
+export async function uploadJobItemDocument(
+  jobId: number,
+  folder: 'moi' | 'moa' | 'supporting',
+  file: File,
+  unitNumber?: number,
+): Promise<JobItemDocumentDto> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const qs = new URLSearchParams({ folder });
+  if (unitNumber) qs.set('unitNumber', String(unitNumber));
+  const response = await fetch(
+    `${API_BASE}/api/jobs/${jobId}/documents?${qs.toString()}`,
+    { method: 'POST', headers, body: formData },
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    throw new ApiError(formatApiError(text, response.status), response.status);
+  }
+  return response.json() as Promise<JobItemDocumentDto>;
+}
+
+export async function deleteJobItemDocument(jobId: number, documentId: number): Promise<void> {
+  return request<void>(`/api/jobs/${jobId}/documents/${documentId}`, { method: 'DELETE' });
+}
+
+export async function downloadJobItemDocument(jobId: number, documentId: number): Promise<Blob> {
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const response = await fetch(
+    `${API_BASE}/api/jobs/${jobId}/documents/${documentId}/download`,
+    { headers },
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    throw new ApiError(formatApiError(text, response.status), response.status);
+  }
+  return response.blob();
 }
 
 export async function assignClientJob(
@@ -737,6 +892,22 @@ export async function issueMoiJob(data: {
   });
 }
 
+export async function issueMoiForJob(
+  jobId: number,
+  data?: {
+    service?: string;
+    typeOfDocument?: string;
+    documentTitle?: string;
+    requestedBy?: string;
+    unitNumber?: number;
+  },
+): Promise<JobRequestResponse> {
+  return request<JobRequestResponse>(`/api/clientjobs/${jobId}/issue-moi`, {
+    method: 'POST',
+    body: JSON.stringify(data ?? {}),
+  });
+}
+
 export async function updateJobRequest(id: number, data: Partial<JobRequestResponse>): Promise<void> {
   return request<void>(`/api/jobrequests/${id}`, {
     method: 'PUT',
@@ -769,9 +940,16 @@ export async function getCompletedServices(search?: string, year?: number): Prom
 }
 
 // Forms
-export async function getMOIForms(jobId?: number): Promise<FormResponse[]> {
-  const params = jobId ? `?jobId=${jobId}` : '';
-  return request<FormResponse[]>(`/api/moiforms${params}`);
+export async function getMOIForms(jobId?: number, unitNumber?: number): Promise<FormResponse[]> {
+  const params = new URLSearchParams();
+  if (jobId) params.set('jobId', String(jobId));
+  if (unitNumber) params.set('unitNumber', String(unitNumber));
+  const qs = params.toString();
+  return request<FormResponse[]>(`/api/moiforms${qs ? `?${qs}` : ''}`);
+}
+
+export async function getMOIForm(id: number): Promise<FormResponse> {
+  return request<FormResponse>(`/api/moiforms/${id}`);
 }
 
 export async function createMOIForm(data: {
@@ -799,6 +977,38 @@ export async function updateMOIForm(id: number, data: {
   return request<void>(`/api/moiforms/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
+  });
+}
+
+export async function submitMoiForApproval(id: number): Promise<FormResponse> {
+  return request<FormResponse>(`/api/moiforms/${id}/submit-for-approval`, { method: 'POST' });
+}
+
+export interface ClientApprovePayload {
+  comments?: string;
+  signatureFileName?: string;
+  signatureDataUrl?: string;
+}
+
+export async function clientApproveMoiForm(id: number, payload: ClientApprovePayload): Promise<FormResponse> {
+  return request<FormResponse>(`/api/moiforms/${id}/client-approve`, {
+    method: 'POST',
+    body: JSON.stringify({
+      comments: payload.comments ?? '',
+      signatureFileName: payload.signatureFileName,
+      signatureDataUrl: payload.signatureDataUrl,
+    }),
+  });
+}
+
+export async function clientApproveMoaForm(id: number, payload: ClientApprovePayload): Promise<FormResponse> {
+  return request<FormResponse>(`/api/moaforms/${id}/client-approve`, {
+    method: 'POST',
+    body: JSON.stringify({
+      comments: payload.comments ?? '',
+      signatureFileName: payload.signatureFileName,
+      signatureDataUrl: payload.signatureDataUrl,
+    }),
   });
 }
 
@@ -902,7 +1112,7 @@ export async function approveMoiIntake(jobId: number): Promise<JobRequestRespons
 
 export async function advanceJobHandoff(
   jobId: number,
-  action: 'start-prep' | 'start-reso' | 'submit-admin-review' | 'approve-for-moa',
+  action: 'start-prep' | 'start-reso' | 'submit-admin-review' | 'sharon-approve-moa' | 'approve-for-moa',
   comments?: string,
 ): Promise<JobRequestResponse> {
   return request<JobRequestResponse>(`/api/jobrequests/${jobId}/handoff`, {

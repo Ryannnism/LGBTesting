@@ -1,6 +1,7 @@
 using LGBApp.Backend.Data;
 using LGBApp.Backend.Models;
 using LGBApp.Backend.Models.DTOs;
+using LGBApp.Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -85,7 +86,9 @@ public class BillingPartiesController : ControllerBase
     {
         var entity = await _context.BillingParties.FindAsync(id);
         if (entity == null) return NotFound();
-        entity.IsActive = false;
+
+        await BillingPartyService.RemovePartyFromAllCustomersAsync(_context, id);
+        _context.BillingParties.Remove(entity);
         await _context.SaveChangesAsync();
         return NoContent();
     }

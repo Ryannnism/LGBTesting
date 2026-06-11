@@ -6,6 +6,7 @@ import {
   advanceJobHandoff,
   approveMoiIntake,
   assignJobRequest,
+  assignSecretarialTeam,
   getJobRequests,
   recordJobProgress,
   type CustomerPackageDto,
@@ -13,7 +14,15 @@ import {
   type JobRequestResponse,
   type JobRequestUnitDto,
 } from '@/lib/api';
-import { handoffLabel } from '@/lib/handoff';
+import {
+  canAssignSecretarialTeam,
+  canOpenMoaForm,
+  displayStatusKey,
+  displayStatusLabel,
+  jobHasMoaForm,
+  jobHasMoiForm,
+  packageItemStatusBadgeClass,
+} from '@/lib/packageItemStatus';
 
 interface PackageWorkboardProps {
   customer: CustomerResponse;
@@ -105,7 +114,13 @@ export function PackageWorkboard({
 
   const renderUnitRow = (job: JobRequestResponse, unit: JobRequestUnitDto, label: string, isForm: boolean) => {
     const key = draftKey(job.id, unit.unitNumber);
-    const canOpen = isForm && Boolean(job.linkedFormId) && (unit.status === 'In Progress' || unit.status === 'Pending');
+    const isPackageService = job.taskType === 'Service';
+    const isMoiTask = job.taskType === 'MOI' || job.taskType === 'MOI Approval';
+    const canOpen =
+      isPackageService
+      || isMoiTask
+      || (job.taskType === 'MOA' && (canOpenMoaForm(job) || jobHasMoaForm(job)))
+      || (isForm && jobHasMoiForm(job));
     const showUnitLabel = (job.totalQty ?? 1) > 1;
 
     return (
@@ -161,21 +176,14 @@ export function PackageWorkboard({
             onRemove={(userId) => void handleAssignUnit(job, unit.unitNumber, userId, true)}
           />
         </td>
-        <td className="px-4 py-2 text-center">
-          <span className={`px-2 py-0.5 rounded-full text-xs ${
-            unit.status === 'Completed' ? 'bg-green-100 text-green-800'
-              : unit.status === 'In Progress' ? 'bg-blue-100 text-blue-800'
-              : 'bg-yellow-100 text-yellow-800'
-          }`}>
-            {unit.status}
+        <td className="px-4 py-2">
+          <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${packageItemStatusBadgeClass(displayStatusKey(job))}`}>
+            {displayStatusLabel(job)}
           </span>
-        </td>
-        <td className="px-4 py-2 text-xs text-muted-foreground">
-          {job.taskPhase || handoffLabel(job.internalHandoffStatus)}
           {canApproveIntake && job.awaitingIntakeApproval && (
             <button
               type="button"
-              className="ml-2 text-primary hover:underline block mt-1"
+              className="text-primary hover:underline block mt-1 text-xs"
               onClick={() =>
                 void approveMoiIntake(job.id)
                   .then(() => onSuccess())
@@ -185,17 +193,43 @@ export function PackageWorkboard({
               Approve MOI intake
             </button>
           )}
-          {userIsAdmin && job.internalHandoffStatus === 'AdminReview' && (
+          {userIsAdmin && canAssignSecretarialTeam(job, items) && (
             <button
               type="button"
-              className="ml-2 text-primary hover:underline"
+              className="text-primary hover:underline block mt-1 text-xs"
+              onClick={() =>
+                void assignSecretarialTeam(job.id)
+                  .then(() => onSuccess())
+                  .catch((err) => onError(err instanceof ApiError ? err.message : 'Failed to assign secretarial team.'))
+              }
+            >
+              Assign secretarial team
+            </button>
+          )}
+          {userIsAdmin && job.internalHandoffStatus === 'AdminReview' && job.taskType === 'Service' && (jobHasMoaForm(job) || canOpenMoaForm(job)) && (
+            <button
+              type="button"
+              className="text-primary hover:underline block mt-1 text-xs"
+              onClick={() =>
+                void advanceJobHandoff(job.id, 'sharon-approve-moa')
+                  .then(() => onSuccess())
+                  .catch((err) => onError(err instanceof ApiError ? err.message : 'MOA approval failed.'))
+              }
+            >
+              Sharon approve MOA
+            </button>
+          )}
+          {userIsAdmin && job.internalHandoffStatus === 'MoaSharonApproved' && job.taskType === 'Service' && (
+            <button
+              type="button"
+              className="text-primary hover:underline block mt-1 text-xs"
               onClick={() =>
                 void advanceJobHandoff(job.id, 'approve-for-moa')
                   .then(() => onSuccess())
                   .catch((err) => onError(err instanceof ApiError ? err.message : 'Handoff failed.'))
               }
             >
-              Approve for MOA
+              Send MOA to client
             </button>
           )}
         </td>
@@ -243,7 +277,7 @@ export function PackageWorkboard({
               </span>
             </td>
             <td className="px-4 py-3 text-center font-medium">{job.usedQty}/{job.totalQty}</td>
-            <td className="px-4 py-3 text-xs text-muted-foreground" colSpan={5}>
+            <td className="px-4 py-3 text-xs text-muted-foreground" colSpan={4}>
               Assign users and dates per unit below
             </td>
           </tr>
@@ -290,15 +324,14 @@ export function PackageWorkboard({
                   <th className="px-4 py-3 text-center">Qty done</th>
                   <th className="px-4 py-3 text-left">Scheduled date</th>
                   <th className="px-4 py-3 text-left">Users</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-left">Handoff</th>
+                  <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {serviceItems.length === 0 && formItems.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                       No work items yet. Re-save the customer to sync from the product catalog.
                     </td>
                   </tr>
@@ -307,7 +340,7 @@ export function PackageWorkboard({
                     {serviceItems.map(renderJob)}
                     {formItems.length > 0 && serviceItems.length > 0 && (
                       <tr className="bg-muted/20">
-                        <td colSpan={8} className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        <td colSpan={7} className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                           Forms (client signers)
                         </td>
                       </tr>

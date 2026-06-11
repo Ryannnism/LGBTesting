@@ -28,6 +28,7 @@ public class AppDbContext : DbContext
     public DbSet<WorkflowStepInstance> WorkflowStepInstances { get; set; }
     public DbSet<ServiceJobForm> ServiceJobForms { get; set; }
     public DbSet<BillingParty> BillingParties { get; set; }
+    public DbSet<JobItemDocument> JobItemDocuments { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -42,6 +43,9 @@ public class AppDbContext : DbContext
             entity.Property(u => u.JobTitle).HasMaxLength(100);
             entity.Property(u => u.IsVerified).HasDefaultValue(false);
             entity.Property(u => u.CanApproveMoiIntake).HasDefaultValue(false);
+            entity.Property(u => u.CanApproveMoi).HasDefaultValue(false);
+            entity.Property(u => u.CanApproveMoa).HasDefaultValue(false);
+            entity.Property(u => u.IsInternalSignatory).HasDefaultValue(false);
             entity.HasOne(u => u.Customer)
                 .WithMany()
                 .HasForeignKey(u => u.CustomerId)
@@ -59,6 +63,7 @@ public class AppDbContext : DbContext
             entity.Property(c => c.DivisionGroupCode).HasMaxLength(50);
             entity.Property(c => c.MoiFormTemplateCode).HasMaxLength(50);
             entity.Property(c => c.MoaFormTemplateCode).HasMaxLength(50);
+            entity.Property(c => c.MoiApprovalMode).HasMaxLength(50).HasDefaultValue(MoiApprovalModes.AllRequired);
             entity.Property(c => c.InvoiceByPartyIdsJson).HasDefaultValue("[]");
             entity.Property(c => c.ChargeToPartyIdsJson).HasDefaultValue("[]");
             entity.HasMany(c => c.AccountHolders)
@@ -102,6 +107,10 @@ public class AppDbContext : DbContext
             entity.Property(h => h.Name).HasMaxLength(200).IsRequired();
             entity.Property(h => h.Email).HasMaxLength(256);
             entity.Property(h => h.Phone).HasMaxLength(50);
+            entity.HasOne(h => h.User)
+                .WithMany()
+                .HasForeignKey(h => h.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Product>(entity =>
@@ -169,6 +178,10 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(f => f.JobRequestId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(f => f.JobRequestUnit)
+                .WithMany()
+                .HasForeignKey(f => f.JobRequestUnitId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<MOAForm>(entity =>
@@ -177,6 +190,10 @@ public class AppDbContext : DbContext
             entity.HasOne(f => f.JobRequest)
                 .WithMany()
                 .HasForeignKey(f => f.JobRequestId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(f => f.JobRequestUnit)
+                .WithMany()
+                .HasForeignKey(f => f.JobRequestUnitId)
                 .OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(f => f.MOIForm)
                 .WithMany()
@@ -263,6 +280,20 @@ public class AppDbContext : DbContext
             entity.HasOne(f => f.JobRequest)
                 .WithMany()
                 .HasForeignKey(f => f.JobRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<JobItemDocument>(entity =>
+        {
+            entity.HasKey(d => d.JobItemDocumentId);
+            entity.Property(d => d.Folder).HasMaxLength(50);
+            entity.Property(d => d.FileName).HasMaxLength(500);
+            entity.Property(d => d.StorageKey).HasMaxLength(500);
+            entity.Property(d => d.ContentType).HasMaxLength(200);
+            entity.Property(d => d.UploadedByName).HasMaxLength(200);
+            entity.HasOne(d => d.JobRequest)
+                .WithMany()
+                .HasForeignKey(d => d.JobRequestId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

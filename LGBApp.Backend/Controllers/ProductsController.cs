@@ -10,7 +10,7 @@ namespace LGBApp.Backend.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize(Roles = "Admin")]
+[Authorize]
 public class ProductsController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -21,13 +21,19 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin,ClientAdmin,ClientSignatory")]
     public async Task<ActionResult<IEnumerable<ProductResponse>>> GetProducts()
     {
-        var products = await _context.Products.OrderBy(p => p.PackageName).ToListAsync();
-        return products.Select(ProductMapper.ToResponse).ToList();
+        var products = await _context.Products.ToListAsync();
+        return products
+            .OrderBy(p => p.PackagePrice)
+            .ThenBy(p => p.PackageName, StringComparer.OrdinalIgnoreCase)
+            .Select(ProductMapper.ToResponse)
+            .ToList();
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "Admin,ClientAdmin,ClientSignatory")]
     public async Task<ActionResult<ProductResponse>> GetProduct(int id)
     {
         var product = await _context.Products.FindAsync(id);
@@ -38,6 +44,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ProductResponse>> CreateProduct([FromBody] ProductRequest? request)
     {
         if (request == null)
@@ -55,6 +62,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateProduct(int id, [FromBody] ProductRequest? request)
     {
         if (request == null)
@@ -73,6 +81,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteProduct(int id)
     {
         var product = await _context.Products.FindAsync(id);

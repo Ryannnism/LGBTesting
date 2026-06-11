@@ -1,0 +1,16 @@
+flowchart TD
+  START(["Sharon — Admin"]) --> CREATE["Create / edit customer<br/>contacts + MOI / MOI Approval / MOA flags"]
+  CREATE --> SYNC["Sync package jobs<br/>Service lines + form jobs"]
+  CREATE --> AUTO_CA["Ensure ClientAdmin account<br/>one per company"]
+  CREATE --> AUTO_CS["Ensure ClientSignatory accounts<br/>per flagged contact with email"]
+  AUTO_CA --> CA_LOGIN["ClientAdmin logs in<br/>full client portal"]
+  AUTO_CS --> CS_LOGIN["ClientSignatory logs in<br/>My documents only"]
+  SYNC --> PKG["Package workboard rows<br/>Annual Return, MOI, MOA, etc."]
+
+  subgraph ROLES["Roles created"]
+    R1["Admin — Sharon"]
+    R2["ClientAdmin — company admin"]
+    R3["ClientSignatory — MOI/MOA holders"]
+  end
+
+  CREATE --> ROLES

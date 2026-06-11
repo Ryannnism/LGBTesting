@@ -5,6 +5,9 @@ public class MOIForm
     public int MOIFormId { get; set; }
     public int? JobRequestId { get; set; }
     public JobRequest? JobRequest { get; set; }
+    /// <summary>Package session — one MOI per unit for multi-qty services.</summary>
+    public int? JobRequestUnitId { get; set; }
+    public JobRequestUnit? JobRequestUnit { get; set; }
     public string Company { get; set; } = string.Empty;
     public string FormDataJson { get; set; } = "{}";
     public string FormTemplateCode { get; set; } = string.Empty;
@@ -14,6 +17,7 @@ public class MOIForm
     public int? RecommendedByUserId { get; set; }
     public DateTime? RecommendedAt { get; set; }
     public string RecommendationComments { get; set; } = string.Empty;
+    public string ClientApprovalsJson { get; set; } = "[]";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

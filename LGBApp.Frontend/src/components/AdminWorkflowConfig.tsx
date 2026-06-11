@@ -1,5 +1,17 @@
+import { Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, getDivisionGroups, getWorkflowTemplates, updateDivisionGroup, updateWorkflowTemplate, type DivisionGroupDto, type WorkflowTemplateDto } from '@/lib/api';
+import {
+  ApiError,
+  getDivisionGroups,
+  getUsers,
+  getWorkflowTemplates,
+  updateDivisionGroup,
+  updateWorkflowTemplate,
+  type DivisionGroupDto,
+  type UserResponse,
+  type WorkflowTemplateDto,
+} from '@/lib/api';
+import { isInternalStaff } from '@/lib/roles';
 
 interface AdminWorkflowConfigProps {
   refreshKey?: number;
@@ -8,6 +20,7 @@ interface AdminWorkflowConfigProps {
 export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps) {
   const [groups, setGroups] = useState<DivisionGroupDto[]>([]);
   const [templates, setTemplates] = useState<WorkflowTemplateDto[]>([]);
+  const [internalUsers, setInternalUsers] = useState<UserResponse[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplateDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,9 +31,14 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
     setLoading(true);
     setError('');
     try {
-      const [g, t] = await Promise.all([getDivisionGroups(), getWorkflowTemplates('MOA')]);
+      const [g, t, users] = await Promise.all([
+        getDivisionGroups(),
+        getWorkflowTemplates('MOA'),
+        getUsers(),
+      ]);
       setGroups(g);
       setTemplates(t);
+      setInternalUsers(users.filter((u) => isInternalStaff(u) && u.role !== 'ClientSignatory'));
       setSelectedTemplate((prev) => prev ?? t[0] ?? null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load workflow config.');
@@ -48,11 +66,49 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
     }
   };
 
+  const patchGroup = (groupId: number, patch: Partial<DivisionGroupDto>) => {
+    setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, ...patch } : g)));
+  };
+
+  const addRecommender = (groupId: number) => {
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+    patchGroup(groupId, {
+      recommenders: [...group.recommenders, { id: 0, displayName: '', userId: undefined }],
+    });
+  };
+
+  const updateRecommender = (
+    groupId: number,
+    index: number,
+    patch: Partial<DivisionGroupDto['recommenders'][number]>,
+  ) => {
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+    const recommenders = group.recommenders.map((r, i) => (i === index ? { ...r, ...patch } : r));
+    patchGroup(groupId, { recommenders });
+  };
+
+  const removeRecommender = (groupId: number, index: number) => {
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+    patchGroup(groupId, { recommenders: group.recommenders.filter((_, i) => i !== index) });
+  };
+
   const saveGroup = async (group: DivisionGroupDto) => {
+    const payload: DivisionGroupDto = {
+      ...group,
+      recommenders: group.recommenders
+        .map((r) => ({
+          ...r,
+          displayName: r.displayName.trim(),
+        }))
+        .filter((r) => r.displayName.length > 0),
+    };
     setSaving(true);
     setMessage('');
     try {
-      await updateDivisionGroup(group.id, group);
+      await updateDivisionGroup(payload.id, payload);
       setMessage(`Division group "${group.name}" saved.`);
       await load();
     } catch (err) {
@@ -69,7 +125,7 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
       <div>
         <h3 className="text-lg font-medium">MOA Workflow Templates</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Conditional approval chains (No LOA / With LOA / SWM). Edit steps, conditions, and assignees.
+          Conditional approval chains (No LOA / With LOA / SWM). Link internal signatory accounts to named steps — these are LGB staff, not client signatories.
         </p>
       </div>
 
@@ -149,7 +205,9 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
                         }}
                       >
                         <option value="JobTitle">Job title</option>
-                        <option value="NamedUser">Named user</option>
+                        <option value="NamedUser">Internal signatory (named)</option>
+                        <option value="InternalSignatory">Internal signatory (account)</option>
+                        <option value="DivisionRecommender">Division recommender</option>
                         <option value="ProjectInitiator">Project initiator</option>
                         <option value="LoaHolders">LOA holders</option>
                         <option value="BoardMembers">Board members</option>
@@ -157,19 +215,55 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
                       </select>
                     </td>
                     <td className="p-2">
-                      <input
-                        className="w-full px-2 py-1 border border-border rounded bg-input-background"
-                        value={step.assigneeDisplayName || step.assigneeRole || ''}
-                        onChange={(e) => {
-                          const steps = [...selectedTemplate.steps];
-                          steps[idx] = {
-                            ...step,
-                            assigneeDisplayName: e.target.value,
-                            assigneeRole: step.assigneeType === 'JobTitle' ? e.target.value : step.assigneeRole,
-                          };
-                          setSelectedTemplate({ ...selectedTemplate, steps });
-                        }}
-                      />
+                      {step.assigneeType === 'DivisionRecommender' ? (
+                        <span className="text-xs text-muted-foreground italic">
+                          Uses division group recommenders below
+                        </span>
+                      ) : step.assigneeType === 'NamedUser' || step.assigneeType === 'InternalSignatory' ? (
+                        <select
+                          className="w-full px-2 py-1 border border-border rounded bg-input-background"
+                          value={step.assigneeUserId ?? ''}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const steps = [...selectedTemplate.steps];
+                            if (!raw) {
+                              steps[idx] = { ...step, assigneeUserId: undefined };
+                            } else {
+                              const userId = Number(raw);
+                              const user = internalUsers.find((u) => u.userId === userId);
+                              steps[idx] = {
+                                ...step,
+                                assigneeUserId: userId,
+                                assigneeDisplayName: user?.name ?? step.assigneeDisplayName,
+                              };
+                            }
+                            setSelectedTemplate({ ...selectedTemplate, steps });
+                          }}
+                        >
+                          <option value="">Select internal signatory…</option>
+                          {internalUsers
+                            .filter((u) => u.isInternalSignatory || step.assigneeType === 'NamedUser')
+                            .map((u) => (
+                              <option key={u.userId} value={u.userId}>
+                                {u.name} ({u.email})
+                              </option>
+                            ))}
+                        </select>
+                      ) : (
+                        <input
+                          className="w-full px-2 py-1 border border-border rounded bg-input-background"
+                          value={step.assigneeDisplayName || step.assigneeRole || ''}
+                          onChange={(e) => {
+                            const steps = [...selectedTemplate.steps];
+                            steps[idx] = {
+                              ...step,
+                              assigneeDisplayName: e.target.value,
+                              assigneeRole: step.assigneeType === 'JobTitle' ? e.target.value : step.assigneeRole,
+                            };
+                            setSelectedTemplate({ ...selectedTemplate, steps });
+                          }}
+                        />
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -188,19 +282,21 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
       )}
 
       <div className="border-t border-border pt-6">
-        <h4 className="font-medium mb-3">Division groups &amp; recommenders</h4>
-        <div className="space-y-4 max-h-64 overflow-y-auto">
+        <h4 className="font-medium mb-1">Division groups &amp; recommenders</h4>
+        <p className="text-sm text-muted-foreground mb-3">
+          Recommenders approve MOI/MOA steps when a workflow step uses assignee type &quot;Division recommender&quot;.
+          Link to an internal user account when possible, or enter a display name only.
+        </p>
+        <div className="space-y-4 max-h-[32rem] overflow-y-auto">
           {groups.map((group) => (
-            <div key={group.id} className="border border-border rounded-lg p-3 space-y-2">
+            <div key={group.id} className="border border-border rounded-lg p-3 space-y-3">
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="font-medium">{group.name}</span>
                 <span className="text-xs text-muted-foreground">({group.code})</span>
                 <select
                   className="ml-auto text-sm px-2 py-1 border border-border rounded"
                   value={group.moaWorkflowTemplateCode}
-                  onChange={(e) =>
-                    setGroups(groups.map((g) => (g.id === group.id ? { ...g, moaWorkflowTemplateCode: e.target.value } : g)))
-                  }
+                  onChange={(e) => patchGroup(group.id, { moaWorkflowTemplateCode: e.target.value })}
                 >
                   {templates.map((t) => (
                     <option key={t.code} value={t.code}>{t.name}</option>
@@ -212,12 +308,72 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
                   onClick={() => void saveGroup(group)}
                   className="text-sm px-2 py-1 border border-border rounded hover:bg-muted"
                 >
-                  Save
+                  Save group
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Recommenders: {group.recommenders.map((r) => r.displayName).join(', ') || 'None'}
-              </p>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Recommenders</span>
+                  <button
+                    type="button"
+                    onClick={() => addRecommender(group.id)}
+                    className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-muted"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add
+                  </button>
+                </div>
+
+                {group.recommenders.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No recommenders — add at least one for this division.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {group.recommenders.map((rec, idx) => (
+                      <div key={`${group.id}-${rec.id}-${idx}`} className="flex flex-wrap gap-2 items-center">
+                        <input
+                          className="flex-1 min-w-[8rem] text-sm px-2 py-1 border border-border rounded bg-input-background"
+                          placeholder="Display name"
+                          value={rec.displayName}
+                          onChange={(e) => updateRecommender(group.id, idx, { displayName: e.target.value })}
+                        />
+                        <select
+                          className="flex-1 min-w-[10rem] text-sm px-2 py-1 border border-border rounded bg-input-background"
+                          value={rec.userId ?? ''}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (!raw) {
+                              updateRecommender(group.id, idx, { userId: undefined });
+                              return;
+                            }
+                            const userId = Number(raw);
+                            const user = internalUsers.find((u) => u.userId === userId);
+                            updateRecommender(group.id, idx, {
+                              userId,
+                              displayName: user?.name || rec.displayName,
+                            });
+                          }}
+                        >
+                          <option value="">No linked user</option>
+                          {internalUsers.map((u) => (
+                            <option key={u.userId} value={u.userId}>
+                              {u.name} ({u.email})
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => removeRecommender(group.id, idx)}
+                          className="p-1.5 text-destructive hover:bg-destructive/10 rounded"
+                          title="Remove recommender"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>

@@ -42,11 +42,7 @@ public class JobRequestsController : ControllerBase
             if (package == null)
                 return NotFound();
 
-            query = query.Where(j =>
-                j.CustomerPackageId == customerPackageId.Value
-                || (j.CustomerId == package.CustomerId
-                    && j.CustomerPackageId == null
-                    && (j.TaskType == "MOI" || j.TaskType == "MOI Approval" || j.TaskType == "MOA")));
+            query = query.Where(j => j.CustomerPackageId == customerPackageId.Value);
         }
 
         var jobs = await query
@@ -64,14 +60,8 @@ public class JobRequestsController : ControllerBase
         }
         else if (!AuthHelper.IsAdmin(User))
         {
-            var userId = AuthHelper.CurrentUserId(User);
-            if (!userId.HasValue)
-                return Ok(Array.Empty<JobRequestResponse>());
-
             jobs = jobs
-                .Where(j => !TaskFormVisibilityHelper.AwaitingIntakeApproval(j))
-                .Where(j => j.Units.Any(u => JobRequestUnitService.IsUserAssigned(u, userId.Value))
-                    || j.AssignedUserId == userId.Value)
+                .Where(j => TaskFormVisibilityHelper.CanInternalUserSeeJob(User, j))
                 .ToList();
         }
 
@@ -132,6 +122,25 @@ public class JobRequestsController : ControllerBase
         var created = JobRequestMapper.ToResponse(job);
         await JobFormLinkService.EnrichWithFormLinksAsync(_context, [created], User);
         return CreatedAtAction(nameof(GetJobRequest), new { id = job.JobRequestId }, created);
+    }
+
+    [HttpPost("{id}/assign-secretarial-team")]
+    public async Task<ActionResult<JobRequestResponse>> AssignSecretarialTeam(int id)
+    {
+        if (!AuthHelper.IsAdmin(User) && !AuthHelper.CanApproveMoi(User))
+            return Forbid();
+
+        try
+        {
+            var job = await JobRequestAssignmentService.AssignSecretarialTeamAsync(_context, id);
+            var response = JobRequestMapper.ToResponse(job);
+            await JobFormLinkService.EnrichWithFormLinksAsync(_context, [response], User);
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("{id}/approve-intake")]
@@ -220,8 +229,19 @@ public class JobRequestsController : ControllerBase
                 if (!isAdmin && !AuthHelper.IsInternalStaff(User)) return Forbid();
                 JobHandoffService.SetHandoff(job, JobHandoffStatuses.AdminReview);
                 break;
+            case "sharon-approve-moa":
+                if (!AuthHelper.CanApproveMoa(User)) return Forbid();
+                var moaForm = await _context.MOAForms.FirstOrDefaultAsync(f => f.JobRequestId == job.JobRequestId);
+                if (moaForm != null)
+                {
+                    var (packValid, packErrors) = MoaPackChecklistService.Validate(moaForm);
+                    if (!packValid)
+                        return BadRequest(new { message = "MOA pack checklist incomplete.", errors = packErrors });
+                }
+                await JobHandoffService.OnSharonMoaApprovedAsync(_context, job, moaForm);
+                break;
             case "approve-for-moa":
-                if (!isAdmin) return Forbid();
+                if (!isAdmin && !AuthHelper.CanApproveMoa(User)) return Forbid();
                 await JobHandoffService.AdvanceToReadyForMoaAsync(_context, job);
                 job = await JobQuery().FirstAsync(j => j.JobRequestId == id);
                 return Ok(JobRequestMapper.ToResponse(job));

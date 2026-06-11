@@ -519,6 +519,9 @@ export function CreateCustomerModal({
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label>Account Holders (client directors / signers)</label>
+                    <p className="text-xs text-muted-foreground mt-1 mb-2">
+                      Flagged contacts receive a signatory login for this company only (default password until changed).
+                    </p>
                     <button
                       type="button"
                       onClick={handleAddAccountHolder}
@@ -593,7 +596,7 @@ export function CreateCustomerModal({
                               checked={holder.moa}
                               onChange={(e) => handleAccountHolderChange(holder.id, 'moa', e.target.checked)}
                             />
-                            <span className="text-sm">Needs MOA</span>
+                            <span className="text-sm">Needs MOA approval</span>
                           </label>
                         </div>
                       </div>
@@ -650,7 +653,7 @@ export function CreateCustomerModal({
                           className="w-full px-3 py-2 border border-border rounded-lg bg-input-background"
                         >
                           <option value="">Select a product</option>
-                          {products.map((product) => (
+                          {[...products].sort((a, b) => (a.packagePrice ?? 0) - (b.packagePrice ?? 0)).map((product) => (
                             <option key={product.id} value={product.id}>
                               {product.packageName} — MYR {productBasePrice(product).toLocaleString()}/yr
                             </option>

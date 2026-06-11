@@ -1,0 +1,26 @@
+flowchart TB
+  subgraph LGB["LGB INTERNAL"]
+    direction TB
+    A["Admin<br/>Sharon — all customers, packages, users, workflow config"]
+    U["User — secretarial / resolution<br/>Ng Poh Li, Nita, Siti, Nadia"]
+    A --> U
+    subgraph FLAGS["Permission overlays on Admin / User"]
+      direction LR
+      F1["CanApproveMoiIntake"]
+      F2["CanRecommendMoi"]
+      F3["CanApproveMoi"]
+      F4["CanApproveMoa"]
+      F5["IsInternalSignatory"]
+    end
+    A --- FLAGS
+    U --- FLAGS
+  end
+
+  subgraph EXT["CUSTOMER EXTERNAL — scoped by CustomerId"]
+    direction TB
+    CA["ClientAdmin<br/>Auto per company — portal, issue MOI, team"]
+    CS["ClientSignatory<br/>Per account holder — My documents only"]
+    CA --> CS
+  end
+
+  LGB -.->|"creates & manages"| EXT

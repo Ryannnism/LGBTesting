@@ -5,27 +5,36 @@ namespace LGBApp.Backend.Services;
 
 public static class FormMapper
 {
-    public static FormResponse ToMoiResponse(MOIForm form, WorkflowInstanceDto? workflow = null) => new()
-    {
-        Id = form.MOIFormId,
-        JobId = form.JobRequestId,
-        Company = form.Company,
-        Data = JsonHelper.Deserialize<Dictionary<string, object?>>(form.FormDataJson),
-        FormTemplateCode = form.FormTemplateCode,
-        WorkflowState = form.WorkflowState,
-        FinanceRelated = form.FinanceRelated,
-        BankSignatoryMatter = form.BankSignatoryMatter,
-        MoiFormId = null,
-        Workflow = workflow,
-        CreatedAt = form.CreatedAt.ToString("yyyy-MM-dd"),
-        UpdatedAt = form.UpdatedAt.ToString("yyyy-MM-dd"),
-    };
+    public static FormResponse ToMoiResponse(
+        MOIForm form,
+        WorkflowInstanceDto? workflow = null,
+        Customer? customer = null) =>
+        EnrichMoiApprovals(new FormResponse
+        {
+            Id = form.MOIFormId,
+            JobId = form.JobRequestId,
+            JobRequestUnitId = form.JobRequestUnitId,
+            UnitNumber = ReadUnitNumber(form),
+            Company = form.Company,
+            Data = JsonHelper.Deserialize<Dictionary<string, object?>>(form.FormDataJson),
+            FormTemplateCode = form.FormTemplateCode,
+            WorkflowState = form.WorkflowState,
+            FinanceRelated = form.FinanceRelated,
+            BankSignatoryMatter = form.BankSignatoryMatter,
+            MoiFormId = null,
+            Workflow = workflow,
+            CreatedAt = form.CreatedAt.ToString("yyyy-MM-dd"),
+            UpdatedAt = form.UpdatedAt.ToString("yyyy-MM-dd"),
+        }, form, customer);
 
-    public static FormResponse ToMoaResponse(MOAForm form, WorkflowInstanceDto? workflow = null)
+    public static FormResponse ToMoaResponse(
+        MOAForm form,
+        WorkflowInstanceDto? workflow = null,
+        Customer? customer = null)
     {
         var pack = MoaPackChecklistService.Parse(form);
         var (isValid, errors) = MoaPackChecklistService.Validate(form);
-        return new FormResponse
+        return EnrichMoaApprovals(new FormResponse
         {
             Id = form.MOAFormId,
             JobId = form.JobRequestId,
@@ -50,9 +59,63 @@ public static class FormMapper
                 SsmAsAtDate = pack.SsmAsAtDate,
             },
             PackValidationErrors = isValid ? null : errors,
+            SharonApprovedAt = form.SharonApprovedAt?.ToString("yyyy-MM-dd"),
             Workflow = workflow,
             CreatedAt = form.CreatedAt.ToString("yyyy-MM-dd"),
             UpdatedAt = form.UpdatedAt.ToString("yyyy-MM-dd"),
-        };
+        }, form, customer);
+    }
+
+    private static int? ReadUnitNumber(MOIForm form)
+    {
+        var data = JsonHelper.Deserialize<Dictionary<string, object?>>(form.FormDataJson);
+        if (data.TryGetValue("unitNumber", out var raw) && raw != null
+            && int.TryParse(raw.ToString(), out var n))
+            return n;
+        return null;
+    }
+
+    private static FormResponse EnrichMoiApprovals(FormResponse response, MOIForm form, Customer? customer)
+    {
+        var records = ClientApprovalService.ParseMoi(form);
+        response.ClientApprovals = records.Select(r => new ClientApprovalDto
+        {
+            UserId = r.UserId,
+            AccountHolderName = r.AccountHolderName,
+            Comments = r.Comments,
+            SignedAt = r.SignedAt.ToString("yyyy-MM-dd"),
+        }).ToList();
+
+        if (customer != null)
+        {
+            var required = ClientApprovalService.GetRequiredMoiApproverNames(customer);
+            response.RequiredApprovers = required;
+            response.PendingApprovers = ClientApprovalService.MoiClientPhaseComplete(customer, records)
+                ? []
+                : ClientApprovalService.PendingApprovers(required, records);
+        }
+
+        return response;
+    }
+
+    private static FormResponse EnrichMoaApprovals(FormResponse response, MOAForm form, Customer? customer)
+    {
+        var records = ClientApprovalService.ParseMoa(form);
+        response.ClientApprovals = records.Select(r => new ClientApprovalDto
+        {
+            UserId = r.UserId,
+            AccountHolderName = r.AccountHolderName,
+            Comments = r.Comments,
+            SignedAt = r.SignedAt.ToString("yyyy-MM-dd"),
+        }).ToList();
+
+        if (customer != null)
+        {
+            var required = ClientApprovalService.GetRequiredMoaApproverNames(customer);
+            response.RequiredApprovers = required;
+            response.PendingApprovers = ClientApprovalService.PendingApprovers(required, records);
+        }
+
+        return response;
     }
 }

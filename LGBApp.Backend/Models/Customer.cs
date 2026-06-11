@@ -27,6 +27,8 @@ public class Customer
     public string MoiJson { get; set; } = "[]";
     public string MoiApprovalJson { get; set; } = "[]";
     public string MoaJson { get; set; } = "[]";
+    /// <summary>AllRequired = every MOI approver must sign; AnyOne = one approver is enough.</summary>
+    public string MoiApprovalMode { get; set; } = MoiApprovalModes.AllRequired;
     public DateTime PurchasedDate { get; set; }
     public DateTime ExpiryDate { get; set; }
     public ICollection<AccountHolder> AccountHolders { get; set; } = new List<AccountHolder>();

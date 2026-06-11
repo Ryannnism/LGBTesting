@@ -34,11 +34,11 @@ public class UsersController : ControllerBase
 
             query = query.Where(u =>
                 u.CustomerId == customerId
-                && u.Role == UserRoles.ClientAdmin);
+                && (u.Role == UserRoles.ClientAdmin || u.Role == UserRoles.ClientSignatory));
         }
 
         var users = await query.OrderBy(u => u.Name).ToListAsync();
-        return users.Select(UserMapper.ToResponse).ToList();
+        return users.Select(u => UserMapper.ToResponse(u)).ToList();
     }
 
     [HttpGet("me")]
@@ -48,11 +48,14 @@ public class UsersController : ControllerBase
         if (userId == null)
             return Unauthorized();
 
-        var user = await _context.Users.Include(u => u.Customer).FirstOrDefaultAsync(u => u.UserId == userId.Value);
+        var user = await _context.Users
+            .Include(u => u.Customer!)
+            .ThenInclude(c => c.AccountHolders)
+            .FirstOrDefaultAsync(u => u.UserId == userId.Value);
         if (user == null)
             return NotFound();
 
-        return UserMapper.ToResponse(user);
+        return UserMapper.ToResponse(user, user.Customer);
     }
 
     [HttpGet("{id}")]
@@ -90,7 +93,7 @@ public class UsersController : ControllerBase
 
         var customerId = await ResolveCustomerIdForRole(role, request.CustomerId, forceScopedCustomer: AuthHelper.IsClientAdmin(User));
         if (customerId == -1)
-            return BadRequest("ClientAdmin and Client roles require a customer.");
+            return BadRequest("External roles require a customer.");
 
         var inviterId = GetCurrentUserId();
 
@@ -104,6 +107,9 @@ public class UsersController : ControllerBase
             JobTitle = UserRoles.IsExternalRole(role) ? string.Empty : (request.JobTitle ?? string.Empty),
             CanRecommendMoi = UserRoles.IsExternalRole(role) ? false : request.CanRecommendMoi,
             CanApproveMoiIntake = UserRoles.IsExternalRole(role) ? false : request.CanApproveMoiIntake,
+            CanApproveMoi = UserRoles.IsExternalRole(role) ? false : request.CanApproveMoi,
+            CanApproveMoa = UserRoles.IsExternalRole(role) ? false : request.CanApproveMoa,
+            IsInternalSignatory = UserRoles.IsExternalRole(role) ? false : request.IsInternalSignatory,
             CustomerId = customerId,
             InvitedByUserId = inviterId,
             IsVerified = AuthHelper.IsClientAdmin(User),
@@ -113,6 +119,9 @@ public class UsersController : ControllerBase
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
+
+        if (string.Equals(role, UserRoles.ClientSignatory, StringComparison.OrdinalIgnoreCase) && customerId.HasValue)
+            await CustomerSignatoryProvisioner.LinkHolderForNewSignatoryUserAsync(_context, customerId.Value, user);
 
         await _context.Entry(user).Reference(u => u.Customer).LoadAsync();
         return CreatedAtAction(nameof(GetUser), new { id = user.UserId }, UserMapper.ToResponse(user));
@@ -145,7 +154,7 @@ public class UsersController : ControllerBase
 
         var customerId = await ResolveCustomerIdForRole(request.Role, request.CustomerId, forceScopedCustomer: AuthHelper.IsClientAdmin(User));
         if (customerId == -1)
-            return BadRequest("ClientAdmin and Client roles require a customer.");
+            return BadRequest("External roles require a customer.");
 
         user.Name = request.Name;
         user.Email = request.Email;
@@ -154,6 +163,9 @@ public class UsersController : ControllerBase
         user.JobTitle = UserRoles.IsExternalRole(request.Role) ? string.Empty : (request.JobTitle ?? string.Empty);
         user.CanRecommendMoi = UserRoles.IsExternalRole(request.Role) ? false : request.CanRecommendMoi;
         user.CanApproveMoiIntake = UserRoles.IsExternalRole(request.Role) ? false : request.CanApproveMoiIntake;
+        user.CanApproveMoi = UserRoles.IsExternalRole(request.Role) ? false : request.CanApproveMoi;
+        user.CanApproveMoa = UserRoles.IsExternalRole(request.Role) ? false : request.CanApproveMoa;
+        user.IsInternalSignatory = UserRoles.IsExternalRole(request.Role) ? false : request.IsInternalSignatory;
         user.CustomerId = customerId;
 
         await _context.SaveChangesAsync();

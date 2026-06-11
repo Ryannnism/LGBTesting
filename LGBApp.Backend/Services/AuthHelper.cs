@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using LGBApp.Backend.Data;
 using LGBApp.Backend.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace LGBApp.Backend.Services;
 
@@ -21,7 +23,11 @@ public static class AuthHelper
     public static bool IsClientAdmin(ClaimsPrincipal user) =>
         string.Equals(CurrentRole(user), UserRoles.ClientAdmin, StringComparison.OrdinalIgnoreCase);
 
-    public static bool IsExternalUser(ClaimsPrincipal user) => IsClientAdmin(user);
+    public static bool IsClientSignatory(ClaimsPrincipal user) =>
+        string.Equals(CurrentRole(user), UserRoles.ClientSignatory, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsExternalUser(ClaimsPrincipal user) =>
+        IsClientAdmin(user) || IsClientSignatory(user);
 
     public static int? CurrentUserId(ClaimsPrincipal user)
     {
@@ -45,6 +51,26 @@ public static class AuthHelper
             user.FindFirstValue("can_approve_moi_intake"),
             "true",
             StringComparison.OrdinalIgnoreCase);
+
+    public static bool CanApproveMoi(ClaimsPrincipal user) =>
+        IsAdmin(user)
+        || string.Equals(
+            user.FindFirstValue("can_approve_moi"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+    public static bool CanApproveMoa(ClaimsPrincipal user) =>
+        IsAdmin(user)
+        || string.Equals(
+            user.FindFirstValue("can_approve_moa"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+    public static bool HasMoiOversight(ClaimsPrincipal user) =>
+        IsAdmin(user) || CanApproveMoiIntake(user) || CanApproveMoi(user);
+
+    public static bool HasMoaOversight(ClaimsPrincipal user) =>
+        IsAdmin(user) || CanApproveMoa(user);
 
     public static bool CanAccessCustomer(ClaimsPrincipal user, int? customerId)
     {
@@ -84,13 +110,11 @@ public static class AuthHelper
         if (IsAdmin(user))
             return true;
 
-        if (IsExternalUser(user))
-        {
-            if (!CanAccessCustomer(user, job.CustomerId))
-                return false;
+        if (IsClientSignatory(user))
+            return IsSignatoryForJob(user, job);
 
-            return true;
-        }
+        if (IsClientAdmin(user))
+            return CanAccessCustomer(user, job.CustomerId);
 
         if (!IsAdmin(user) && TaskFormVisibilityHelper.AwaitingIntakeApproval(job))
             return false;
@@ -108,15 +132,70 @@ public static class AuthHelper
     public static bool CanIssueClientJob(ClaimsPrincipal user) =>
         IsAdmin(user) || IsClientAdmin(user);
 
+    public static async Task<bool> CanSignatoryIssueMoiAsync(
+        AppDbContext context,
+        ClaimsPrincipal user,
+        JobRequest job)
+    {
+        if (!IsClientSignatory(user))
+            return false;
+
+        if (job.TaskType is not ("MOI" or "Service"))
+            return false;
+
+        if (job.TaskType == "Service" && string.IsNullOrWhiteSpace(job.AccountHolder))
+        {
+            // Any NeedsMoi signatory may start MOI on an unclaimed package line.
+        }
+        else if (!IsSignatoryForJob(user, job))
+        {
+            return false;
+        }
+
+        if (!job.CustomerId.HasValue)
+            return false;
+
+        var userName = CurrentUserName(user);
+        if (string.IsNullOrWhiteSpace(userName))
+            return false;
+
+        var customer = await context.Customers
+            .Include(c => c.AccountHolders)
+            .FirstOrDefaultAsync(c => c.CustomerId == job.CustomerId);
+
+        if (customer == null)
+            return false;
+
+        var holder = customer.AccountHolders.FirstOrDefault(h =>
+            h.Name.Equals(userName.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        return holder is { NeedsMoi: true };
+    }
+
     public static bool CanManageUsers(ClaimsPrincipal user) =>
         IsAdmin(user) || IsClientAdmin(user);
+
+    public static bool IsSignatoryForJob(ClaimsPrincipal user, JobRequest job)
+    {
+        if (!IsClientSignatory(user))
+            return false;
+
+        if (!CanAccessCustomer(user, job.CustomerId))
+            return false;
+
+        var name = CurrentUserName(user);
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(job.AccountHolder))
+            return false;
+
+        return string.Equals(name.Trim(), job.AccountHolder.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
 
     public static IReadOnlyList<string> CreatableRoles(ClaimsPrincipal user)
     {
         if (IsAdmin(user))
             return UserRoles.All;
         if (IsClientAdmin(user))
-            return [UserRoles.ClientAdmin];
+            return [UserRoles.ClientAdmin, UserRoles.ClientSignatory];
         return [];
     }
 
@@ -132,7 +211,8 @@ public static class AuthHelper
         if (!customerId.HasValue || target.CustomerId != customerId)
             return false;
 
-        return string.Equals(target.Role, UserRoles.ClientAdmin, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(target.Role, UserRoles.ClientSignatory, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(target.Role, UserRoles.ClientAdmin, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool CanAssignClientJob(ClaimsPrincipal user, JobRequest job, User assignee)

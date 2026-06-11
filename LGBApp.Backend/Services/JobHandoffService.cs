@@ -10,21 +10,127 @@ public static class JobHandoffStatuses
     public const string PendingPrep = "PendingPrep";
     public const string ResoInProgress = "ResoInProgress";
     public const string AdminReview = "AdminReview";
+    public const string MoaSharonApproved = "MoaSharonApproved";
     public const string ReadyForMoa = "ReadyForMoa";
     public const string MoaCirculation = "MoaCirculation";
+    public const string PendingExecute = "PendingExecute";
     public const string Completed = "Completed";
 
     public static readonly string[] Ordered =
     [
-        ClientSubmitted, PendingPrep, ResoInProgress, AdminReview, ReadyForMoa, MoaCirculation, Completed,
+        ClientSubmitted, PendingPrep, ResoInProgress, AdminReview,
+        MoaSharonApproved, ReadyForMoa, MoaCirculation, PendingExecute, Completed,
     ];
+}
+
+public static class MoiWorkflowStates
+{
+    public const string Draft = "Draft";
+    public const string PendingClientMoiApproval = "PendingClientMoiApproval";
+    public const string PendingAdminIntake = "PendingAdminIntake";
+    public const string PendingPrep = "PendingPrep";
+    public const string PendingRecommendation = "PendingRecommendation";
+    public const string Approved = "Approved";
 }
 
 public static class JobHandoffService
 {
-    public static void SetHandoff(JobRequest job, string status)
-    {
+    public static void SetHandoff(JobRequest job, string status) =>
         job.InternalHandoffStatus = status;
+
+    public static async Task OnClientMoiIssuedAsync(
+        AppDbContext context,
+        JobRequest job,
+        MOIForm moiForm,
+        JobRequestUnit? unit = null)
+    {
+        moiForm.WorkflowState = MoiWorkflowStates.Draft;
+        if (job.TotalQty <= 1 && string.IsNullOrWhiteSpace(job.InternalHandoffStatus))
+            SetHandoff(job, string.Empty);
+        if (unit != null && job.TotalQty > 1)
+            unit.InternalHandoffStatus = string.Empty;
+        if (job.Status == "Pending")
+            job.Status = "In Progress";
+        moiForm.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+    }
+
+    public static async Task OnMoiSubmittedForApprovalAsync(
+        AppDbContext context,
+        JobRequest job,
+        MOIForm form,
+        Customer customer)
+    {
+        var records = ClientApprovalService.ParseMoi(form);
+        if (ClientApprovalService.MoiClientPhaseComplete(customer, records))
+        {
+            await OnClientMoiPhaseCompleteAsync(context, job, form);
+            return;
+        }
+
+        var required = ClientApprovalService.GetRequiredMoiApproverNames(customer);
+        if (required.Count == 0)
+        {
+            await OnClientMoiPhaseCompleteAsync(context, job, form);
+            return;
+        }
+
+        form.WorkflowState = MoiWorkflowStates.PendingClientMoiApproval;
+        form.UpdatedAt = DateTime.UtcNow;
+        job.Status = "In Progress";
+
+        await context.SaveChangesAsync();
+    }
+
+    public static async Task OnClientMoiApprovalRecordedAsync(
+        AppDbContext context,
+        JobRequest job,
+        MOIForm form,
+        Customer customer)
+    {
+        var records = ClientApprovalService.ParseMoi(form);
+        if (!ClientApprovalService.MoiClientPhaseComplete(customer, records))
+        {
+            form.UpdatedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+            return;
+        }
+
+        await OnClientMoiPhaseCompleteAsync(context, job, form);
+    }
+
+    private static async Task OnClientMoiPhaseCompleteAsync(AppDbContext context, JobRequest job, MOIForm form)
+    {
+        form.WorkflowState = MoiWorkflowStates.PendingAdminIntake;
+        form.UpdatedAt = DateTime.UtcNow;
+
+        JobRequestUnit? unit = null;
+        if (form.JobRequestUnitId.HasValue)
+            unit = await context.JobRequestUnits.FindAsync(form.JobRequestUnitId.Value);
+
+        if (unit != null && job.TotalQty > 1)
+        {
+            unit.InternalHandoffStatus = JobHandoffStatuses.ClientSubmitted;
+            job.Status = "In Progress";
+        }
+        else
+        {
+            SetHandoff(job, JobHandoffStatuses.ClientSubmitted);
+            job.Status = "Pending";
+        }
+
+        var docs = context.JobItemDocuments.Where(d => d.JobRequestId == job.JobRequestId);
+        if (form.JobRequestUnitId.HasValue)
+        {
+            docs = docs.Where(d =>
+                d.JobRequestUnitId == form.JobRequestUnitId
+                || d.JobRequestUnitId == null);
+        }
+
+        foreach (var doc in await docs.ToListAsync())
+            doc.VisibleToInternal = true;
+
+        await context.SaveChangesAsync();
     }
 
     public static async Task OnMoiIntakeApprovedAsync(AppDbContext context, JobRequest job)
@@ -35,18 +141,10 @@ public static class JobHandoffService
         var moiForm = await context.MOIForms.FirstOrDefaultAsync(f => f.JobRequestId == job.JobRequestId);
         if (moiForm != null)
         {
-            moiForm.WorkflowState = "PendingPrep";
+            moiForm.WorkflowState = MoiWorkflowStates.PendingPrep;
             moiForm.UpdatedAt = DateTime.UtcNow;
         }
 
-        await context.SaveChangesAsync();
-    }
-
-    public static async Task OnClientMoiIssuedAsync(AppDbContext context, JobRequest job, MOIForm moiForm)
-    {
-        SetHandoff(job, JobHandoffStatuses.ClientSubmitted);
-        moiForm.WorkflowState = "PendingAdminIntake";
-        job.Status = "Pending";
         await context.SaveChangesAsync();
     }
 
@@ -69,67 +167,60 @@ public static class JobHandoffService
         var job = await context.JobRequests.FindAsync(form.JobRequestId.Value);
         if (job == null) return;
 
-        SetHandoff(job, JobHandoffStatuses.ResoInProgress);
+        form.WorkflowState = MoiWorkflowStates.Approved;
+        form.UpdatedAt = DateTime.UtcNow;
+        SetHandoff(job, JobHandoffStatuses.AdminReview);
+        job.Status = "In Progress";
 
-        var approvalJob = await context.JobRequests
-            .FirstOrDefaultAsync(j =>
-                j.CustomerId == job.CustomerId
-                && j.TaskType == "MOI Approval"
-                && j.AccountHolder == job.AccountHolder
-                && j.Status != "Completed");
-
-        if (approvalJob != null)
-        {
-            approvalJob.Status = "In Progress";
-            SetHandoff(approvalJob, JobHandoffStatuses.ResoInProgress);
-        }
-
+        await JobFormProvisioner.EnsureMoaFormAsync(context, job);
         await context.SaveChangesAsync();
     }
 
     public static async Task OnMoiApprovedAsync(AppDbContext context, MOIForm form)
     {
-        if (!form.JobRequestId.HasValue) return;
+        await OnMoiRecommendedAsync(context, form);
+    }
 
-        var job = await context.JobRequests.FindAsync(form.JobRequestId.Value);
-        if (job == null) return;
-
-        SetHandoff(job, JobHandoffStatuses.AdminReview);
-        job.Status = "Completed";
-        job.UsedQty = Math.Max(job.UsedQty, 1);
-
-        var approvalJob = await context.JobRequests
-            .FirstOrDefaultAsync(j =>
-                j.CustomerId == job.CustomerId
-                && j.TaskType == "MOI Approval"
-                && j.AccountHolder == job.AccountHolder
-                && j.Status != "Completed");
-
-        if (approvalJob != null)
+    public static async Task OnSharonMoaApprovedAsync(AppDbContext context, JobRequest job, MOAForm? moaForm)
+    {
+        SetHandoff(job, JobHandoffStatuses.MoaSharonApproved);
+        if (moaForm != null)
         {
-            approvalJob.Status = "In Progress";
-            SetHandoff(approvalJob, JobHandoffStatuses.AdminReview);
+            moaForm.SharonApprovedAt = DateTime.UtcNow;
+            moaForm.UpdatedAt = DateTime.UtcNow;
         }
-
         await context.SaveChangesAsync();
     }
 
     public static async Task AdvanceToReadyForMoaAsync(AppDbContext context, JobRequest job)
     {
+        if (job.InternalHandoffStatus != JobHandoffStatuses.MoaSharonApproved)
+            throw new InvalidOperationException("MOA must be approved by Sharon before release to client.");
+
         SetHandoff(job, JobHandoffStatuses.ReadyForMoa);
+        job.Status = "In Progress";
+        await context.SaveChangesAsync();
+    }
 
-        var moaJob = await context.JobRequests
-            .FirstOrDefaultAsync(j =>
-                j.CustomerId == job.CustomerId
-                && j.TaskType == "MOA"
-                && j.AccountHolder == job.AccountHolder
-                && j.Status != "Completed");
-
-        if (moaJob != null)
+    public static async Task OnClientMoaApprovalRecordedAsync(
+        AppDbContext context,
+        JobRequest job,
+        MOAForm form,
+        Customer customer)
+    {
+        var required = ClientApprovalService.GetRequiredMoaApproverNames(customer);
+        var records = ClientApprovalService.ParseMoa(form);
+        if (!ClientApprovalService.MoaClientPhaseComplete(customer, records))
         {
-            moaJob.Status = "In Progress";
-            SetHandoff(moaJob, JobHandoffStatuses.ReadyForMoa);
+            SetHandoff(job, JobHandoffStatuses.MoaCirculation);
+            form.UpdatedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+            return;
         }
+
+        SetHandoff(job, JobHandoffStatuses.PendingExecute);
+        job.Status = "In Progress";
+        form.UpdatedAt = DateTime.UtcNow;
 
         await context.SaveChangesAsync();
     }

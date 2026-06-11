@@ -1,0 +1,28 @@
+flowchart LR
+  subgraph JOBS["Job rows per customer / package"]
+    SVC["Service<br/>e.g. Annual Return<br/>one MOI per line"]
+    MOI["MOI job<br/>per MOI holder"]
+    MOIA["MOI Approval job<br/>per approval holder"]
+    MOA["MOA job<br/>per MOA holder"]
+  end
+
+  subgraph WHO_SEES["Who sees what"]
+    ADM["Admin — all"]
+    USR["User — assigned units only"]
+    CA["ClientAdmin — company jobs"]
+    CS["ClientSignatory — name match only"]
+  end
+
+  SVC --> MOI_FORM["Draft MOI linked"]
+  MOI --> MOI_FORM
+  MOIA --> MOI_FORM2["Paired MOI status"]
+  MOA --> MOA_FORM["MOA form + workflow"]
+
+  ADM --> JOBS
+  USR --> SVC
+  USR --> MOA
+  CA --> SVC
+  CA --> MOI
+  CS --> SVC
+  CS --> MOI
+  CS -.->|"hidden until ReadyForMoa"| MOA

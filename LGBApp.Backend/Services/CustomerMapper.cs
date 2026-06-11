@@ -46,19 +46,16 @@ public static class CustomerMapper
             MoaFormTemplateCode = customer.MoaFormTemplateCode,
             Moi = JsonHelper.Deserialize<List<string>>(customer.MoiJson),
             MoiApproval = JsonHelper.Deserialize<List<string>>(customer.MoiApprovalJson),
+            MoiApprovalMode = string.IsNullOrWhiteSpace(customer.MoiApprovalMode)
+                ? MoiApprovalModes.AllRequired
+                : customer.MoiApprovalMode,
             Moa = JsonHelper.Deserialize<List<string>>(customer.MoaJson),
             PurchasedDate = primaryDto?.PurchasedDate ?? customer.PurchasedDate.ToString("yyyy-MM-dd"),
             ExpiryDate = primaryDto?.ExpiryDate ?? customer.ExpiryDate.ToString("yyyy-MM-dd"),
             Packages = packages,
             AccountHolders = customer.AccountHolders
                 .OrderBy(h => h.AccountHolderId)
-                .Select(h => new AccountHolderDto
-                {
-                    Id = h.AccountHolderId,
-                    Name = h.Name,
-                    Email = h.Email,
-                    Phone = h.Phone
-                })
+                .Select(ToAccountHolderDto)
                 .ToList()
         };
     }
@@ -127,10 +124,27 @@ public static class CustomerMapper
             {
                 Name = h.Name,
                 Email = h.Email,
-                Phone = h.Phone
+                Phone = h.Phone,
+                NeedsMoi = h.Moi,
+                NeedsMoiApproval = h.MoiApproval,
+                NeedsMoa = h.Moa,
             }).ToList()
         };
     }
+
+    public static AccountHolderDto ToAccountHolderDto(AccountHolder h) => new()
+    {
+        Id = h.AccountHolderId,
+        Name = h.Name,
+        Email = h.Email,
+        Phone = h.Phone,
+        Moi = h.NeedsMoi,
+        MoiApproval = h.NeedsMoiApproval,
+        Moa = h.NeedsMoa,
+        UserId = h.UserId,
+        ClientAdded = h.ClientAdded,
+        AddedByUserId = h.AddedByUserId,
+    };
 
     public static void ApplyUpdate(Customer customer, CustomerResponse request)
     {

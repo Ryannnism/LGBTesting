@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using LGBApp.Backend.Data;
 using LGBApp.Backend.Models;
 using LGBApp.Backend.Models.DTOs;
@@ -30,7 +31,8 @@ public class MOAFormsController : ControllerBase
         foreach (var form in forms)
         {
             var workflow = await WorkflowService.GetWorkflowForMoaAsync(_context, form.MOAFormId);
-            results.Add(FormMapper.ToMoaResponse(form, workflow));
+            var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+            results.Add(FormMapper.ToMoaResponse(form, workflow, customer));
         }
         return results;
     }
@@ -43,7 +45,8 @@ public class MOAFormsController : ControllerBase
         if (!await FormAccessHelper.CanAccessMoaFormAsync(_context, User, form))
             return Forbid();
         var workflow = await WorkflowService.GetWorkflowForMoaAsync(_context, id);
-        return FormMapper.ToMoaResponse(form, workflow);
+        var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+        return FormMapper.ToMoaResponse(form, workflow, customer);
     }
 
     [HttpPost]
@@ -122,6 +125,58 @@ public class MOAFormsController : ControllerBase
         return FormMapper.ToMoaResponse(form, workflow);
     }
 
+    [HttpPost("{id}/client-approve")]
+    public async Task<ActionResult<FormResponse>> ClientApprove(int id, ClientApproveRequest request)
+    {
+        var user = await GetCurrentUserAsync();
+        if (user == null) return Unauthorized();
+
+        if (!AuthHelper.IsExternalUser(User))
+            return Forbid();
+
+        var form = await _context.MOAForms.FindAsync(id);
+        if (form == null) return NotFound();
+
+        if (!form.JobRequestId.HasValue)
+            return BadRequest("MOA must be linked to a job.");
+
+        var job = await _context.JobRequests.FindAsync(form.JobRequestId.Value);
+        if (job == null) return NotFound();
+
+        if (job.InternalHandoffStatus is not (
+            JobHandoffStatuses.ReadyForMoa
+            or JobHandoffStatuses.MoaCirculation))
+            return BadRequest("MOA is not available for client sign-off.");
+
+        var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+        if (customer == null) return BadRequest("Customer not found.");
+
+        var required = ClientApprovalService.GetRequiredMoaApproverNames(customer);
+        var holderName = user.Name.Trim();
+        if (!required.Any(n => n.Equals(holderName, StringComparison.OrdinalIgnoreCase)))
+            return Forbid();
+
+        var records = ClientApprovalService.ParseMoa(form);
+        if (ClientApprovalService.HasSigned(records, holderName))
+            return BadRequest("You have already signed off on this MOA.");
+
+        records.Add(new ClientApprovalRecord
+        {
+            UserId = user.UserId,
+            AccountHolderName = holderName,
+            Comments = request.Comments ?? string.Empty,
+            SignatureFileName = request.SignatureFileName,
+            SignatureDataUrl = request.SignatureDataUrl,
+            SignedAt = DateTime.UtcNow,
+        });
+        ClientApprovalService.SaveMoa(form, records);
+
+        await JobHandoffService.OnClientMoaApprovalRecordedAsync(_context, job, form, customer);
+
+        var workflow = await WorkflowService.GetWorkflowForMoaAsync(_context, id);
+        return FormMapper.ToMoaResponse(form, workflow, customer);
+    }
+
     [HttpPost("{id}/start-workflow")]
     public async Task<ActionResult<FormResponse>> StartWorkflow(int id)
     {
@@ -179,5 +234,12 @@ public class MOAFormsController : ControllerBase
         _context.MOAForms.Remove(form);
         await _context.SaveChangesAsync();
         return NoContent();
+    }
+
+    private async Task<User?> GetCurrentUserAsync()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(claim, out var id)) return null;
+        return await _context.Users.FindAsync(id);
     }
 }

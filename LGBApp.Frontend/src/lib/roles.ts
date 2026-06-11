@@ -4,6 +4,7 @@ export const ROLES = {
   Admin: 'Admin',
   User: 'User',
   ClientAdmin: 'ClientAdmin',
+  ClientSignatory: 'ClientSignatory',
 } as const;
 
 export type AppRole = (typeof ROLES)[keyof typeof ROLES];
@@ -24,13 +25,17 @@ export function isClientAdmin(user: UserResponse | null): boolean {
   return user?.role === ROLES.ClientAdmin;
 }
 
+export function isClientSignatory(user: UserResponse | null): boolean {
+  return user?.role === ROLES.ClientSignatory;
+}
+
 /** @deprecated Client staff role removed — use isClientAdmin */
 export function isClientStaff(_user: UserResponse | null): boolean {
   return false;
 }
 
 export function isExternalUser(user: UserResponse | null): boolean {
-  return isClientAdmin(user);
+  return isClientAdmin(user) || isClientSignatory(user);
 }
 
 export function canManageUsers(user: UserResponse | null): boolean {
@@ -42,6 +47,7 @@ export function roleLabel(role: string): string {
     case ROLES.Admin: return 'Admin (internal)';
     case ROLES.User: return 'User (internal secretary)';
     case ROLES.ClientAdmin: return 'Client Admin (external)';
+    case ROLES.ClientSignatory: return 'Client Signatory (external)';
     default: return role;
   }
 }

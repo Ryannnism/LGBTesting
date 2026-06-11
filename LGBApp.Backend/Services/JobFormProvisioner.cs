@@ -8,6 +8,9 @@ public static class JobFormProvisioner
 {
     private static readonly string[] FormTaskTypes = ["MOI", "MOI Approval", "MOA"];
 
+    public static Task EnsureMoaFormAsync(AppDbContext context, JobRequest job) =>
+        EnsureMoaFormCoreAsync(context, job);
+
     public static async Task EnsureFormForJobAsync(AppDbContext context, JobRequest job)
     {
         if (job.JobRequestId == 0)
@@ -16,9 +19,16 @@ public static class JobFormProvisioner
         if (FormTaskTypes.Contains(job.TaskType, StringComparer.OrdinalIgnoreCase))
         {
             if (string.Equals(job.TaskType, "MOA", StringComparison.OrdinalIgnoreCase))
-                await EnsureMoaFormAsync(context, job);
-            else
+                await EnsureMoaFormCoreAsync(context, job);
+            else if (!string.Equals(job.TaskType, "MOI Approval", StringComparison.OrdinalIgnoreCase))
                 await EnsureMoiFormAsync(context, job);
+            return;
+        }
+
+        if (string.Equals(job.TaskType, "Service", StringComparison.OrdinalIgnoreCase)
+            && job.CustomerPackageId.HasValue)
+        {
+            await EnsureMoiFormAsync(context, job);
             return;
         }
 
@@ -33,8 +43,14 @@ public static class JobFormProvisioner
 
     private static async Task EnsureMoiFormAsync(AppDbContext context, JobRequest job)
     {
+        if (job.TotalQty > 1)
+            return;
+
         var exists = await context.MOIForms.AnyAsync(f => f.JobRequestId == job.JobRequestId);
         if (exists) return;
+
+        await JobRequestUnitService.SyncUnitsForJobAsync(context, job);
+        var unit = job.Units.OrderBy(u => u.UnitNumber).FirstOrDefault();
 
         Customer? customer = null;
         if (job.CustomerId.HasValue)
@@ -51,6 +67,7 @@ public static class JobFormProvisioner
         context.MOIForms.Add(new MOIForm
         {
             JobRequestId = job.JobRequestId,
+            JobRequestUnitId = unit?.JobRequestUnitId,
             Company = job.Customer,
             FormTemplateCode = templateCode,
             WorkflowState = "Draft",
@@ -68,19 +85,13 @@ public static class JobFormProvisioner
         await context.SaveChangesAsync();
     }
 
-    private static async Task EnsureMoaFormAsync(AppDbContext context, JobRequest job)
+    private static async Task EnsureMoaFormCoreAsync(AppDbContext context, JobRequest job)
     {
         var exists = await context.MOAForms.AnyAsync(f => f.JobRequestId == job.JobRequestId);
         if (exists) return;
 
-        MOIForm? moiForm = null;
-        if (job.CustomerId.HasValue)
-        {
-            moiForm = await context.MOIForms
-                .Where(f => f.Company == job.Customer && f.WorkflowState == "Approved")
-                .OrderByDescending(f => f.UpdatedAt)
-                .FirstOrDefaultAsync();
-        }
+        var moiForm = await context.MOIForms
+            .FirstOrDefaultAsync(f => f.JobRequestId == job.JobRequestId);
 
         Customer? customer = job.CustomerId.HasValue
             ? await context.Customers.FindAsync(job.CustomerId.Value)

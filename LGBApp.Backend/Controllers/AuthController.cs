@@ -53,14 +53,17 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var user = await _context.Users
+            .Include(u => u.Customer!)
+            .ThenInclude(c => c.AccountHolders)
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
         if (user == null || !PasswordHasher.Verify(request.Password, user.PasswordHash))
             return Unauthorized("Invalid email or password.");
 
         return Ok(new AuthResponse
         {
             Token = _tokenService.GenerateToken(user),
-            User = UserMapper.ToResponse(user)
+            User = UserMapper.ToResponse(user, user.Customer)
         });
     }
 
@@ -79,7 +82,8 @@ public class AuthController : ControllerBase
             return Unauthorized();
 
         var user = await _context.Users
-            .Include(u => u.Customer)
+            .Include(u => u.Customer!)
+            .ThenInclude(c => c.AccountHolders)
             .FirstOrDefaultAsync(u => u.UserId == userId);
         if (user == null)
             return NotFound();
@@ -97,7 +101,7 @@ public class AuthController : ControllerBase
         return Ok(new AuthResponse
         {
             Token = _tokenService.GenerateToken(user),
-            User = UserMapper.ToResponse(user),
+            User = UserMapper.ToResponse(user, user.Customer),
         });
     }
 }

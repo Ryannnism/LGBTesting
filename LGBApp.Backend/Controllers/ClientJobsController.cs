@@ -18,7 +18,7 @@ public class ClientJobsController : ControllerBase
     public ClientJobsController(AppDbContext context) => _context = context;
 
     [HttpGet("my-jobs")]
-    [Authorize(Roles = "Admin,ClientAdmin")]
+    [Authorize(Roles = "Admin,ClientAdmin,ClientSignatory")]
     public async Task<ActionResult<IEnumerable<JobRequestResponse>>> GetMyCompanyJobs(
         [FromQuery] bool includeCompleted = false)
     {
@@ -43,9 +43,29 @@ public class ClientJobsController : ControllerBase
             .OrderByDescending(j => j.DateRequested)
             .ToListAsync();
 
+        if (AuthHelper.IsExternalUser(User))
+            jobs = jobs.Where(j => j.TaskType == "Service").ToList();
+
         var responses = jobs.Select(JobRequestMapper.ToResponse).ToList();
         await JobFormLinkService.EnrichWithFormLinksAsync(_context, responses, User);
         return responses;
+    }
+
+    [HttpPost("{jobId}/issue-moi")]
+    [Authorize(Roles = "Admin,ClientAdmin,ClientSignatory")]
+    public async Task<ActionResult<JobRequestResponse>> IssueMoiForJob(int jobId, IssueMoiRequest? request)
+    {
+        var job = await _context.JobRequests
+            .Include(j => j.Units).ThenInclude(u => u.Assignees)
+            .FirstOrDefaultAsync(j => j.JobRequestId == jobId);
+        if (job == null) return NotFound();
+
+        if (!AuthHelper.IsAdmin(User)
+            && !AuthHelper.CanManageClientJob(User, job)
+            && !await AuthHelper.CanSignatoryIssueMoiAsync(_context, User, job))
+            return Forbid();
+
+        return await IssueMoiForJobCoreAsync(job, request ?? new IssueMoiRequest());
     }
 
     [HttpPost("issue-moi")]
@@ -100,21 +120,67 @@ public class ClientJobsController : ControllerBase
         _context.JobRequests.Add(job);
         await _context.SaveChangesAsync();
         await JobRequestUnitService.SyncUnitsForJobAsync(_context, job);
-        await JobFormProvisioner.EnsureFormForJobAsync(_context, job);
 
-        var moiForm = await _context.MOIForms.FirstOrDefaultAsync(f => f.JobRequestId == job.JobRequestId);
-        if (moiForm != null)
+        request.RequestedBy = requestedBy;
+        request.Service = service;
+        return await IssueMoiForJobCoreAsync(job, request, created: true);
+    }
+
+    private async Task<ActionResult<JobRequestResponse>> IssueMoiForJobCoreAsync(
+        JobRequest job,
+        IssueMoiRequest request,
+        bool created = false)
+    {
+        var user = await _context.Users.FindAsync(AuthHelper.CurrentUserId(User));
+        var requestedBy = string.IsNullOrWhiteSpace(request.RequestedBy)
+            ? user?.Name ?? string.Empty
+            : request.RequestedBy;
+
+        if (string.IsNullOrWhiteSpace(job.AccountHolder))
         {
-            var data = JsonHelper.Deserialize<Dictionary<string, object?>>(moiForm.FormDataJson);
-            if (request.TypeOfDocument != null) data["typeOfDocument"] = request.TypeOfDocument;
-            if (request.DocumentTitle != null) data["documentTitle"] = request.DocumentTitle;
-            data["requestedBy"] = requestedBy;
-            data["service"] = service;
-            data["adHoc"] = request.AdHoc;
-            moiForm.FormDataJson = JsonHelper.Serialize(data);
-            moiForm.UpdatedAt = DateTime.UtcNow;
-            await JobHandoffService.OnClientMoiIssuedAsync(_context, job, moiForm);
+            job.AccountHolder = requestedBy;
+            job.AccountHolderEmail = user?.Email ?? job.AccountHolderEmail;
+            job.AccountHolderPhone = user?.Mobile ?? job.AccountHolderPhone;
         }
+
+        await JobRequestUnitService.SyncUnitsForJobAsync(_context, job);
+        await JobWorkflowIntegrityService.RepairJobAsync(_context, job);
+        await _context.SaveChangesAsync();
+        job = await _context.JobRequests
+            .Include(j => j.Units).ThenInclude(u => u.Assignees)
+            .FirstAsync(j => j.JobRequestId == job.JobRequestId);
+
+        var unitNumber = request.UnitNumber ?? (job.TotalQty == 1 ? 1 : null);
+        if (!unitNumber.HasValue)
+            return BadRequest(new { message = "Unit number is required for multi-session items." });
+
+        var unit = MoiFormService.ResolveUnit(job, unitNumber);
+        if (unit == null)
+            return BadRequest(new { message = "Session not found for this item." });
+
+        var moiForm = await MoiFormService.EnsureMoiForUnitAsync(_context, job, unit);
+
+        var data = JsonHelper.Deserialize<Dictionary<string, object?>>(moiForm.FormDataJson);
+        if (!string.IsNullOrWhiteSpace(request.TypeOfDocument))
+            data["typeOfDocument"] = request.TypeOfDocument;
+        if (!string.IsNullOrWhiteSpace(request.DocumentTitle))
+            data["documentTitle"] = request.DocumentTitle;
+        data["requestedBy"] = requestedBy;
+        data["service"] = string.IsNullOrWhiteSpace(request.Service) ? job.Service : request.Service;
+        data["jobId"] = job.JobRequestId;
+        data["unitNumber"] = unit.UnitNumber;
+        data["sessionLabel"] = job.TotalQty > 1 ? $"session {unit.UnitNumber}" : string.Empty;
+        moiForm.FormDataJson = JsonHelper.Serialize(data);
+        moiForm.UpdatedAt = DateTime.UtcNow;
+
+        var unitHandoff = unit.InternalHandoffStatus;
+        var alreadyIssued = moiForm.WorkflowState != MoiWorkflowStates.Draft
+            || unitHandoff == JobHandoffStatuses.ClientSubmitted
+            || (job.TotalQty <= 1 && job.InternalHandoffStatus == JobHandoffStatuses.ClientSubmitted);
+        if (!alreadyIssued)
+            await JobHandoffService.OnClientMoiIssuedAsync(_context, job, moiForm, unit);
+        else
+            await _context.SaveChangesAsync();
 
         job = await _context.JobRequests
             .Include(j => j.Units).ThenInclude(u => u.Assignees)
@@ -122,7 +188,9 @@ public class ClientJobsController : ControllerBase
 
         var response = JobRequestMapper.ToResponse(job);
         await JobFormLinkService.EnrichWithFormLinksAsync(_context, [response], User);
-        return CreatedAtAction(nameof(GetMyCompanyJobs), response);
+        if (created)
+            return CreatedAtAction(nameof(GetMyCompanyJobs), response);
+        return Ok(response);
     }
 
     [HttpPost("{jobId}/assign")]

@@ -28,6 +28,7 @@ import { PackageTracking } from './components/PackageTracking';
 import { PackageWorkboard } from './components/PackageWorkboard';
 import { MyWorkTracker } from './components/MyWorkTracker';
 import { buildCustomerAddOnLines } from './lib/packagePricing';
+import { canSignatoryStartMoi } from './lib/packageItemStatus';
 import {
   ApiError,
   assignJobRequest,
@@ -35,11 +36,14 @@ import {
   createCustomer,
   deleteCustomer,
   adminOverrideMoiForm,
-  approveMoiForm,
+  clientApproveMoaForm,
+  clientApproveMoiForm,
   createMOAForm,
   createMOIForm,
   getMOAForm,
+  getMOIForm,
   startMoaWorkflow,
+  submitMoiForApproval,
   updateMOAForm,
   updateMoaPack,
   recommendMoiForm,
@@ -48,12 +52,14 @@ import {
   getCustomers,
   getJobRequest,
   getMOIForms,
+  getMyCompany,
   getProducts,
   getAuthUser,
   getUsers,
   isAdmin,
   canManageUsers,
   isClientAdmin,
+  isClientSignatory,
   isExternalUser,
   isInternalStaff,
   roleLabel,
@@ -77,6 +83,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [toast, setToast] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [myCompany, setMyCompany] = useState<CustomerResponse | null>(null);
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [apiUsers, setApiUsers] = useState<{ id: number; name: string }[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -140,9 +147,18 @@ export default function App() {
   const loadProducts = useCallback(async () => {
     try {
       const data = await getProducts();
-      setProducts(data);
+      setProducts([...data].sort((a, b) => (a.packagePrice ?? 0) - (b.packagePrice ?? 0)));
     } catch {
       setProducts([]);
+    }
+  }, []);
+
+  const loadMyCompany = useCallback(async () => {
+    try {
+      const data = await getMyCompany();
+      setMyCompany(data);
+    } catch {
+      setMyCompany(null);
     }
   }, []);
 
@@ -158,7 +174,15 @@ export default function App() {
   const loadMOIForms = useCallback(async () => {
     try {
       const forms = await getMOIForms();
-      setSubmittedMOIForms(forms.map((f) => ({ ...f.data, jobId: f.jobId ?? f.id })));
+      setSubmittedMOIForms(forms.map((f) => ({
+        ...f.data,
+        id: f.id,
+        jobId: f.jobId,
+        workflowState: f.workflowState,
+        clientApprovals: f.clientApprovals,
+        requiredApprovers: f.requiredApprovers,
+        pendingApprovers: f.pendingApprovers,
+      })));
     } catch {
       setSubmittedMOIForms([]);
     }
@@ -167,6 +191,7 @@ export default function App() {
   const userIsAdmin = isAdmin(currentUser);
   const userIsExternal = isExternalUser(currentUser);
   const userIsClientAdmin = isClientAdmin(currentUser);
+  const userIsSignatory = isClientSignatory(currentUser);
   const userIsInternal = isInternalStaff(currentUser);
   const userCanManageTeam = canManageUsers(currentUser);
 
@@ -198,11 +223,18 @@ export default function App() {
     if (userIsAdmin && activeTab === 'dashboard') {
       loadMOIForms();
     }
-  }, [currentUser, userIsAdmin, userIsClientAdmin, userIsInternal, activeTab, refreshKey, loadCustomers, loadProducts, loadUsers, loadMOIForms]);
+    if (userIsExternal && activeTab === 'dashboard') {
+      void loadMyCompany();
+      loadMOIForms();
+      loadProducts();
+    }
+  }, [currentUser, userIsAdmin, userIsClientAdmin, userIsInternal, userIsExternal, activeTab, refreshKey, loadCustomers, loadProducts, loadUsers, loadMOIForms, loadMyCompany]);
 
   useEffect(() => {
     if (!currentUser) return;
     if (userIsClientAdmin && !['dashboard', 'packages', 'team'].includes(activeTab)) {
+      setActiveTab('dashboard');
+    } else if (userIsSignatory && activeTab !== 'dashboard') {
       setActiveTab('dashboard');
     } else if (!userIsAdmin && !userIsExternal && activeTab !== 'dashboard') {
       setActiveTab('dashboard');
@@ -220,7 +252,11 @@ export default function App() {
       setActiveTab('dashboard');
       return;
     }
-    if (!userIsAdmin && !userIsClientAdmin && tab !== 'dashboard') {
+    if (userIsSignatory && tab !== 'dashboard') {
+      setActiveTab('dashboard');
+      return;
+    }
+    if (!userIsAdmin && !userIsClientAdmin && !userIsSignatory && tab !== 'dashboard') {
       setActiveTab('dashboard');
       return;
     }
@@ -241,7 +277,9 @@ export default function App() {
       ]
     : userIsClientAdmin
       ? clientAdminTabs
-      : [{ id: 'dashboard' as const, label: 'Client Portal', icon: LayoutDashboard }];
+      : userIsSignatory
+        ? [{ id: 'dashboard' as const, label: 'My documents', icon: LayoutDashboard }]
+        : [{ id: 'dashboard' as const, label: 'Client Portal', icon: LayoutDashboard }];
 
   const computeExpiryDate = (purchased: string, validity: string) => {
     const start = new Date(purchased);
@@ -329,6 +367,9 @@ export default function App() {
           name: String(h.name ?? ''),
           email: String(h.email ?? ''),
           phone: String(h.phone ?? ''),
+          moi: Boolean(h.moi),
+          moiApproval: Boolean(h.moiApproval),
+          moa: Boolean(h.moa),
         })),
       });
       setSelectedCustomer(updated);
@@ -431,6 +472,8 @@ export default function App() {
     jobTitle?: string;
     canRecommendMoi?: boolean;
     canApproveMoiIntake?: boolean;
+    canApproveMoi?: boolean;
+    canApproveMoa?: boolean;
     customerId?: number;
   }) => {
     try {
@@ -443,6 +486,8 @@ export default function App() {
         jobTitle: data.jobTitle,
         canRecommendMoi: data.canRecommendMoi,
         canApproveMoiIntake: data.canApproveMoiIntake,
+        canApproveMoi: data.canApproveMoi,
+        canApproveMoa: data.canApproveMoa,
         customerId: data.customerId,
       });
       setUserRefreshKey((k) => k + 1);
@@ -455,29 +500,42 @@ export default function App() {
   const handleMOISubmit = async (data: Record<string, unknown>) => {
     try {
       const payload = {
-        jobId: selectedJobRequest?.id,
+        jobId: selectedJobRequest?.id ?? (data.jobId as number | undefined),
         company: String(data.company ?? ''),
         formTemplateCode: data.formTemplateCode as string | undefined,
         financeRelated: Boolean(data.financeRelated),
         bankSignatoryMatter: Boolean(data.bankSignatoryMatter),
         data,
       };
-      if (isMOIViewMode && selectedMOIForm) {
-        const formId = selectedMOIForm.id as number | undefined;
-        if (formId) {
-          await updateMOIForm(formId, payload);
-        }
+      let formId = selectedMOIForm?.id as number | undefined;
+      if (formId) {
+        await updateMOIForm(formId, payload);
       } else {
-        await createMOIForm(payload);
+        const created = await createMOIForm(payload);
+        formId = created.id;
       }
+      const saved = formId ? await getMOIForm(formId) : null;
       await loadMOIForms();
       bumpRefresh();
+      if (saved && selectedJobRequest) {
+        setSelectedMOIForm({
+          ...saved.data,
+          id: saved.id,
+          jobId: saved.jobId ?? selectedJobRequest.id,
+          workflowState: saved.workflowState,
+          clientApprovals: saved.clientApprovals,
+          requiredApprovers: saved.requiredApprovers,
+          pendingApprovers: saved.pendingApprovers,
+          status: selectedJobRequest.status,
+          service: selectedJobRequest.service,
+          typeOfDocument: selectedJobRequest.service,
+          taskType: selectedJobRequest.taskType,
+        });
+      }
       showToast('MOI form saved.');
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Failed to save MOI form.');
     }
-    setIsMOIViewMode(false);
-    setSelectedMOIForm(null);
   };
 
   const openMoaFormForJob = async (job: JobRequestResponse) => {
@@ -497,6 +555,9 @@ export default function App() {
           packChecklist: form.packChecklist,
           packValidationErrors: form.packValidationErrors,
           workflow: form.workflow,
+          clientApprovals: form.clientApprovals,
+          requiredApprovers: form.requiredApprovers,
+          pendingApprovers: form.pendingApprovers,
         });
         setIsMOAFormOpen(true);
         return;
@@ -514,53 +575,74 @@ export default function App() {
     setIsMOAFormOpen(true);
   };
 
-  const handleOpenClientForm = (job: JobRequestResponse) => {
-    if (job.taskType === 'MOA' || job.linkedFormKind === 'MOA') {
-      void openMoaFormForJob(job);
-      return;
-    }
+  const openMoiFormForJob = async (job: JobRequestResponse, viewMode = true) => {
     setSelectedJobRequest(job);
-    const moiForm = submittedMOIForms.find((f) => f.id === job.linkedFormId || f.jobId === job.id);
+    let moiForm = submittedMOIForms.find((f) => f.id === job.linkedFormId || f.jobId === job.id);
+    if (!moiForm) {
+      try {
+        const f = job.linkedFormId
+          ? await getMOIForm(job.linkedFormId)
+          : (await getMOIForms(job.id, job.activeUnitNumber))[0];
+        if (f) {
+          moiForm = {
+            ...f.data,
+            id: f.id,
+            jobId: f.jobId ?? job.id,
+            workflowState: f.workflowState,
+            clientApprovals: f.clientApprovals,
+            requiredApprovers: f.requiredApprovers,
+            pendingApprovers: f.pendingApprovers,
+          };
+        }
+      } catch {
+        // fall through to empty shell
+      }
+    }
     if (moiForm) {
-      setSelectedMOIForm({ ...moiForm, status: job.status });
-      setIsMOIViewMode(true);
+      setSelectedMOIForm({
+        ...moiForm,
+        status: job.status,
+        service: job.service,
+        typeOfDocument: job.service,
+        taskType: job.taskType,
+      });
+      const clientCanEdit = moiForm.workflowState === 'Draft'
+        && job.taskType !== 'MOI Approval'
+        && (userIsClientAdmin || (userIsSignatory && canSignatoryStartMoi(job, currentUser!)));
+      setIsMOIViewMode(!clientCanEdit);
     } else {
       setSelectedMOIForm({
         id: job.linkedFormId,
         company: job.customer,
         signerName: job.accountHolder,
+        signerEmail: job.accountHolderEmail,
+        signerPhone: job.accountHolderPhone,
         taskType: job.taskType,
+        service: job.service,
+        typeOfDocument: job.service,
+        jobId: job.id,
       });
-      setIsMOIViewMode(Boolean(job.linkedFormId));
+      const clientCanEdit = job.taskType !== 'MOI Approval'
+        && (userIsClientAdmin || (userIsSignatory && canSignatoryStartMoi(job, currentUser!)));
+      setIsMOIViewMode(Boolean(job.linkedFormId) && viewMode && !clientCanEdit);
     }
     setIsMOIFormOpen(true);
   };
 
-  const handleOpenFormTask = (job: JobRequestResponse) => {
-    setSelectedJobRequest(job);
-
+  const handleOpenClientForm = (job: JobRequestResponse) => {
     if (job.taskType === 'MOA' || job.linkedFormKind === 'MOA') {
       void openMoaFormForJob(job);
       return;
     }
+    void openMoiFormForJob(job, true);
+  };
 
-    const moiForm = submittedMOIForms.find(
-      (form) => form.id === job.linkedFormId || form.jobId === job.id,
-    );
-    if (moiForm) {
-      setSelectedMOIForm({ ...moiForm, status: job.status });
-      setIsMOIViewMode(true);
-    } else {
-      setSelectedMOIForm({
-        company: job.customer,
-        signerName: job.accountHolder,
-        signerEmail: job.accountHolderEmail,
-        signerPhone: job.accountHolderPhone,
-        taskType: job.taskType,
-      });
-      setIsMOIViewMode(false);
+  const handleOpenFormTask = (job: JobRequestResponse) => {
+    if (job.taskType === 'MOA' || job.linkedFormKind === 'MOA') {
+      void openMoaFormForJob(job);
+      return;
     }
-    setIsMOIFormOpen(true);
+    void openMoiFormForJob(job, true);
   };
 
   const handleConvertToMOA = (moiData: Record<string, unknown>) => {
@@ -657,13 +739,49 @@ export default function App() {
     }
   };
 
-  const handleApproveMoi = async (formId: number, comments: string) => {
+  const handleSubmitMoiForApproval = async (formId: number) => {
     try {
-      await approveMoiForm(formId, comments);
+      await submitMoiForApproval(formId);
       await loadMOIForms();
-      showToast('MOI approved — ready for MOA.');
+      bumpRefresh();
+      showToast('MOI submitted for approval.');
+      setIsMOIFormOpen(false);
+      setSelectedMOIForm(null);
+      setSelectedJobRequest(null);
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to submit MOI for approval.');
+    }
+  };
+
+  const handleClientApproveMoi = async (
+    formId: number,
+    payload: { comments: string; signatureFileName?: string; signatureDataUrl?: string },
+  ) => {
+    try {
+      await clientApproveMoiForm(formId, payload);
+      await loadMOIForms();
+      bumpRefresh();
+      showToast('MOI signed.');
+      setIsMOIFormOpen(false);
+      setSelectedMOIForm(null);
+      setSelectedJobRequest(null);
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Failed to approve MOI.');
+    }
+  };
+
+  const handleClientApproveMoa = async (
+    formId: number,
+    payload: { comments: string; signatureFileName?: string; signatureDataUrl?: string },
+  ) => {
+    try {
+      await clientApproveMoaForm(formId, payload);
+      bumpRefresh();
+      showToast('MOA signed off.');
+      setIsMOAFormOpen(false);
+      setMOIDataForMOA(null);
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to sign off MOA.');
     }
   };
 
@@ -750,10 +868,12 @@ export default function App() {
     }
   };
 
-  const customerOptions = customers.map((c) => ({
+  const toFormModalCustomer = (c: CustomerResponse) => ({
     id: c.id,
     company: c.company,
     package: c.packages?.find((p) => p.status === 'Active')?.packageName ?? c.package,
+    packageNames: c.packages?.filter((p) => p.status === 'Active').map((p) => p.packageName)
+      ?? (c.package ? [c.package] : []),
     accountHolders: c.accountHolders.map((h) => ({
       id: h.id,
       name: h.name,
@@ -761,22 +881,45 @@ export default function App() {
       moiApproval: (c.moiApproval || []).includes(h.name),
       moa: (c.moa || []).includes(h.name),
     })),
-  }));
+  });
 
-  const formModalCustomers = selectedJobRequest
-    ? [{
+  const customerOptions = customers.map(toFormModalCustomer);
+
+  const formModalCustomers = (() => {
+    if (selectedJobRequest) {
+      const full = customerOptions.find(
+        (c) => c.id === selectedJobRequest.customerId || c.company === selectedJobRequest.customer,
+      );
+      if (full) return [full];
+      if (myCompany && (myCompany.id === selectedJobRequest.customerId || myCompany.company === selectedJobRequest.customer)) {
+        return [toFormModalCustomer(myCompany)];
+      }
+      return [{
         id: selectedJobRequest.customerId ?? 0,
         company: selectedJobRequest.customer,
-        package: '',
-        accountHolders: [{
-          id: 0,
-          name: selectedJobRequest.accountHolder,
-          moi: selectedJobRequest.taskType === 'MOI',
-          moiApproval: selectedJobRequest.taskType === 'MOI Approval',
-          moa: selectedJobRequest.taskType === 'MOA',
-        }],
-      }]
-    : customerOptions;
+        package: myCompany?.packages?.find((p) => p.status === 'Active')?.packageName ?? myCompany?.package ?? '',
+        packageNames: myCompany?.packages?.filter((p) => p.status === 'Active').map((p) => p.packageName)
+          ?? (myCompany?.package ? [myCompany.package] : []),
+        accountHolders: myCompany
+          ? myCompany.accountHolders.map((h) => ({
+              id: h.id,
+              name: h.name,
+              moi: (myCompany.moi || []).includes(h.name),
+              moiApproval: (myCompany.moiApproval || []).includes(h.name),
+              moa: (myCompany.moa || []).includes(h.name),
+            }))
+          : [{
+              id: 0,
+              name: selectedJobRequest.accountHolder,
+              moi: selectedJobRequest.taskType === 'MOI',
+              moiApproval: selectedJobRequest.taskType === 'MOI Approval',
+              moa: selectedJobRequest.taskType === 'MOA',
+            }],
+      }];
+    }
+    if (userIsExternal && myCompany) return [toFormModalCustomer(myCompany)];
+    return customerOptions;
+  })();
 
   const productOptions = products.map((p) => ({
     id: p.id,
@@ -851,8 +994,12 @@ export default function App() {
         onConvertToMOA={handleConvertToMOA}
         onAccept={userIsAdmin ? handleAcceptJob : undefined}
         onRecommend={handleRecommendMoi}
-        onApproveMoi={handleApproveMoi}
+        onSubmitForApproval={handleSubmitMoiForApproval}
+        onClientApprove={handleClientApproveMoi}
         onAdminOverride={userIsAdmin ? handleAdminOverrideMoi : undefined}
+        isClientUser={userIsClientAdmin || userIsSignatory}
+        isMoiApprovalTask={selectedJobRequest?.taskType === 'MOI Approval'}
+        currentUserName={currentUser?.name}
         userIsAdmin={userIsAdmin}
         viewMode={isMOIViewMode}
         initialData={selectedMOIForm}
@@ -870,13 +1017,15 @@ export default function App() {
           setMOIDataForMOA(null);
         }}
         onSubmit={handleMOASubmit}
-        onStartWorkflow={handleStartMoaWorkflow}
+        onStartWorkflow={userIsAdmin ? handleStartMoaWorkflow : undefined}
+        onClientApprove={userIsClientAdmin || userIsSignatory ? handleClientApproveMoa : undefined}
         moiData={moiDataForMOA}
         initialData={moiDataForMOA}
-        viewMode={Boolean(moiDataForMOA?.workflow)}
+        viewMode={Boolean(moiDataForMOA?.workflow) || userIsClientAdmin || userIsSignatory}
         users={apiUsers}
         customers={formModalCustomers}
         userIsAdmin={userIsAdmin}
+        isClientUser={userIsClientAdmin || userIsSignatory}
       />
       <JobRequestDetailsModal
         isOpen={isJobDetailsModalOpen}
@@ -966,11 +1115,12 @@ export default function App() {
       <main className="p-6 overflow-auto" style={{ height: 'calc(100% - 129px)' }}>
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {userIsClientAdmin && currentUser ? (
+            {(userIsClientAdmin || userIsSignatory) && currentUser ? (
               <ClientPortal
                 currentUser={currentUser}
                 refreshKey={refreshKey}
                 onOpenForm={handleOpenClientForm}
+                mode={userIsSignatory ? 'signatory' : 'admin'}
               />
             ) : userIsAdmin ? (
               selectedPackageWork ? (
@@ -1029,8 +1179,8 @@ export default function App() {
         {activeTab === 'team' && userIsClientAdmin && (
           <UserManagement
             mode="clientTeam"
-            title="Client admins"
-            description="Invite other client admins for your company. All admins can issue MOI and set target dates."
+            title="Team & signatories"
+            description="Invite client admins or add signatories who can complete MOI/MOA forms assigned to them. Signatories cannot manage the portal."
             refreshKey={userRefreshKey}
             onCreateUser={() => setIsCreateUserModalOpen(true)}
           />

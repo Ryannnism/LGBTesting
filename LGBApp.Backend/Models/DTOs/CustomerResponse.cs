@@ -24,6 +24,8 @@ public class CustomerResponse
     public string? MoaFormTemplateCode { get; set; }
     public List<string> Moi { get; set; } = new();
     public List<string> MoiApproval { get; set; } = new();
+    /// <summary>AllRequired | AnyOne — MOI only; MOA always requires all signers.</summary>
+    public string MoiApprovalMode { get; set; } = MoiApprovalModes.AllRequired;
     public List<string> Moa { get; set; } = new();
     public string PurchasedDate { get; set; } = string.Empty;
     public string ExpiryDate { get; set; } = string.Empty;

@@ -1,0 +1,23 @@
+flowchart TB
+  subgraph CLIENT_SIG["CLIENT SIGNATORY — external"]
+    CS_ROLE["Role: ClientSignatory"]
+    CS_WHO["Account holders flagged MOI / MOI Approval / MOA"]
+    CS_SCOPE["One CustomerId + AccountHolder name match"]
+    CS_UI["UI: My documents"]
+    CS_ROLE --> CS_WHO --> CS_SCOPE --> CS_UI
+  end
+
+  subgraph INT_SIG["INTERNAL SIGNATORY — LGB staff"]
+    IS_FLAG["User + IsInternalSignatory flag"]
+    IS_WHO["CFO, Ms Teh, division approvers"]
+    IS_SCOPE["MOA workflow step assignee"]
+    IS_UI["Admin workboard + MOA modal steps"]
+    IS_FLAG --> IS_WHO --> IS_SCOPE --> IS_UI
+  end
+
+  subgraph NOT_SAME["Not the same"]
+    X["Client signatory ≠ internal signatory"]
+  end
+
+  CLIENT_SIG --- NOT_SAME
+  INT_SIG --- NOT_SAME

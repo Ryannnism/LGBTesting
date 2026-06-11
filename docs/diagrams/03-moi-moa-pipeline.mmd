@@ -1,0 +1,52 @@
+flowchart TD
+  subgraph CLIENT["CLIENT SIDE"]
+    CA["ClientAdmin<br/>issue MOI per package line<br/>set dates, manage team"]
+    CS_MOI["ClientSignatory — MOI holder<br/>fill & submit MOI form"]
+    CS_MOA["ClientSignatory — MOA holder<br/>approve MOA when visible"]
+    CA -->|"Start MOI"| CS_MOI
+  end
+
+  CS_MOI --> S1["Status: Awaiting intake<br/>Handoff: ClientSubmitted"]
+
+  subgraph INTAKE["INTAKE — CanApproveMoiIntake"]
+    SH1["Admin / Sharon<br/>Approve MOI intake"]
+  end
+
+  S1 --> SH1
+  SH1 --> S2["Status: Resolution prep<br/>Handoff: PendingPrep"]
+
+  subgraph RESO["RESOLUTION — User role assigned"]
+    SEC["Secretarial team<br/>Ng Poh Li, Nita, Siti, Nadia"]
+    SH2["Admin: Assign secretarial team<br/>shortcut after MOI sign-off"]
+    SEC --> PREP["Complete MOI prep<br/>recommendation fields"]
+  end
+
+  S2 --> SH2
+  SH2 --> SEC
+
+  PREP --> S3["CanRecommendMoi<br/>division recommender"]
+  S3 --> S4["CanApproveMoi<br/>MOI sign-off — Sharon"]
+  S4 --> S5["Status: MOI approved<br/>Handoff: AdminReview"]
+
+  S5 --> MOA_PREP["Secretaries prepare MOA<br/>pack checklist — internal only"]
+  MOA_PREP --> SH3["Admin: Send MOA to client<br/>Approve for MOA"]
+  SH3 --> S6["Status: Ready for MOA<br/>Client can see MOA"]
+
+  S6 --> CS_MOA
+  SH3 --> MOA_INT["Start MOA workflow<br/>MoaCirculation"]
+
+  subgraph MOA_WF["INTERNAL MOA WORKFLOW"]
+  direction TB
+    IS["IsInternalSignatory users<br/>CFO, Ms Teh, etc."]
+    SH4["CanApproveMoa — Sharon oversight"]
+    IS --> STEPS["Sequential approval steps<br/>template A / B / C per division"]
+    SH4 --> STEPS
+  end
+
+  MOA_INT --> MOA_WF
+  MOA_WF --> DONE["Status: Completed<br/>execution phase — planned"]
+
+  style CLIENT fill:#e8f4fc
+  style INTAKE fill:#fff3cd
+  style RESO fill:#d4edda
+  style MOA_WF fill:#f3e8ff
