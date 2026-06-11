@@ -506,61 +506,74 @@ export default function App() {
     }
   };
 
+  const saveMoiDraft = async (
+    data: Record<string, unknown>,
+    options?: { silent?: boolean },
+  ): Promise<{ id: number; jobId: number; unitNumber?: number }> => {
+    const jobId = selectedJobRequest?.id ?? (data.jobId as number | undefined);
+    if (!jobId) throw new ApiError('MOI must be linked to a package item before saving.', 400);
+
+    const unitNumber = selectedJobRequest?.activeUnitNumber
+      ?? (data.unitNumber as number | undefined)
+      ?? (data.activeUnitNumber as number | undefined)
+      ?? ((selectedJobRequest?.totalQty ?? 1) <= 1 ? 1 : undefined);
+    const pendingFiles = Array.isArray(data.attachedFiles)
+      ? data.attachedFiles.filter((f): f is File => f instanceof File)
+      : [];
+    const { attachedFiles: _omit, ...formFields } = data;
+    if (unitNumber != null) {
+      formFields.unitNumber = unitNumber;
+      formFields.activeUnitNumber = unitNumber;
+    }
+    const payload = {
+      jobId,
+      unitNumber,
+      company: String(data.company ?? ''),
+      formTemplateCode: data.formTemplateCode as string | undefined,
+      financeRelated: Boolean(data.financeRelated),
+      bankSignatoryMatter: Boolean(data.bankSignatoryMatter),
+      data: formFields,
+    };
+    let formId = (data.id as number | undefined) ?? (selectedMOIForm?.id as number | undefined);
+    if (formId) {
+      await updateMOIForm(formId, payload);
+    } else {
+      const created = await createMOIForm(payload);
+      formId = created.id;
+    }
+    if (pendingFiles.length > 0) {
+      const folder = formFields.supportingDocument ? 'supporting' : 'moi';
+      for (const file of pendingFiles) {
+        await uploadJobItemDocument(jobId, folder, file, unitNumber);
+      }
+    }
+    const saved = await getMOIForm(formId);
+    await loadMOIForms();
+    bumpRefresh();
+    const nextForm = {
+      ...saved.data,
+      id: saved.id,
+      jobId: saved.jobId ?? jobId,
+      workflowState: saved.workflowState,
+      clientApprovals: saved.clientApprovals,
+      requiredApprovers: saved.requiredApprovers,
+      pendingApprovers: saved.pendingApprovers,
+      unitNumber,
+      activeUnitNumber: unitNumber,
+      totalQty: selectedJobRequest?.totalQty,
+      status: selectedJobRequest?.status,
+      service: selectedJobRequest?.service,
+      typeOfDocument: selectedJobRequest?.service,
+      taskType: selectedJobRequest?.taskType,
+    };
+    setSelectedMOIForm(nextForm);
+    if (!options?.silent) showToast('MOI form saved.');
+    return { id: saved.id, jobId, unitNumber };
+  };
+
   const handleMOISubmit = async (data: Record<string, unknown>) => {
     try {
-      const jobId = selectedJobRequest?.id ?? (data.jobId as number | undefined);
-      const unitNumber = selectedJobRequest?.activeUnitNumber
-        ?? (data.unitNumber as number | undefined)
-        ?? (data.activeUnitNumber as number | undefined);
-      const pendingFiles = Array.isArray(data.attachedFiles)
-        ? data.attachedFiles.filter((f): f is File => f instanceof File)
-        : [];
-      const { attachedFiles: _omit, ...formFields } = data;
-      if (unitNumber != null) {
-        formFields.unitNumber = unitNumber;
-        formFields.activeUnitNumber = unitNumber;
-      }
-      const payload = {
-        jobId,
-        unitNumber,
-        company: String(data.company ?? ''),
-        formTemplateCode: data.formTemplateCode as string | undefined,
-        financeRelated: Boolean(data.financeRelated),
-        bankSignatoryMatter: Boolean(data.bankSignatoryMatter),
-        data: formFields,
-      };
-      let formId = selectedMOIForm?.id as number | undefined;
-      if (formId) {
-        await updateMOIForm(formId, payload);
-      } else {
-        const created = await createMOIForm(payload);
-        formId = created.id;
-      }
-      if (jobId && pendingFiles.length > 0) {
-        const folder = formFields.supportingDocument ? 'supporting' : 'moi';
-        for (const file of pendingFiles) {
-          await uploadJobItemDocument(jobId, folder, file, unitNumber);
-        }
-      }
-      const saved = formId ? await getMOIForm(formId) : null;
-      await loadMOIForms();
-      bumpRefresh();
-      if (saved && selectedJobRequest) {
-        setSelectedMOIForm({
-          ...saved.data,
-          id: saved.id,
-          jobId: saved.jobId ?? selectedJobRequest.id,
-          workflowState: saved.workflowState,
-          clientApprovals: saved.clientApprovals,
-          requiredApprovers: saved.requiredApprovers,
-          pendingApprovers: saved.pendingApprovers,
-          status: selectedJobRequest.status,
-          service: selectedJobRequest.service,
-          typeOfDocument: selectedJobRequest.service,
-          taskType: selectedJobRequest.taskType,
-        });
-      }
-      showToast('MOI form saved.');
+      await saveMoiDraft(data);
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Failed to save MOI form.');
     }
@@ -654,8 +667,9 @@ export default function App() {
         service: job.service,
         typeOfDocument: job.service,
         taskType: job.taskType,
-        unitNumber: job.activeUnitNumber,
-        activeUnitNumber: job.activeUnitNumber,
+        unitNumber: job.activeUnitNumber ?? ((job.totalQty ?? 1) <= 1 ? 1 : undefined),
+        activeUnitNumber: job.activeUnitNumber ?? ((job.totalQty ?? 1) <= 1 ? 1 : undefined),
+        totalQty: job.totalQty,
       });
       setIsMOIViewMode(!resolveMoiEditable(workflowState));
     } else {
@@ -669,8 +683,9 @@ export default function App() {
         service: job.service,
         typeOfDocument: job.service,
         jobId: job.id,
-        unitNumber: job.activeUnitNumber,
-        activeUnitNumber: job.activeUnitNumber,
+        unitNumber: job.activeUnitNumber ?? ((job.totalQty ?? 1) <= 1 ? 1 : undefined),
+        activeUnitNumber: job.activeUnitNumber ?? ((job.totalQty ?? 1) <= 1 ? 1 : undefined),
+        totalQty: job.totalQty,
         workflowState: job.moiWorkflowState ?? 'Draft',
       });
       const editable = resolveMoiEditable(job.moiWorkflowState ?? 'Draft');
@@ -803,9 +818,14 @@ export default function App() {
     }
   };
 
-  const handleSubmitMoiForApproval = async (formId: number) => {
+  const handleSubmitMoiForApproval = async (formId: number, formData?: Record<string, unknown>) => {
     try {
-      await submitMoiForApproval(formId);
+      let id = formId;
+      if (formData) {
+        const saved = await saveMoiDraft(formData, { silent: true });
+        id = saved.id;
+      }
+      await submitMoiForApproval(id);
       await loadMOIForms();
       bumpRefresh();
       showToast('MOI submitted for approval.');
@@ -1127,6 +1147,7 @@ export default function App() {
           setSelectedJobRequest(null);
         }}
         onSubmit={handleMOISubmit}
+        onSaveDraft={(data) => saveMoiDraft(data, { silent: true })}
         onConvertToMOA={handleConvertToMOA}
         onAccept={userIsAdmin ? handleAcceptJob : undefined}
         onRecommend={handleRecommendMoi}

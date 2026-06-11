@@ -46,10 +46,9 @@ public class JobItemDocumentsController : ControllerBase
 
         var moi = await moiQuery.FirstOrDefaultAsync();
         var moa = await moaQuery.FirstOrDefaultAsync();
-        var docsQuery = QueryVisibleDocuments(job, moi);
-        if (unit != null)
-            docsQuery = docsQuery.Where(d => d.JobRequestUnitId == unit.JobRequestUnitId || d.JobRequestUnitId == null);
-        var docs = await docsQuery.OrderByDescending(d => d.UploadedAt).ToListAsync();
+        var docs = await QueryVisibleDocuments(job, moi, unit)
+            .OrderByDescending(d => d.UploadedAt)
+            .ToListAsync();
 
         var grouped = new[] { "moi", "moa", "supporting" }
             .Select(folder => new JobItemFolderDto
@@ -89,7 +88,7 @@ public class JobItemDocumentsController : ControllerBase
         if (!await CanUploadAsync(job))
             return Forbid();
 
-        var moi = await _context.MOIForms.FirstOrDefaultAsync(f => f.JobRequestId == jobId);
+        var moi = await ResolveMoiForJobAsync(job, unitNumber);
         var normalizedFolder = NormalizeFolder(folder);
         var userId = AuthHelper.CurrentUserId(User) ?? 0;
         var user = await _context.Users.FindAsync(userId);
@@ -162,9 +161,32 @@ public class JobItemDocumentsController : ControllerBase
             .Include(j => j.Units).ThenInclude(u => u.Assignees)
             .FirstOrDefaultAsync(j => j.JobRequestId == jobId);
 
-    private IQueryable<JobItemDocument> QueryVisibleDocuments(JobRequest job, MOIForm? moi)
+    private async Task<MOIForm?> ResolveMoiForJobAsync(JobRequest job, int? unitNumber)
+    {
+        var query = _context.MOIForms.Where(f => f.JobRequestId == job.JobRequestId);
+        if (unitNumber.HasValue)
+        {
+            var unit = job.Units.FirstOrDefault(u => u.UnitNumber == unitNumber.Value);
+            if (unit != null)
+                return await query.FirstOrDefaultAsync(f => f.JobRequestUnitId == unit.JobRequestUnitId);
+        }
+
+        if (job.TotalQty <= 1)
+            return await query.FirstOrDefaultAsync(f => f.JobRequestUnitId == null)
+                ?? await query.FirstOrDefaultAsync();
+
+        return null;
+    }
+
+    private IQueryable<JobItemDocument> QueryVisibleDocuments(
+        JobRequest job,
+        MOIForm? moi,
+        JobRequestUnit? unit = null)
     {
         var query = _context.JobItemDocuments.Where(d => d.JobRequestId == job.JobRequestId);
+        if (unit != null)
+            query = query.Where(d => d.JobRequestUnitId == unit.JobRequestUnitId || d.JobRequestUnitId == null);
+
         if (AuthHelper.IsExternalUser(User))
             return query;
 

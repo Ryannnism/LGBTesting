@@ -13,6 +13,8 @@ interface JobItemDocumentsSectionProps {
   title?: string;
   folders?: Array<'moi' | 'supporting' | 'moa'>;
   refreshKey?: number;
+  showWhenEmpty?: boolean;
+  onCountChange?: (count: number) => void;
 }
 
 async function openDocument(jobId: number, doc: JobItemDocumentDto) {
@@ -39,6 +41,8 @@ export function JobItemDocumentsSection({
   title = 'Attached documents',
   folders = ['moi', 'supporting'],
   refreshKey = 0,
+  showWhenEmpty = false,
+  onCountChange,
 }: JobItemDocumentsSectionProps) {
   const [documents, setDocuments] = useState<JobItemDocumentDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,13 +57,15 @@ export function JobItemDocumentsSection({
         .filter((f) => folders.includes(f.folder as 'moi' | 'supporting' | 'moa'))
         .flatMap((f) => f.documents);
       setDocuments(docs);
+      onCountChange?.(docs.length);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load documents.');
       setDocuments([]);
+      onCountChange?.(0);
     } finally {
       setLoading(false);
     }
-  }, [folders, jobId, unitNumber]);
+  }, [folders, jobId, unitNumber, onCountChange]);
 
   useEffect(() => {
     void load();
@@ -74,7 +80,12 @@ export function JobItemDocumentsSection({
   }
 
   if (documents.length === 0) {
-    return null;
+    if (!showWhenEmpty) return null;
+    return (
+      <div className="border border-dashed border-border rounded-lg p-3 bg-muted/10">
+        <p className="text-xs text-muted-foreground">{title} — none attached yet.</p>
+      </div>
+    );
   }
 
   return (

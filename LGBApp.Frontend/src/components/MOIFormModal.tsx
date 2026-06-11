@@ -29,10 +29,11 @@ interface MOIFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void | Promise<void>;
+  onSaveDraft?: (data: Record<string, unknown>) => Promise<{ id: number; jobId: number; unitNumber?: number }>;
   onConvertToMOA?: (data: any) => void;
   onAccept?: (jobId: number, assignedTo: string, comments: string) => void;
   onRecommend?: (formId: number, comments: string) => void;
-  onSubmitForApproval?: (formId: number) => void;
+  onSubmitForApproval?: (formId: number, formData?: Record<string, unknown>) => void;
   onClientApprove?: (formId: number, payload: { comments: string; signatureFileName?: string; signatureDataUrl?: string }) => void;
   onClientReject?: (formId: number, reason: string) => void;
   currentUserName?: string;
@@ -51,7 +52,7 @@ interface MOIFormModalProps {
 }
 
 export function MOIFormModal({
-  isOpen, onClose, onSubmit, onConvertToMOA, onAccept, onRecommend, onSubmitForApproval, onClientApprove, onClientReject, onAdminOverride,
+  isOpen, onClose, onSubmit, onSaveDraft, onConvertToMOA, onAccept, onRecommend, onSubmitForApproval, onClientApprove, onClientReject, onAdminOverride,
   userIsAdmin = false, isClientUser = false, isMoiApprovalTask = false,
   viewMode = false, initialData, jobId, jobStatus, users = [], customers, products, serviceUsage,
   currentUserName = '',
@@ -62,8 +63,10 @@ export function MOIFormModal({
   const [rejectReason, setRejectReason] = useState('');
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [documentsRefreshKey, setDocumentsRefreshKey] = useState(0);
+  const [documentCount, setDocumentCount] = useState(0);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [pendingUploadNames, setPendingUploadNames] = useState<string[]>([]);
   const pendingApprovers: string[] = initialData?.pendingApprovers ?? [];
   const requiredApprovers: string[] = initialData?.requiredApprovers ?? [];
   const clientApprovals: { accountHolderName?: string }[] = initialData?.clientApprovals ?? [];
@@ -146,7 +149,13 @@ export function MOIFormModal({
   };
 
   useEffect(() => {
-    if (!isOpen || !formData.company) return;
+    if (!isOpen) {
+      setDocumentCount(0);
+      setUploadError('');
+      setPendingUploadNames([]);
+      return;
+    }
+    if (!formData.company) return;
     const service = String((formData as { service?: string }).service ?? formData.typeOfDocument ?? '');
     resolveFormTemplate('MOI', formData.company, formData.formTemplateCode || undefined, service || undefined)
       .then(setFormTemplate)
@@ -247,35 +256,64 @@ export function MOIFormModal({
   const requiresApproval = formData.requestedBy !== '' && !requestedPerson?.moi;
 
   const resolvedJobId = jobId ?? initialData?.jobId;
-  const resolvedUnitNumber = initialData?.unitNumber ?? initialData?.activeUnitNumber;
+  const resolvedUnitNumber = initialData?.unitNumber
+    ?? initialData?.activeUnitNumber
+    ?? ((initialData?.totalQty ?? 1) <= 1 ? 1 : undefined);
   const itemLabel = resolvedUnitNumber ? ` (session #${resolvedUnitNumber})` : '';
+
+  const buildFormPayload = () => ({
+    ...formData,
+    id: initialData?.id,
+    jobId: resolvedJobId,
+    unitNumber: resolvedUnitNumber,
+    activeUnitNumber: resolvedUnitNumber,
+    workflowState,
+  });
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const filesArray = Array.from(e.target.files ?? []);
     if (filesArray.length === 0) return;
 
-    if (!resolvedJobId) {
-      setFormData({ ...formData, attachedFiles: [...formData.attachedFiles, ...filesArray] });
-      setUploadError('Save the MOI once so attachments can be stored for this session.');
-      return;
-    }
-
     setUploadingFile(true);
     setUploadError('');
-    const folder = formData.supportingDocument ? 'supporting' : 'moi';
+    setPendingUploadNames(filesArray.map((f) => f.name));
+    const folder: 'supporting' | 'moi' = formData.supportingDocument ? 'supporting' : 'moi';
     void (async () => {
       try {
+        let uploadJobId = resolvedJobId;
+        let uploadUnit = resolvedUnitNumber;
+        if (!uploadJobId && onSaveDraft) {
+          const saved = await onSaveDraft(buildFormPayload());
+          uploadJobId = saved.jobId;
+          uploadUnit = saved.unitNumber ?? uploadUnit;
+        }
+        if (!uploadJobId) {
+          setUploadError('Save the MOI first so attachments can be stored.');
+          return;
+        }
         for (const file of filesArray) {
-          await uploadJobItemDocument(resolvedJobId, folder, file, resolvedUnitNumber);
+          await uploadJobItemDocument(uploadJobId, folder, file, uploadUnit);
         }
         setDocumentsRefreshKey((k) => k + 1);
+        setPendingUploadNames([]);
       } catch (err) {
         setUploadError(err instanceof ApiError ? err.message : 'Failed to upload file.');
+        setPendingUploadNames([]);
       } finally {
         setUploadingFile(false);
       }
     })();
     e.target.value = '';
+  };
+
+  const handleSubmitForApprovalClick = () => {
+    if (!onSubmitForApproval) return;
+    if (formData.supportingDocument && documentCount === 0) {
+      setUploadError('Attach at least one supporting document before submitting for approval.');
+      return;
+    }
+    setUploadError('');
+    void onSubmitForApproval(initialData?.id ?? 0, buildFormPayload());
   };
 
   const removeFile = (index: number) => {
@@ -420,6 +458,9 @@ export function MOIFormModal({
                 jobId={Number(resolvedJobId)}
                 unitNumber={resolvedUnitNumber}
                 refreshKey={documentsRefreshKey}
+                showWhenEmpty={formData.supportingDocument}
+                onCountChange={setDocumentCount}
+                folders={formData.supportingDocument ? ['supporting', 'moi'] : ['moi', 'supporting']}
                 title={viewMode ? 'Documents for review' : 'Uploaded documents'}
               />
             )}
@@ -541,7 +582,15 @@ export function MOIFormModal({
                         />
                       </label>
                     )}
+                    {uploadingFile && pendingUploadNames.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Uploading {pendingUploadNames.join(', ')}…
+                      </p>
+                    )}
                     {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+                    {formData.supportingDocument && documentCount > 0 && (
+                      <p className="text-xs text-green-700">{documentCount} file{documentCount === 1 ? '' : 's'} attached</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1022,10 +1071,10 @@ export function MOIFormModal({
                   Save MOI
                 </button>
               )}
-              {!viewMode && isClientUser && workflowState === 'Draft' && initialData?.id && onSubmitForApproval && !isMoiApprovalTask && (
+              {!viewMode && isClientUser && workflowState === 'Draft' && onSubmitForApproval && !isMoiApprovalTask && (
                 <button
                   type="button"
-                  onClick={() => onSubmitForApproval(initialData.id)}
+                  onClick={handleSubmitForApprovalClick}
                   className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   Submit for approval
