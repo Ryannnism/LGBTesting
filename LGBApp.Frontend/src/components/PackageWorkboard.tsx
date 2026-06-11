@@ -1,6 +1,7 @@
 import { ArrowLeft, Check, ClipboardList, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { UserAssignCell } from './UserAssignCell';
+import { formatDateDisplay } from '@/lib/dates';
 import {
   ApiError,
   advanceJobHandoff,
@@ -167,7 +168,7 @@ export function PackageWorkboard({
           {unit.status === 'Completed' ? '✓' : '—'}
         </td>
         <td className="px-4 py-2 text-sm text-muted-foreground">
-          {unit.scheduledDate || '—'}
+          {formatDateDisplay(unit.scheduledDate) || '—'}
           <span className="block text-[10px]">Set by client</span>
         </td>
         <td className="px-4 py-2">

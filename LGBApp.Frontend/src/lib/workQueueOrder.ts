@@ -1,3 +1,5 @@
+import { formatDateDisplay, parseDateToIso } from '@/lib/dates';
+
 export type WorkQueueScope = 'attention' | 'tracker' | 'job-requests';
 
 function storageKey(userId: number, scope: WorkQueueScope): string {
@@ -23,19 +25,24 @@ export function clearWorkQueueOrder(userId: number, scope: WorkQueueScope): void
   localStorage.removeItem(storageKey(userId, scope));
 }
 
-/** Parse yyyy-MM-dd (or ISO) for sorting; missing dates sort last. */
+/** Parse dd/mm/yyyy or yyyy-mm-dd for sorting; missing dates sort last. */
 export function parseQueueSortDate(...dates: (string | undefined | null)[]): number {
   for (const d of dates) {
     if (!d?.trim()) continue;
-    const t = Date.parse(d);
-    if (!Number.isNaN(t)) return t;
+    const iso = parseDateToIso(d);
+    if (!iso) continue;
+    const [y, m, day] = iso.split('-').map(Number);
+    return Date.UTC(y, m - 1, day);
   }
   return Number.MAX_SAFE_INTEGER;
 }
 
+/** Display as dd/mm/yyyy (app standard). */
 export function formatQueueDate(...dates: (string | undefined | null)[]): string {
   for (const d of dates) {
-    if (d?.trim()) return d;
+    if (!d?.trim()) continue;
+    const display = formatDateDisplay(d);
+    if (display) return display;
   }
   return '—';
 }

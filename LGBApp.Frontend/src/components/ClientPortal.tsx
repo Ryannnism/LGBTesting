@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, FileText, Plus, Undo2 } from 'lucide-react';
 import { JobItemFolderPanel } from './JobItemFolderPanel';
 import { DateInput } from './DateInput';
-import { parseDateToIso } from '@/lib/dates';
+import { formatDateDisplay, parseDateToIso } from '@/lib/dates';
 import {
   ApiError,
   getClientJobs,
@@ -551,7 +551,7 @@ export function ClientPortal({ currentUser, onOpenForm, refreshKey = 0, mode = '
                         </td>
                         <td className="px-4 py-3">
                           {isSignatoryView ? (
-                            <span className="text-sm text-muted-foreground">{unit.scheduledDate || '—'}</span>
+                            <span className="text-sm text-muted-foreground">{formatDateDisplay(unit.scheduledDate) || '—'}</span>
                           ) : (
                             <DateInput
                               value={unit.scheduledDate}

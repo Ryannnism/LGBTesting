@@ -16,6 +16,9 @@ interface DateInputProps {
   /** Called with yyyy-mm-dd, or '' to clear. Only fired on blur or calendar pick. */
   onChange: (isoValue: string) => void;
   className?: string;
+  disabled?: boolean;
+  required?: boolean;
+  fullWidth?: boolean;
 }
 
 function valueToDate(value?: string): Date | undefined {
@@ -33,6 +36,9 @@ export function DateInput({
   value,
   onChange,
   className = 'px-2 py-1 border border-border rounded text-sm bg-input-background w-[7.5rem]',
+  disabled = false,
+  required = false,
+  fullWidth = false,
 }: DateInputProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => formatDateDisplay(value));
@@ -72,12 +78,14 @@ export function DateInput({
   const selected = valueToDate(value);
 
   return (
-    <div className="inline-flex items-center gap-1">
+    <div className={cn('inline-flex items-center gap-1', fullWidth && 'flex w-full')}>
       <input
         type="text"
         inputMode="numeric"
         placeholder="dd/mm/yyyy"
         value={draft}
+        disabled={disabled}
+        required={required}
         onFocus={() => {
           focused.current = true;
         }}
@@ -98,13 +106,14 @@ export function DateInput({
             e.currentTarget.blur();
           }
         }}
-        className={className}
+        className={cn(className, fullWidth && 'flex-1 min-w-0')}
       />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="p-1.5 border border-border rounded hover:bg-muted text-muted-foreground"
+            disabled={disabled}
+            className="p-1.5 border border-border rounded hover:bg-muted text-muted-foreground disabled:opacity-50 disabled:pointer-events-none"
             title="Pick date"
             aria-label="Open calendar"
           >

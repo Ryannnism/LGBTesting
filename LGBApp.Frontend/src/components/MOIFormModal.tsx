@@ -2,7 +2,15 @@ import { X, Upload, Paperclip, ArrowRight } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { JobItemDocumentsSection } from './JobItemDocumentsSection';
 import { ApiError, resolveFormTemplate, uploadJobItemDocument, type FormTemplateDto } from '@/lib/api';
+import { parseDateToIso } from '@/lib/dates';
+import { DateInput } from './DateInput';
 import { moiWorkflowStateLabel } from '@/lib/packageItemStatus';
+
+const toIsoDate = (value: unknown): string => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  return parseDateToIso(raw) ?? raw;
+};
 
 interface Customer {
   id: number;
@@ -210,15 +218,15 @@ export function MOIFormModal({
         withLOA: Boolean(d.withLOA),
         approvalPersons: (d.approvalPersons as { name: string; position: string }[]) || [{ name: '', position: '' }],
         requestedBy: String(d.requestedBy ?? d.signerName ?? ''),
-        requestedDate: String(d.requestedDate ?? ''),
+        requestedDate: toIsoDate(d.requestedDate),
         approvedBy: String(d.approvedBy ?? ''),
-        approvedDate: String(d.approvedDate ?? ''),
+        approvedDate: toIsoDate(d.approvedDate),
         approvalComments: String(d.approvalComments ?? ''),
         turnaroundWeeks: String(d.turnaroundPeriod ?? d.turnaroundWeeks ?? ''),
         draftCanBeAmended: Boolean(d.draftCanBeAmended),
         urgent: Boolean(d.urgent),
         urgentReason: String(d.urgentReason ?? ''),
-        requiredExecutionDate: String(d.requiredDateOfExecution ?? d.requiredExecutionDate ?? ''),
+        requiredExecutionDate: toIsoDate(d.requiredDateOfExecution ?? d.requiredExecutionDate),
         financeRelated: Boolean(d.financeRelated ?? initialData.financeRelated),
         bankSignatoryMatter: Boolean(d.bankSignatoryMatter ?? initialData.bankSignatoryMatter),
         formTemplateCode: String(d.formTemplateCode ?? initialData.formTemplateCode ?? ''),
@@ -800,13 +808,13 @@ export function MOIFormModal({
                   </div>
                   <div>
                     <label className="block mb-2">Date *</label>
-                    <input
-                      type="date"
+                    <DateInput
                       required
+                      fullWidth
                       value={formData.requestedDate}
-                      onChange={(e) => setFormData({ ...formData, requestedDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
+                      onChange={(iso) => setFormData({ ...formData, requestedDate: iso })}
                       disabled={viewMode}
+                      className="px-3 py-2 border border-border rounded-lg bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
                 </div>
@@ -838,13 +846,13 @@ export function MOIFormModal({
                     </div>
                     <div>
                       <label className="block mb-2">Date *</label>
-                      <input
-                        type="date"
+                      <DateInput
                         required
+                        fullWidth
                         value={formData.approvedDate}
-                        onChange={(e) => setFormData({ ...formData, approvedDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-border rounded-lg bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
+                        onChange={(iso) => setFormData({ ...formData, approvedDate: iso })}
                         disabled={viewMode}
+                        className="px-3 py-2 border border-border rounded-lg bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
                   </div>
@@ -927,13 +935,13 @@ export function MOIFormModal({
 
                   <div>
                     <label className="block mb-2">Required Date of Execution *</label>
-                    <input
-                      type="date"
+                    <DateInput
                       required
+                      fullWidth
                       value={formData.requiredExecutionDate}
-                      onChange={(e) => setFormData({ ...formData, requiredExecutionDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
+                      onChange={(iso) => setFormData({ ...formData, requiredExecutionDate: iso })}
                       disabled={viewMode}
+                      className="px-3 py-2 border border-border rounded-lg bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
                 </div>
