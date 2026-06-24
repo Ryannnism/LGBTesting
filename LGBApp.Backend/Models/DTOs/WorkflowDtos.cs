@@ -100,6 +100,11 @@ public class DivisionGroupRecommenderDto
     public int Id { get; set; }
     public int? UserId { get; set; }
     public string DisplayName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public bool NeedsMoi { get; set; }
+    public bool NeedsMoiApproval { get; set; } = true;
+    public bool NeedsMoa { get; set; }
 }
 
 public class ApproveWorkflowStepRequest

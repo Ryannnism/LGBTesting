@@ -523,7 +523,17 @@ export function canAssignUnit(
   if (!canAssignSecretarialTeamForUnit(job, unit)) return false;
 
   if (unit.unitNumber <= 1) {
-    return Boolean(unit.hasMoiForm) || (unit.displayStatusKey ?? displayStatusKeyForUnit(job, unit)) !== PACKAGE_ITEM_STATUS_KEYS.moiNotReceived;
+    const handoff = effectiveUnitHandoff(job, unit);
+    if (
+      handoff === 'PendingPrep'
+      || handoff === 'AwaitingSecAssignment'
+      || handoff === 'ResoInProgress'
+      || handoff === 'AdminReview'
+    ) {
+      return true;
+    }
+    return Boolean(unit.hasMoiForm)
+      || (unit.displayStatusKey ?? displayStatusKeyForUnit(job, unit)) !== PACKAGE_ITEM_STATUS_KEYS.moiNotReceived;
   }
 
   const previous = units.find((u) => u.unitNumber === unit.unitNumber - 1);
@@ -570,6 +580,14 @@ export function resolveActiveHandoff(
     return effectiveUnitHandoff(job, unit);
   }
   return job.internalHandoffStatus ?? '';
+}
+
+export function jobHasHandoff(job: JobRequestResponse, handoff: string): boolean {
+  if ((job.totalQty ?? 1) > 1) {
+    const units = job.units?.length ? job.units : jobUnitsForAssignment(job);
+    return units.some((unit) => effectiveUnitHandoff(job, unit) === handoff);
+  }
+  return (job.internalHandoffStatus ?? '') === handoff;
 }
 
 export function effectiveUnitHandoff(
@@ -681,9 +699,9 @@ export function jobNeedsUserAttention(
     return true;
   if (jobHasMoaClientCirculation(job) && user.canApproveMoa)
     return true;
-  if (job.internalHandoffStatus === 'AdminReview' && user.canApproveMoa)
+  if (jobHasHandoff(job, 'AdminReview') && user.canApproveMoa)
     return true;
-  if (job.internalHandoffStatus === 'MoaSharonApproved'
+  if (jobHasHandoff(job, 'MoaSharonApproved')
     && (user.canApproveMoa || user.role === 'Admin'))
     return true;
   if (jobHasExecutionReady(job) && (user.canApproveMoa || user.role === 'Admin'))

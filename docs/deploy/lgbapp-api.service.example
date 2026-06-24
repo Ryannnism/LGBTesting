@@ -1,10 +1,15 @@
-# Example systemd unit for the .NET API on Linux.
+# Example systemd unit for Lightsail UAT (Linux + RDS SQL Server).
+#
+#   sudo mkdir -p /etc/lgbapp
+#   sudo cp docs/deploy/lightsail.env.example /etc/lgbapp/lgbapp.env
+#   sudo nano /etc/lgbapp/lgbapp.env
+#   sudo chmod 600 /etc/lgbapp/lgbapp.env
 #   sudo cp docs/deploy/lgbapp-api.service.example /etc/systemd/system/lgbapp-api.service
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now lgbapp-api
 
 [Unit]
-Description=LGB Services API
+Description=LGB Services API (UAT)
 After=network.target
 
 [Service]
@@ -13,11 +18,8 @@ ExecStart=/usr/bin/dotnet /var/www/lgbapp/api/LGBApp.Backend.dll
 Restart=always
 RestartSec=5
 User=www-data
-Environment=ASPNETCORE_ENVIRONMENT=Production
-Environment=ASPNETCORE_URLS=http://127.0.0.1:5003
-Environment=ConnectionStrings__DefaultConnection=Server=...;Database=LGBApp;...
-Environment=Jwt__Key=...
-Environment=Cors__AllowedOrigins__0=https://app.example.com
+Group=www-data
+EnvironmentFile=/etc/lgbapp/lgbapp.env
 
 [Install]
 WantedBy=multi-user.target

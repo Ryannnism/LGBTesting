@@ -26,6 +26,7 @@ import {
   displayStatusKey,
   displayStatusKeyForUnit,
   displayStatusLabel,
+  effectiveUnitHandoff,
   jobHasMoaForm,
   jobHasMoiForm,
   jobUnitsForAssignment,
@@ -37,6 +38,7 @@ interface PackageWorkboardProps {
   customer: CustomerResponse;
   package: CustomerPackageDto;
   users: { id: number; name: string }[];
+  secTeamUsers?: { id: number; name: string }[];
   refreshKey?: number;
   userIsAdmin?: boolean;
   canApproveIntake?: boolean;
@@ -59,6 +61,7 @@ export function PackageWorkboard({
   customer,
   package: pkg,
   users,
+  secTeamUsers = [],
   refreshKey = 0,
   userIsAdmin = false,
   canApproveIntake = false,
@@ -98,6 +101,33 @@ export function PackageWorkboard({
       onSuccess();
     } catch (err) {
       onError(err instanceof ApiError ? err.message : remove ? 'Failed to remove user.' : 'Failed to assign user.');
+    }
+  };
+
+  const handleAssignMany = async (job: JobRequestResponse, unitNumber: number, userIds: number[]) => {
+    if (userIds.length === 0) return;
+    try {
+      let updated: JobRequestResponse | undefined;
+      for (const userId of userIds) {
+        updated = await assignJobRequest(job.id, { userId, unitNumber });
+      }
+      if (updated) {
+        setItems((prev) => prev.map((j) => (j.id === updated!.id ? updated! : j)));
+      }
+      onSuccess();
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'Failed to tag sec team.');
+    }
+  };
+
+  const handleAssignSecretarialTeam = async (job: JobRequestResponse) => {
+    try {
+      const updated = await assignSecretarialTeam(job.id);
+      setItems((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+      await loadItems({ silent: true });
+      onSuccess();
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'Failed to assign secretarial team.');
     }
   };
 
@@ -189,9 +219,11 @@ export function PackageWorkboard({
           <UserAssignCell
             unit={unit}
             users={users}
+            secTeamUsers={secTeamUsers}
             disabled={!canAssignUnit(job, unit, jobUnitsForAssignment(job))}
             onAdd={(userId) => void handleAssignUnit(job, unit.unitNumber, userId)}
             onRemove={(userId) => void handleAssignUnit(job, unit.unitNumber, userId, true)}
+            onAddMany={(userIds) => handleAssignMany(job, unit.unitNumber, userIds)}
           />
         </td>
         <td className="px-4 py-2">
@@ -234,56 +266,60 @@ export function PackageWorkboard({
             <button
               type="button"
               className="text-primary hover:underline block mt-1 text-xs"
-              onClick={() =>
-                void assignSecretarialTeam(job.id)
-                  .then(() => onSuccess())
-                  .catch((err) => onError(err instanceof ApiError ? err.message : 'Failed to assign secretarial team.'))
-              }
+              onClick={() => void handleAssignSecretarialTeam(job)}
             >
               Assign secretarial team
             </button>
           )}
-          {userIsAdmin && job.internalHandoffStatus === 'AdminReview' && job.taskType === 'Service' && canOpenMoaForJob(job) && (
-            <>
-              <button
-                type="button"
-                className="text-primary hover:underline block mt-1 text-xs"
-                onClick={() =>
-                  void advanceJobHandoff(job.id, 'sharon-approve-moa')
-                    .then(() => onSuccess())
-                    .catch((err) => onError(err instanceof ApiError ? err.message : 'MOA approval failed.'))
-                }
-              >
-                Approve MOA for client
-              </button>
-              <button
-                type="button"
-                className="text-destructive hover:underline block mt-1 text-xs"
-                onClick={() => {
-                  const reason = window.prompt('Reason for rejecting MOA back to secretary:');
-                  if (!reason?.trim()) return;
-                  void advanceJobHandoff(job.id, 'reject-moa', reason.trim())
-                    .then(() => onSuccess())
-                    .catch((err) => onError(err instanceof ApiError ? err.message : 'MOA rejection failed.'));
-                }}
-              >
-                Reject MOA to secretary
-              </button>
-            </>
-          )}
-          {userIsAdmin && job.internalHandoffStatus === 'MoaSharonApproved' && job.taskType === 'Service' && (
-            <button
-              type="button"
-              className="text-primary hover:underline block mt-1 text-xs"
-              onClick={() =>
-                void advanceJobHandoff(job.id, 'approve-for-moa')
-                  .then(() => onSuccess())
-                  .catch((err) => onError(err instanceof ApiError ? err.message : 'Handoff failed.'))
-              }
-            >
-              Send MOA to client
-            </button>
-          )}
+          {(() => {
+            const unitHandoff = effectiveUnitHandoff(job, unit);
+            const canMoaAdmin = userIsAdmin || canApproveMoa;
+            return (
+              <>
+                {canMoaAdmin && unitHandoff === 'AdminReview' && job.taskType === 'Service' && canOpenMoaForJob(job, unit) && (
+                  <>
+                    <button
+                      type="button"
+                      className="text-primary hover:underline block mt-1 text-xs"
+                      onClick={() =>
+                        void advanceJobHandoff(job.id, 'sharon-approve-moa', undefined, unit.unitNumber)
+                          .then(() => onSuccess())
+                          .catch((err) => onError(err instanceof ApiError ? err.message : 'MOA approval failed.'))
+                      }
+                    >
+                      Approve MOA for client
+                    </button>
+                    <button
+                      type="button"
+                      className="text-destructive hover:underline block mt-1 text-xs"
+                      onClick={() => {
+                        const reason = window.prompt('Reason for rejecting MOA back to secretary:');
+                        if (!reason?.trim()) return;
+                        void advanceJobHandoff(job.id, 'reject-moa', reason.trim(), unit.unitNumber)
+                          .then(() => onSuccess())
+                          .catch((err) => onError(err instanceof ApiError ? err.message : 'MOA rejection failed.'));
+                      }}
+                    >
+                      Reject MOA to secretary
+                    </button>
+                  </>
+                )}
+                {canMoaAdmin && unitHandoff === 'MoaSharonApproved' && job.taskType === 'Service' && (
+                  <button
+                    type="button"
+                    className="text-primary hover:underline block mt-1 text-xs"
+                    onClick={() =>
+                      void advanceJobHandoff(job.id, 'approve-for-moa', undefined, unit.unitNumber)
+                        .then(() => onSuccess())
+                        .catch((err) => onError(err instanceof ApiError ? err.message : 'Handoff failed.'))
+                    }
+                  >
+                    Send MOA to client
+                  </button>
+                )}
+              </>
+            );
+          })()}
           {canOpenMoaForJob(job, unit) && job.taskType === 'Service' && (
             <button
               type="button"
@@ -372,7 +408,12 @@ export function PackageWorkboard({
       <div className="bg-card rounded-lg border border-border overflow-hidden">
         <div className="p-4 border-b border-border flex items-center gap-2">
           <ClipboardList className="w-5 h-5 text-muted-foreground" />
-          <h3>Package deliverables</h3>
+          <div>
+            <h3>Package deliverables</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Tag users on a line once its MOI is in — use + or &quot;Tag all sec team&quot;. Other lines unlock after MOI intake.
+            </p>
+          </div>
         </div>
         {loading ? (
           <p className="p-6 text-muted-foreground text-sm">Loading...</p>
@@ -394,7 +435,7 @@ export function PackageWorkboard({
                 {serviceItems.length === 0 && formItems.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                      No work items yet. Re-save the customer to sync from the product catalog.
+                      No work items yet. Pick a catalog package when creating the customer, or re-save the customer to sync from Products.
                     </td>
                   </tr>
                 ) : (

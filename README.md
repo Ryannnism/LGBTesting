@@ -94,6 +94,8 @@ python3 build-user-roles-pdf.py
 
 Local dev uses SQLite and seeded demo accounts. For a real deployment (SQL Server, HTTPS, many users, persistent uploads), follow **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
+**AWS UAT (Lightsail + RDS SQL Server):** see **[docs/deploy/aws-lightsail-uat.md](docs/deploy/aws-lightsail-uat.md)** — optional **[Terraform](infra/terraform/uat/README.md)** provisions the VM and database; GitHub Actions builds and deploys the app.
+
 Quick pointers:
 
 - Set `ASPNETCORE_ENVIRONMENT=Production` and `Database:Provider` to `SqlServer`
@@ -104,4 +106,6 @@ Quick pointers:
 ## Further reading
 
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment runbook
+- [docs/deploy/aws-lightsail-uat.md](docs/deploy/aws-lightsail-uat.md) — Lightsail + RDS SQL UAT via GitHub Actions
+- [infra/terraform/uat/README.md](infra/terraform/uat/README.md) — Terraform for Lightsail + RDS
 - [docs/USER_ROLES.md](docs/USER_ROLES.md) — role hierarchy and MOI/MOA pipeline

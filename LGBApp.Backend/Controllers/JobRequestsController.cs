@@ -61,7 +61,8 @@ public class JobRequestsController : ControllerBase
         else
         {
             var moisByJobId = await LoadMoisByJobIdAsync(jobs.Select(j => j.JobRequestId));
-            jobs = InternalWorkVisibilityHelper.FilterJobsForInternal(jobs, moisByJobId);
+            if (!AuthHelper.IsAdmin(User))
+                jobs = InternalWorkVisibilityHelper.FilterJobsForInternal(jobs, moisByJobId);
 
             if (!AuthHelper.IsAdmin(User))
             {

@@ -31,11 +31,13 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
     setLoading(true);
     setError('');
     try {
-      const [g, t, users] = await Promise.all([
+      const [g, moaTemplates, moiTemplates, users] = await Promise.all([
         getDivisionGroups(),
         getWorkflowTemplates('MOA'),
+        getWorkflowTemplates('MOI'),
         getUsers(),
       ]);
+      const t = [...moiTemplates, ...moaTemplates];
       setGroups(g);
       setTemplates(t);
       setInternalUsers(users.filter((u) => isInternalStaff(u) && u.role !== 'ClientSignatory'));
@@ -74,7 +76,18 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
     const group = groups.find((g) => g.id === groupId);
     if (!group) return;
     patchGroup(groupId, {
-      recommenders: [...group.recommenders, { id: 0, displayName: '', userId: undefined }],
+      recommenders: [
+        ...group.recommenders,
+        {
+          id: 0,
+          displayName: '',
+          email: '',
+          phone: '',
+          needsMoi: false,
+          needsMoiApproval: true,
+          needsMoa: false,
+        },
+      ],
     });
   };
 
@@ -102,6 +115,9 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
         .map((r) => ({
           ...r,
           displayName: r.displayName.trim(),
+          email: (r.email ?? '').trim(),
+          phone: (r.phone ?? '').trim(),
+          needsMoiApproval: r.needsMoiApproval !== false,
         }))
         .filter((r) => r.displayName.length > 0),
     };
@@ -109,7 +125,12 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
     setMessage('');
     try {
       await updateDivisionGroup(payload.id, payload);
-      setMessage(`Division group "${group.name}" saved.`);
+      const withLogins = payload.recommenders.filter((r) => r.email?.trim()).length;
+      setMessage(
+        withLogins > 0
+          ? `Division group "${group.name}" saved — ${withLogins} client login(s) created or linked (Admin → Users / Cross-company signatories).`
+          : `Division group "${group.name}" saved.`,
+      );
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to save division group.');
@@ -123,9 +144,10 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
   return (
     <div className="bg-card border border-border rounded-lg p-6 space-y-6">
       <div>
-        <h3 className="text-lg font-medium">MOA Workflow Templates</h3>
+        <h3 className="text-lg font-medium">Workflow templates (MOI + MOA)</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Conditional approval chains (No LOA / With LOA / SWM). Link internal signatory accounts to named steps — these are LGB staff, not client signatories.
+          <span className="font-medium">MOI Recommendation</span> — project initiator (<span className="font-medium">Needs MOI</span> on customer create) plus internal recommend/approval steps.
+          MOA templates — internal/client MOA approver names on customer create. Edit step names and assignees here.
         </p>
       </div>
 
@@ -220,35 +242,47 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
                           Uses division group recommenders below
                         </span>
                       ) : step.assigneeType === 'NamedUser' || step.assigneeType === 'InternalSignatory' ? (
-                        <select
-                          className="w-full px-2 py-1 border border-border rounded bg-input-background"
-                          value={step.assigneeUserId ?? ''}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            const steps = [...selectedTemplate.steps];
-                            if (!raw) {
-                              steps[idx] = { ...step, assigneeUserId: undefined };
-                            } else {
-                              const userId = Number(raw);
-                              const user = internalUsers.find((u) => u.userId === userId);
-                              steps[idx] = {
-                                ...step,
-                                assigneeUserId: userId,
-                                assigneeDisplayName: user?.name ?? step.assigneeDisplayName,
-                              };
-                            }
-                            setSelectedTemplate({ ...selectedTemplate, steps });
-                          }}
-                        >
-                          <option value="">Select internal signatory…</option>
-                          {internalUsers
-                            .filter((u) => u.isInternalSignatory || step.assigneeType === 'NamedUser')
-                            .map((u) => (
-                              <option key={u.userId} value={u.userId}>
-                                {u.name} ({u.email})
-                              </option>
-                            ))}
-                        </select>
+                        <div className="space-y-1">
+                          <input
+                            className="w-full px-2 py-1 border border-border rounded bg-input-background text-sm"
+                            placeholder="Name on forms"
+                            value={step.assigneeDisplayName ?? ''}
+                            onChange={(e) => {
+                              const steps = [...selectedTemplate.steps];
+                              steps[idx] = { ...step, assigneeDisplayName: e.target.value };
+                              setSelectedTemplate({ ...selectedTemplate, steps });
+                            }}
+                          />
+                          <select
+                            className="w-full px-2 py-1 border border-border rounded bg-input-background text-sm"
+                            value={step.assigneeUserId ?? ''}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const steps = [...selectedTemplate.steps];
+                              if (!raw) {
+                                steps[idx] = { ...step, assigneeUserId: undefined };
+                              } else {
+                                const userId = Number(raw);
+                                const user = internalUsers.find((u) => u.userId === userId);
+                                steps[idx] = {
+                                  ...step,
+                                  assigneeUserId: userId,
+                                  assigneeDisplayName: user?.name ?? step.assigneeDisplayName,
+                                };
+                              }
+                              setSelectedTemplate({ ...selectedTemplate, steps });
+                            }}
+                          >
+                            <option value="">No linked login (name only)</option>
+                            {internalUsers
+                              .filter((u) => u.isInternalSignatory || step.assigneeType === 'NamedUser')
+                              .map((u) => (
+                                <option key={u.userId} value={u.userId}>
+                                  {u.name} ({u.email})
+                                </option>
+                              ))}
+                          </select>
+                        </div>
                       ) : (
                         <input
                           className="w-full px-2 py-1 border border-border rounded bg-input-background"
@@ -282,10 +316,11 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
       )}
 
       <div className="border-t border-border pt-6">
-        <h4 className="font-medium mb-1">Division groups &amp; recommenders</h4>
+        <h4 className="font-medium mb-1">Division client signatory roster</h4>
         <p className="text-sm text-muted-foreground mb-3">
-          Recommenders approve MOI/MOA steps when a workflow step uses assignee type &quot;Division recommender&quot;.
-          Link to an internal user account when possible, or enter a display name only.
+          Sharon completes each person <span className="font-medium">once per division</span> (name, email, roles).
+          Saving creates <span className="font-medium">ClientSignatory</span> logins when email is set. New customers in that
+          division inherit these holders automatically; the same login works across multiple companies.
         </p>
         <div className="space-y-4 max-h-[32rem] overflow-y-auto">
           {groups.map((group) => (
@@ -314,61 +349,89 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Recommenders</span>
+                  <span className="text-sm font-medium">Client signers for this division</span>
                   <button
                     type="button"
                     onClick={() => addRecommender(group.id)}
                     className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-muted"
                   >
                     <Plus className="w-3 h-3" />
-                    Add
+                    Add person
                   </button>
                 </div>
 
                 {group.recommenders.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No recommenders — add at least one for this division.</p>
+                  <p className="text-xs text-muted-foreground">
+                    No roster yet — add MOI approval signers (and optional MOI issuer / MOA) for every company in this division.
+                  </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {group.recommenders.map((rec, idx) => (
-                      <div key={`${group.id}-${rec.id}-${idx}`} className="flex flex-wrap gap-2 items-center">
-                        <input
-                          className="flex-1 min-w-[8rem] text-sm px-2 py-1 border border-border rounded bg-input-background"
-                          placeholder="Display name"
-                          value={rec.displayName}
-                          onChange={(e) => updateRecommender(group.id, idx, { displayName: e.target.value })}
-                        />
-                        <select
-                          className="flex-1 min-w-[10rem] text-sm px-2 py-1 border border-border rounded bg-input-background"
-                          value={rec.userId ?? ''}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            if (!raw) {
-                              updateRecommender(group.id, idx, { userId: undefined });
-                              return;
-                            }
-                            const userId = Number(raw);
-                            const user = internalUsers.find((u) => u.userId === userId);
-                            updateRecommender(group.id, idx, {
-                              userId,
-                              displayName: user?.name || rec.displayName,
-                            });
-                          }}
-                        >
-                          <option value="">No linked user</option>
-                          {internalUsers.map((u) => (
-                            <option key={u.userId} value={u.userId}>
-                              {u.name} ({u.email})
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => removeRecommender(group.id, idx)}
-                          className="p-1.5 text-destructive hover:bg-destructive/10 rounded"
-                          title="Remove recommender"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div
+                        key={`${group.id}-${rec.id}-${idx}`}
+                        className="rounded-lg border border-border bg-muted/20 p-3 space-y-2"
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                          <input
+                            className="text-sm px-2 py-1 border border-border rounded bg-input-background"
+                            placeholder="Name *"
+                            value={rec.displayName}
+                            onChange={(e) => updateRecommender(group.id, idx, { displayName: e.target.value })}
+                          />
+                          <input
+                            type="email"
+                            className="text-sm px-2 py-1 border border-border rounded bg-input-background"
+                            placeholder="Email (creates login)"
+                            value={rec.email ?? ''}
+                            onChange={(e) => updateRecommender(group.id, idx, { email: e.target.value })}
+                          />
+                          <input
+                            type="tel"
+                            className="text-sm px-2 py-1 border border-border rounded bg-input-background"
+                            placeholder="Mobile"
+                            value={rec.phone ?? ''}
+                            onChange={(e) => updateRecommender(group.id, idx, { phone: e.target.value })}
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-sm">
+                          <label className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(rec.needsMoi)}
+                              onChange={(e) => updateRecommender(group.id, idx, { needsMoi: e.target.checked })}
+                            />
+                            Needs MOI
+                          </label>
+                          <label className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={rec.needsMoiApproval !== false}
+                              onChange={(e) => updateRecommender(group.id, idx, { needsMoiApproval: e.target.checked })}
+                            />
+                            Needs MOI Approval
+                          </label>
+                          <label className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(rec.needsMoa)}
+                              onChange={(e) => updateRecommender(group.id, idx, { needsMoa: e.target.checked })}
+                            />
+                            Needs MOA
+                          </label>
+                          {rec.userId ? (
+                            <span className="text-xs text-emerald-700">Login ready (#{rec.userId})</span>
+                          ) : rec.email?.trim() ? (
+                            <span className="text-xs text-amber-700">Save group to create login</span>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => removeRecommender(group.id, idx)}
+                            className="ml-auto p-1.5 text-destructive hover:bg-destructive/10 rounded"
+                            title="Remove"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

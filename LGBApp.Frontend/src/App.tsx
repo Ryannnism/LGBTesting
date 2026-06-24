@@ -684,9 +684,8 @@ export default function App() {
       formId = created.id;
     }
     if (pendingFiles.length > 0) {
-      const folder = formFields.supportingDocument ? 'supporting' : 'moi';
       for (const file of pendingFiles) {
-        await uploadJobItemDocument(jobId, folder, file, unitNumber);
+        await uploadJobItemDocument(jobId, 'moi', file, unitNumber);
       }
     }
     const saved = await getMOIForm(formId);
@@ -1713,6 +1712,7 @@ export default function App() {
                   customer={selectedPackageWork.customer}
                   package={selectedPackageWork.package}
                   users={assignableUsers}
+                  secTeamUsers={secTeamUsers}
                   userIsAdmin={userIsAdmin}
                   canApproveIntake={Boolean(currentUser?.canApproveMoiIntake)}
                   canApproveMoa={Boolean(currentUser?.canApproveMoa)}
@@ -1789,6 +1789,7 @@ export default function App() {
               customer={selectedPackageWork.customer}
               package={selectedPackageWork.package}
               users={apiUsers}
+              secTeamUsers={secTeamUsers}
               userIsAdmin={userIsAdmin}
               canApproveIntake={Boolean(currentUser?.canApproveMoiIntake)}
               canApproveMoa={Boolean(currentUser?.canApproveMoa)}

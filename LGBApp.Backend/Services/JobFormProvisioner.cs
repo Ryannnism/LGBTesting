@@ -212,11 +212,9 @@ public static class JobFormProvisioner
 
         if (unit != null)
         {
-            var byUnit = await context.MOAForms
+            return await context.MOAForms
                 .FirstOrDefaultAsync(f => f.JobRequestId == job.JobRequestId
                     && f.JobRequestUnitId == unit.JobRequestUnitId);
-            if (byUnit != null)
-                return byUnit;
         }
 
         return await context.MOAForms

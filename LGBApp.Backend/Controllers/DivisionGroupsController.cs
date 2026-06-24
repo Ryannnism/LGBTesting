@@ -54,10 +54,16 @@ public class DivisionGroupsController : ControllerBase
             {
                 UserId = r.UserId,
                 DisplayName = r.DisplayName,
+                Email = r.Email?.Trim() ?? string.Empty,
+                Phone = r.Phone?.Trim() ?? string.Empty,
+                NeedsMoi = r.NeedsMoi,
+                NeedsMoiApproval = r.NeedsMoiApproval,
+                NeedsMoa = r.NeedsMoa,
             }).ToList(),
         };
         _context.DivisionGroups.Add(group);
         await _context.SaveChangesAsync();
+        await DivisionRosterService.ProvisionRecommenderLoginsAsync(_context, group);
         return CreatedAtAction(nameof(Get), new { id = group.DivisionGroupId }, TemplateMapper.ToDto(group));
     }
 
@@ -83,9 +89,15 @@ public class DivisionGroupsController : ControllerBase
             DivisionGroupId = id,
             UserId = r.UserId,
             DisplayName = r.DisplayName,
+            Email = r.Email?.Trim() ?? string.Empty,
+            Phone = r.Phone?.Trim() ?? string.Empty,
+            NeedsMoi = r.NeedsMoi,
+            NeedsMoiApproval = r.NeedsMoiApproval,
+            NeedsMoa = r.NeedsMoa,
         }).ToList();
 
         await _context.SaveChangesAsync();
+        await DivisionRosterService.ProvisionRecommenderLoginsAsync(_context, group);
         return NoContent();
     }
 

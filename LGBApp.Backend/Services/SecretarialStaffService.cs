@@ -33,33 +33,26 @@ public static class SecretarialStaffService
 
     public static bool IsReadyForSecretarialAssignment(JobRequest job, MOIForm? moiForm = null)
     {
-        if (TaskFormVisibilityHelper.AwaitingIntakeApproval(job))
+        if (TaskFormVisibilityHelper.AwaitingIntakeApproval(job, moiForm))
             return false;
 
-        if (moiForm != null
-            && moiForm.WorkflowState is MoiWorkflowStates.Approved or MoiWorkflowStates.PendingPrep or MoiWorkflowStates.PendingRecommendation)
+        if (IsPostMoiSecretarialHandoff(job.InternalHandoffStatus))
             return true;
 
-        if (job.TotalQty > 1
-            && job.Units.Any(u => u.InternalHandoffStatus is JobHandoffStatuses.AwaitingSecAssignment
-                or JobHandoffStatuses.PendingPrep
-                or JobHandoffStatuses.ResoInProgress))
-            return moiForm == null
-                || moiForm.WorkflowState is MoiWorkflowStates.Approved
-                    or MoiWorkflowStates.PendingPrep
-                    or MoiWorkflowStates.PendingRecommendation;
-
-        if (moiForm != null && moiForm.WorkflowState is
-            MoiWorkflowStates.PendingPrep
-            or MoiWorkflowStates.PendingRecommendation)
+        if (job.Units.Any(u => IsPostMoiSecretarialHandoff(u.InternalHandoffStatus)))
             return true;
 
-        return job.InternalHandoffStatus is
-            JobHandoffStatuses.PendingPrep
+        return moiForm?.WorkflowState is MoiWorkflowStates.Approved
+            or MoiWorkflowStates.PendingPrep
+            or MoiWorkflowStates.PendingRecommendation;
+    }
+
+    private static bool IsPostMoiSecretarialHandoff(string? handoff) =>
+        handoff is JobHandoffStatuses.PendingPrep
+            or JobHandoffStatuses.AwaitingSecAssignment
             or JobHandoffStatuses.ResoInProgress
             or JobHandoffStatuses.AdminReview
             or JobHandoffStatuses.MoaSharonApproved
             or JobHandoffStatuses.ReadyForMoa
             or JobHandoffStatuses.MoaCirculation;
-    }
 }

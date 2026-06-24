@@ -3,12 +3,19 @@ import { useEffect, useState } from 'react';
 import {
   getBillingParties,
   getDivisionGroups,
+  getWorkflowTemplates,
   type BillingPartyDto,
   type CustomerResponse,
   type DivisionGroupDto,
   type ProductResponse,
+  type WorkflowTemplateDto,
 } from '@/lib/api';
-import { MOA_WORKFLOW_TEMPLATES } from '@/lib/moaTemplateSections';
+import {
+  MOA_WORKFLOW_TEMPLATES,
+  syncDivisionRecommenderAccountHolders,
+  syncMoiClientWorkflowHolders,
+  syncMoaWorkflowAccountHolders,
+} from '@/lib/moaTemplateSections';
 import {
   ADD_ON_CATALOG,
   ADD_ON_UNIT_PRICE,
@@ -31,6 +38,9 @@ interface AccountHolder {
   moi: boolean;
   moiApproval: boolean;
   moa: boolean;
+  fromMoaWorkflowTemplate?: boolean;
+  fromDivisionRecommender?: boolean;
+  fromMoiWorkflowSlot?: 'projectInitiator';
 }
 
 interface PackageRow {
@@ -141,12 +151,12 @@ export function CreateCustomerModal({
 }: CreateCustomerModalProps) {
   const [formData, setFormData] = useState(emptyForm);
   const [packages, setPackages] = useState<PackageRow[]>([defaultPackage()]);
-  const [accountHolders, setAccountHolders] = useState<AccountHolder[]>([
-    { id: 1, name: '', email: '', phone: '', moi: false, moiApproval: false, moa: false },
-  ]);
+  const [accountHolders, setAccountHolders] = useState<AccountHolder[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [divisionGroups, setDivisionGroups] = useState<DivisionGroupDto[]>([]);
+  const [moaWorkflowTemplates, setMoaWorkflowTemplates] = useState<WorkflowTemplateDto[]>([]);
+  const [moiWorkflowTemplates, setMoiWorkflowTemplates] = useState<WorkflowTemplateDto[]>([]);
   const [billingParties, setBillingParties] = useState<BillingPartyDto[]>([]);
   const [invoiceByPartyIds, setInvoiceByPartyIds] = useState<number[]>([]);
   const [chargeToPartyIds, setChargeToPartyIds] = useState<number[]>([]);
@@ -158,6 +168,8 @@ export function CreateCustomerModal({
   useEffect(() => {
     if (!isOpen) return;
     void getDivisionGroups().then(setDivisionGroups).catch(() => setDivisionGroups([]));
+    void getWorkflowTemplates('MOA').then(setMoaWorkflowTemplates).catch(() => setMoaWorkflowTemplates([]));
+    void getWorkflowTemplates('MOI').then(setMoiWorkflowTemplates).catch(() => setMoiWorkflowTemplates([]));
     void getBillingParties().then(setBillingParties).catch(() => setBillingParties([]));
 
     if (editMode && initialData) {
@@ -235,18 +247,130 @@ export function CreateCustomerModal({
               moiApproval: moiApprovalSet.has(h.name),
               moa: moaSet.has(h.name),
             }))
-          : [{ id: 1, name: '', email: '', phone: '', moi: false, moiApproval: false, moa: false }],
+          : [],
       );
     } else {
       setFormData(emptyForm);
       setPackages([defaultPackage()]);
-      setAccountHolders([{ id: 1, name: '', email: '', phone: '', moi: false, moiApproval: false, moa: false }]);
+      setAccountHolders([]);
     }
     setSubmitError('');
   }, [isOpen, editMode, initialData, products]);
 
+  const refreshDivisionGroups = async () => {
+    try {
+      const groups = await getDivisionGroups();
+      setDivisionGroups(groups);
+      return groups;
+    } catch {
+      return divisionGroups;
+    }
+  };
+
+  const refreshMoaWorkflowTemplates = async () => {
+    try {
+      const templates = await getWorkflowTemplates('MOA');
+      setMoaWorkflowTemplates(templates);
+      return templates;
+    } catch {
+      return moaWorkflowTemplates;
+    }
+  };
+
+  const refreshMoiWorkflowTemplates = async () => {
+    try {
+      const templates = await getWorkflowTemplates('MOI');
+      setMoiWorkflowTemplates(templates);
+      return templates;
+    } catch {
+      return moiWorkflowTemplates;
+    }
+  };
+
+  const applyMoiClientWorkflowHolders = (
+    holders: AccountHolder[],
+    moiTemplates: WorkflowTemplateDto[],
+    divisionRecommenders: DivisionGroupDto['recommenders'] | undefined,
+  ) => syncMoiClientWorkflowHolders(holders, moiTemplates, divisionRecommenders);
+
+  useEffect(() => {
+    if (!isOpen || moiWorkflowTemplates.length === 0) return;
+    const group = divisionGroups.find((g) => g.code === formData.divisionGroupCode);
+    setAccountHolders((current) =>
+      applyMoiClientWorkflowHolders(current, moiWorkflowTemplates, group?.recommenders),
+    );
+  }, [isOpen, formData.divisionGroupCode, divisionGroups, moiWorkflowTemplates]);
+
+  useEffect(() => {
+    if (!isOpen || moaWorkflowTemplates.length === 0 || !formData.moaWorkflowTemplateCode) return;
+    setAccountHolders((current) =>
+      syncMoaWorkflowAccountHolders(
+        current,
+        formData.moaWorkflowTemplateCode,
+        moaWorkflowTemplates,
+        { hasLoa: formData.hasLoa, loaHolders: formData.loaHolders },
+      ),
+    );
+  }, [isOpen, formData.moaWorkflowTemplateCode, moaWorkflowTemplates]);
+
+  const handleDivisionGroupChange = (divisionGroupCode: string) => {
+    void Promise.all([
+      refreshDivisionGroups(),
+      refreshMoaWorkflowTemplates(),
+      refreshMoiWorkflowTemplates(),
+    ]).then(([groups, moaTemplates, moiTemplates]) => {
+      const group = groups.find((g) => g.code === divisionGroupCode);
+      const moaWorkflowTemplateCode = group?.moaWorkflowTemplateCode ?? '';
+      setFormData((current) => {
+        setAccountHolders((holders) => {
+          let next = applyMoiClientWorkflowHolders(holders, moiTemplates, group?.recommenders);
+          next = syncMoaWorkflowAccountHolders(next, moaWorkflowTemplateCode, moaTemplates, {
+            hasLoa: current.hasLoa,
+            loaHolders: current.loaHolders,
+          });
+          return next;
+        });
+        return { ...current, divisionGroupCode, moaWorkflowTemplateCode };
+      });
+    });
+  };
+
+  const applyMoaWorkflowHolders = (
+    templateCode: string,
+    hasLoa: boolean,
+    loaHolders: string,
+    templates: WorkflowTemplateDto[],
+  ) => {
+    setAccountHolders((current) =>
+      syncMoaWorkflowAccountHolders(current, templateCode, templates, { hasLoa, loaHolders }),
+    );
+  };
+
+  const handleMoaWorkflowTemplateChange = (templateCode: string) => {
+    void refreshMoaWorkflowTemplates().then((templates) => {
+      setFormData((current) => {
+        applyMoaWorkflowHolders(templateCode, current.hasLoa, current.loaHolders, templates);
+        return { ...current, moaWorkflowTemplateCode: templateCode };
+      });
+    });
+  };
+
+  const handleHasLoaChange = (hasLoa: boolean) => {
+    setFormData((current) => {
+      applyMoaWorkflowHolders(current.moaWorkflowTemplateCode, hasLoa, current.loaHolders, moaWorkflowTemplates);
+      return { ...current, hasLoa };
+    });
+  };
+
+  const handleLoaHoldersChange = (loaHolders: string) => {
+    setFormData((current) => {
+      applyMoaWorkflowHolders(current.moaWorkflowTemplateCode, current.hasLoa, loaHolders, moaWorkflowTemplates);
+      return { ...current, loaHolders };
+    });
+  };
+
   const handleAddAccountHolder = () => {
-    const newId = Math.max(...accountHolders.map((h) => h.id), 0) + 1;
+    const newId = Math.max(0, ...accountHolders.map((h) => h.id)) + 1;
     setAccountHolders([
       ...accountHolders,
       { id: newId, name: '', email: '', phone: '', moi: false, moiApproval: false, moa: false },
@@ -254,13 +378,30 @@ export function CreateCustomerModal({
   };
 
   const handleRemoveAccountHolder = (id: number) => {
-    if (accountHolders.length > 1) {
-      setAccountHolders(accountHolders.filter((h) => h.id !== id));
-    }
+    setAccountHolders(accountHolders.filter((h) => h.id !== id));
   };
 
   const handleAccountHolderChange = (id: number, field: string, value: string | boolean) => {
-    setAccountHolders(accountHolders.map((h) => (h.id === id ? { ...h, [field]: value } : h)));
+    setAccountHolders(accountHolders.map((h) => {
+      if (h.id !== id) return h;
+      const next = { ...h, [field]: value };
+      if (field === 'name' && h.fromMoaWorkflowTemplate) {
+        next.fromMoaWorkflowTemplate = false;
+      }
+      if (field === 'name' && h.fromDivisionRecommender) {
+        next.fromDivisionRecommender = false;
+      }
+      if (field === 'name' && h.fromMoiWorkflowSlot) {
+        next.fromMoiWorkflowSlot = undefined;
+      }
+      if (field === 'moi' && h.fromMoiWorkflowSlot === 'projectInitiator' && value === false) {
+        next.fromMoiWorkflowSlot = undefined;
+      }
+      if (field === 'moiApproval' && h.fromDivisionRecommender && value === false) {
+        next.fromDivisionRecommender = false;
+      }
+      return next;
+    }));
   };
 
   const handleAddPackage = () => {
@@ -350,7 +491,7 @@ export function CreateCustomerModal({
   const resetForm = () => {
     setFormData(emptyForm);
     setPackages([defaultPackage()]);
-    setAccountHolders([{ id: 1, name: '', email: '', phone: '', moi: false, moiApproval: false, moa: false }]);
+    setAccountHolders([]);
     setInvoiceByPartyIds([]);
     setChargeToPartyIds([]);
   };
@@ -384,7 +525,14 @@ export function CreateCustomerModal({
         invoiceByPartyIds,
         chargeToPartyIds,
         packages,
-        accountHolders,
+        accountHolders: accountHolders
+          .filter((h) => h.name.trim() || h.email.trim() || h.phone.trim())
+          .map(({
+          fromMoaWorkflowTemplate: _moa,
+          fromDivisionRecommender: _div,
+          fromMoiWorkflowSlot: _moiSlot,
+          ...holder
+        }) => holder),
         dateCreated,
         customerId: editMode ? initialData?.id : undefined,
       });
@@ -483,7 +631,8 @@ export function CreateCustomerModal({
                     <label className="block mb-2">Division group</label>
                     <select
                       value={formData.divisionGroupCode}
-                      onChange={(e) => setFormData({ ...formData, divisionGroupCode: e.target.value })}
+                      onChange={(e) => handleDivisionGroupChange(e.target.value)}
+                      onFocus={() => { void refreshDivisionGroups(); }}
                       className="w-full px-3 py-2 border border-border rounded-lg bg-input-background"
                     >
                       <option value="">Select division group</option>
@@ -496,7 +645,8 @@ export function CreateCustomerModal({
                     <label className="block mb-2">MOA workflow template</label>
                     <select
                       value={formData.moaWorkflowTemplateCode}
-                      onChange={(e) => setFormData({ ...formData, moaWorkflowTemplateCode: e.target.value })}
+                      onChange={(e) => handleMoaWorkflowTemplateChange(e.target.value)}
+                      onFocus={() => { void refreshMoaWorkflowTemplates(); }}
                       className="w-full px-3 py-2 border border-border rounded-lg bg-input-background"
                     >
                       {MOA_WORKFLOW_TEMPLATES.map((t) => (
@@ -512,7 +662,7 @@ export function CreateCustomerModal({
                       <input
                         type="checkbox"
                         checked={formData.hasLoa}
-                        onChange={(e) => setFormData({ ...formData, hasLoa: e.target.checked })}
+                        onChange={(e) => handleHasLoaChange(e.target.checked)}
                         className="w-4 h-4"
                       />
                       <span>Company has LOA</span>
@@ -526,7 +676,7 @@ export function CreateCustomerModal({
                     <input
                       type="text"
                       value={formData.loaHolders}
-                      onChange={(e) => setFormData({ ...formData, loaHolders: e.target.value })}
+                      onChange={(e) => handleLoaHoldersChange(e.target.value)}
                       className="w-full px-3 py-2 border border-border rounded-lg bg-input-background"
                       placeholder="e.g. John Doe, Jane Smith"
                     />
@@ -623,21 +773,53 @@ export function CreateCustomerModal({
                   <p className="text-sm text-muted-foreground mb-3">
                     These are people at the client company (not your staff). Tick which forms each
                     person must receive — your users will process them per package.
+                    {formData.moaWorkflowTemplateCode && (
+                      <span className="block mt-1">
+                        MOA approver names come from Admin → Workflow config for the selected template; you can override per customer below.
+                      </span>
+                    )}
+                    {formData.divisionGroupCode && (
+                      <span className="block mt-1">
+                        Client signers are copied from the <span className="font-medium">division roster</span> in Admin → Workflow config (set up once per division). Adjust per company only if needed.
+                      </span>
+                    )}
+                    {!formData.divisionGroupCode && moiWorkflowTemplates.length > 0 && (
+                      <span className="block mt-1">
+                        Pick a division to pull its client signatory roster, or add signers manually below.
+                      </span>
+                    )}
                   </p>
                   <div className="space-y-3">
+                    {accountHolders.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-2">
+                        No signers yet — pick a division to load the roster, or use Add Holder.
+                      </p>
+                    ) : null}
                     {accountHolders.map((holder, index) => (
                       <div key={holder.id} className="bg-muted/30 rounded-lg p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Signer {index + 1}</span>
-                          {accountHolders.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveAccountHolder(holder.id)}
-                              className="p-1 text-destructive hover:bg-destructive/10 rounded"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
+                          <div>
+                            <span className="text-sm font-medium">Signer {index + 1}</span>
+                            {holder.fromMoiWorkflowSlot === 'projectInitiator' && (
+                              <p className="text-xs text-muted-foreground">From MOI workflow — project initiator (client MOI)</p>
+                            )}
+                            {holder.fromDivisionRecommender && (
+                              <p className="text-xs text-muted-foreground">
+                                From division roster (Admin)
+                                {holder.email.trim() ? ' — login ready' : ' — add email in Admin → Workflow config'}
+                              </p>
+                            )}
+                            {holder.fromMoaWorkflowTemplate && (
+                              <p className="text-xs text-muted-foreground">From MOA workflow template — editable</p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAccountHolder(holder.id)}
+                            className="p-1 text-destructive hover:bg-destructive/10 rounded"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <input
@@ -649,14 +831,34 @@ export function CreateCustomerModal({
                           />
                           <input
                             type="email"
-                            placeholder="Email"
+                            placeholder={
+                              holder.email.trim()
+                                ? 'Email'
+                                : holder.fromMoaWorkflowTemplate
+                                  ? 'Add email (or set in Admin roster)'
+                                  : holder.fromDivisionRecommender
+                                    ? 'Set in Admin → division roster'
+                                    : holder.fromMoiWorkflowSlot
+                                      ? 'Add email for project initiator'
+                                      : 'Email'
+                            }
                             value={holder.email}
                             onChange={(e) => handleAccountHolderChange(holder.id, 'email', e.target.value)}
                             className="px-3 py-2 border border-border rounded-lg bg-input-background"
                           />
                           <input
                             type="tel"
-                            placeholder="Mobile"
+                            placeholder={
+                              holder.phone.trim()
+                                ? 'Mobile'
+                                : holder.fromMoaWorkflowTemplate
+                                  ? 'Add mobile (or set in Admin roster)'
+                                  : holder.fromDivisionRecommender
+                                    ? 'Set in Admin → division roster'
+                                    : holder.fromMoiWorkflowSlot
+                                      ? 'Add mobile'
+                                      : 'Mobile'
+                            }
                             value={holder.phone}
                             onChange={(e) => handleAccountHolderChange(holder.id, 'phone', e.target.value)}
                             className="px-3 py-2 border border-border rounded-lg bg-input-background"

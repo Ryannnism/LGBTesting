@@ -117,6 +117,12 @@ public static class SqliteSchemaMigrator
         EnsureColumn(context, "AccountHolders", "ClientAdded", "INTEGER NOT NULL DEFAULT 0");
         EnsureColumn(context, "AccountHolders", "AddedByUserId", "INTEGER NULL");
 
+        EnsureColumn(context, "DivisionGroupRecommenders", "Email", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(context, "DivisionGroupRecommenders", "Phone", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(context, "DivisionGroupRecommenders", "NeedsMoi", "INTEGER NOT NULL DEFAULT 0");
+        EnsureColumn(context, "DivisionGroupRecommenders", "NeedsMoiApproval", "INTEGER NOT NULL DEFAULT 1");
+        EnsureColumn(context, "DivisionGroupRecommenders", "NeedsMoa", "INTEGER NOT NULL DEFAULT 0");
+
         EnsureColumn(context, "FormTemplates", "PackageServiceName", "TEXT NOT NULL DEFAULT ''");
 
         context.Database.ExecuteSqlRaw("""

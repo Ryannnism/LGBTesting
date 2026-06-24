@@ -351,7 +351,16 @@ export interface DivisionGroupDto {
   defaultMoiFormTemplateCode?: string;
   defaultMoaFormTemplateCode?: string;
   isActive: boolean;
-  recommenders: { id: number; userId?: number; displayName: string }[];
+  recommenders: {
+    id: number;
+    userId?: number;
+    displayName: string;
+    email?: string;
+    phone?: string;
+    needsMoi?: boolean;
+    needsMoiApproval?: boolean;
+    needsMoa?: boolean;
+  }[];
 }
 
 export interface ClientApprovalDto {

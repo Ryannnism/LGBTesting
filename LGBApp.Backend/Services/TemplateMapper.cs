@@ -60,6 +60,11 @@ public static class TemplateMapper
             Id = r.DivisionGroupRecommenderId,
             UserId = r.UserId,
             DisplayName = r.DisplayName,
+            Email = r.Email,
+            Phone = r.Phone,
+            NeedsMoi = r.NeedsMoi,
+            NeedsMoiApproval = r.NeedsMoiApproval,
+            NeedsMoa = r.NeedsMoa,
         }).ToList(),
     };
 

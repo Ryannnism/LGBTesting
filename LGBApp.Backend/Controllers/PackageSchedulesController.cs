@@ -56,7 +56,7 @@ public class PackageSchedulesController : ControllerBase
 
         var items = await query.OrderBy(s => s.ScheduledAt).ToListAsync();
 
-        if (!AuthHelper.IsExternalUser(User))
+        if (!AuthHelper.IsExternalUser(User) && !AuthHelper.IsAdmin(User))
         {
             var workUnitIds = items
                 .Where(i => i.ItemType == "work" && i.JobRequestUnitId.HasValue)

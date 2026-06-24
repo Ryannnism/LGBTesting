@@ -29,12 +29,12 @@ public class JobItemDocumentsController : ControllerBase
     {
         var job = await LoadJobAsync(jobId);
         if (job == null) return NotFound();
-        if (!await CanAccessJobAsync(job))
-            return Forbid();
-
         JobRequestUnit? unit = null;
         if (unitNumber.HasValue)
             unit = job.Units.FirstOrDefault(u => u.UnitNumber == unitNumber.Value);
+
+        if (!await CanAccessJobAsync(job, unitNumber))
+            return Forbid();
 
         var moiQuery = _context.MOIForms.Where(f => f.JobRequestId == jobId);
         var moaQuery = _context.MOAForms.Where(f => f.JobRequestId == jobId);
@@ -85,7 +85,7 @@ public class JobItemDocumentsController : ControllerBase
 
         var job = await LoadJobAsync(jobId);
         if (job == null) return NotFound();
-        if (!await CanUploadAsync(job))
+        if (!await CanUploadAsync(job, unitNumber))
             return Forbid();
 
         if (job.TotalQty > 1 && !unitNumber.HasValue)
@@ -153,7 +153,7 @@ public class JobItemDocumentsController : ControllerBase
         var doc = await _context.JobItemDocuments.FirstOrDefaultAsync(d =>
             d.JobItemDocumentId == documentId && d.JobRequestId == jobId);
         if (doc == null) return NotFound();
-        if (!await CanUploadAsync(job))
+        if (!await CanUploadAsync(job, ResolveUnitNumber(job, doc.JobRequestUnitId)))
             return Forbid();
 
         JobItemDocumentStorage.DeleteFile(_env, doc.StorageKey);
@@ -198,7 +198,7 @@ public class JobItemDocumentsController : ControllerBase
                     d.JobRequestUnitId == unit.JobRequestUnitId || d.JobRequestUnitId == null);
         }
 
-        if (AuthHelper.IsExternalUser(User))
+        if (AuthHelper.IsAdmin(User) || AuthHelper.IsExternalUser(User))
             return query;
 
         if (MoiVisibilityHelper.HasClientReleasedToInternal(moi, job))
@@ -207,7 +207,7 @@ public class JobItemDocumentsController : ControllerBase
         return query.Where(d => d.VisibleToInternal);
     }
 
-    private async Task<bool> CanAccessJobAsync(JobRequest job)
+    private async Task<bool> CanAccessJobAsync(JobRequest job, int? unitNumber = null)
     {
         if (AuthHelper.IsAdmin(User))
             return true;
@@ -218,7 +218,7 @@ public class JobItemDocumentsController : ControllerBase
         if (!AuthHelper.IsInternalStaff(User))
             return false;
 
-        var moi = await _context.MOIForms.FirstOrDefaultAsync(f => f.JobRequestId == job.JobRequestId);
+        var moi = await ResolveMoiForJobAsync(job, unitNumber);
         if (MoiVisibilityHelper.IsClientOnlyPhase(moi, job))
             return false;
 
@@ -227,23 +227,38 @@ public class JobItemDocumentsController : ControllerBase
 
     private async Task<bool> CanAccessDocumentAsync(JobRequest job, JobItemDocument doc)
     {
-        if (!await CanAccessJobAsync(job))
+        var unitNumber = ResolveUnitNumber(job, doc.JobRequestUnitId);
+        if (!await CanAccessJobAsync(job, unitNumber))
             return false;
 
-        if (AuthHelper.IsExternalUser(User))
+        if (AuthHelper.IsAdmin(User) || AuthHelper.IsExternalUser(User))
             return true;
 
-        return doc.VisibleToInternal || MoiVisibilityHelper.HasClientReleasedToInternal(
-            await _context.MOIForms.FirstOrDefaultAsync(f => f.JobRequestId == job.JobRequestId),
-            job);
+        var moi = await ResolveMoiForJobAsync(job, unitNumber);
+        return doc.VisibleToInternal || MoiVisibilityHelper.HasClientReleasedToInternal(moi, job);
     }
 
-    private Task<bool> CanUploadAsync(JobRequest job)
+    private async Task<bool> CanUploadAsync(JobRequest job, int? unitNumber = null)
     {
         if (AuthHelper.IsExternalUser(User))
-            return Task.FromResult(AuthHelper.CanAccessCustomer(User, job.CustomerId));
+            return AuthHelper.CanAccessCustomer(User, job.CustomerId);
 
-        return Task.FromResult(AuthHelper.CanAccessJob(User, job));
+        if (!AuthHelper.IsInternalStaff(User))
+            return false;
+
+        var moi = await ResolveMoiForJobAsync(job, unitNumber);
+        if (MoiVisibilityHelper.IsClientOnlyPhase(moi, job))
+            return false;
+
+        return AuthHelper.CanAccessJob(User, job);
+    }
+
+    private static int? ResolveUnitNumber(JobRequest job, int? jobRequestUnitId)
+    {
+        if (!jobRequestUnitId.HasValue)
+            return null;
+
+        return job.Units.FirstOrDefault(u => u.JobRequestUnitId == jobRequestUnitId.Value)?.UnitNumber;
     }
 
     private static string NormalizeFolder(string folder)

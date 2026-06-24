@@ -29,6 +29,7 @@ import {
   isUserAssignedToJob,
   moaAttentionUnit,
   jobNeedsUserAttention,
+  jobHasHandoff,
 } from '@/lib/packageItemStatus';
 import { canAssignJobStaff } from '@/lib/roles';
 import { formatDateDisplay } from '@/lib/dates';
@@ -52,11 +53,11 @@ function attentionLabel(job: JobRequestResponse): string {
     return 'MOI submitted — review intake';
   if (jobHasMoaClientCirculation(job))
     return 'Client signed MOA — awaiting remaining signatories';
-  if (job.internalHandoffStatus === 'AdminReview')
+  if (jobHasHandoff(job, 'AdminReview'))
     return 'MOA draft submitted — review for client release';
-  if (job.internalHandoffStatus === 'ResoInProgress' || job.internalHandoffStatus === 'PendingPrep')
+  if (jobHasHandoff(job, 'ResoInProgress') || jobHasHandoff(job, 'PendingPrep'))
     return 'MOA draft in progress — assign team or open to complete';
-  if (job.internalHandoffStatus === 'MoaSharonApproved')
+  if (jobHasHandoff(job, 'MoaSharonApproved'))
     return 'MOA approved — send to client';
   if (jobHasExecutionReady(job))
     return 'MOA signed — mark completed when execution is done';

@@ -308,6 +308,11 @@ export function MOIFormModal({
     ?? ((initialData?.totalQty ?? 1) <= 1 ? 1 : undefined);
   const itemLabel = resolvedUnitNumber ? ` (session #${resolvedUnitNumber})` : '';
 
+  useEffect(() => {
+    setDocumentSubmitError('');
+    setDocumentsRefreshKey((k) => k + 1);
+  }, [formData.supportingDocument]);
+
   const buildFormPayload = () => ({
     ...formData,
     id: initialData?.id,
@@ -554,12 +559,12 @@ export function MOIFormModal({
                 refreshKey={documentsRefreshKey}
                 showWhenEmpty={formData.supportingDocument || !viewMode}
                 onCountChange={setDocumentCount}
-                countFolders={formData.supportingDocument ? ['supporting'] : undefined}
-                folders={formData.supportingDocument ? ['supporting', 'moi'] : ['moi', 'supporting']}
-                title={viewMode ? 'Documents for review' : 'Uploaded documents'}
+                countFolders={formData.supportingDocument ? ['moi', 'supporting'] : undefined}
+                folders={['moi', 'supporting']}
+                title={viewMode ? 'Documents for review' : 'Attached documents'}
                 allowUpload={!viewMode}
                 allowDelete={!viewMode}
-                uploadFolder={formData.supportingDocument ? 'supporting' : 'moi'}
+                uploadFolder="moi"
                 onBeforeUpload={async () => {
                   const resolved = await ensureJobForDocuments();
                   setDocumentsRefreshKey((k) => k + 1);
@@ -670,7 +675,7 @@ export function MOIFormModal({
                 {formData.supportingDocument && (
                   <div className="mt-3 space-y-2">
                     <p className="text-xs text-muted-foreground">
-                      Use the documents section above to add or remove files for this session{itemLabel}.
+                      Attach files in the documents section above{itemLabel}.
                     </p>
                     {documentSubmitError && (
                       <p className="text-xs text-destructive">{documentSubmitError}</p>

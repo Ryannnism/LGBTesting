@@ -274,7 +274,7 @@ public class MOIFormsController : ControllerBase
         {
             var docQuery = _context.JobItemDocuments
                 .Where(d => d.JobRequestId == job.JobRequestId
-                    && d.Folder == "supporting");
+                    && (d.Folder == "supporting" || d.Folder == "moi"));
             if (form.JobRequestUnitId.HasValue && job.TotalQty > 1)
                 docQuery = docQuery.Where(d => d.JobRequestUnitId == form.JobRequestUnitId);
             else if (form.JobRequestUnitId.HasValue)

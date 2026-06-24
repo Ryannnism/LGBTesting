@@ -54,6 +54,9 @@ public class SignatoryAccessService
 
     public async Task EnsureAccessAsync(AppDbContext context, int userId, int customerId)
     {
+        if (context.SignatoryCustomerAccess.Local.Any(a => a.UserId == userId && a.CustomerId == customerId))
+            return;
+
         var exists = await context.SignatoryCustomerAccess
             .AnyAsync(a => a.UserId == userId && a.CustomerId == customerId);
         if (exists)

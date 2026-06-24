@@ -67,8 +67,8 @@ public static class JobHandoffResolver
     }
 
     /// <summary>
-    /// Job-level handoff is a summary only for multi-session packages — never copy one unit's
-    /// terminal state onto siblings that have not started yet.
+    /// Job-level handoff is a summary for multi-session packages — surface the most
+    /// actionable unit state (e.g. AdminReview) rather than an earlier empty session.
     /// </summary>
     public static void SyncJobHandoffFromUnits(JobRequest job)
     {
@@ -88,18 +88,43 @@ public static class JobHandoffResolver
             return;
         }
 
-        var active = units.FirstOrDefault(u => !string.Equals(
-            u.InternalHandoffStatus,
-            JobHandoffStatuses.Completed,
-            StringComparison.OrdinalIgnoreCase));
+        var nonCompleted = units
+            .Where(u => !string.Equals(
+                u.InternalHandoffStatus,
+                JobHandoffStatuses.Completed,
+                StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-        if (active == null)
+        var summary = nonCompleted
+            .Select(u => u.InternalHandoffStatus ?? string.Empty)
+            .OrderByDescending(HandoffSummaryPriority)
+            .FirstOrDefault(h => HandoffSummaryPriority(h) > 0)
+            ?? nonCompleted.First().InternalHandoffStatus
+            ?? string.Empty;
+
+        JobHandoffService.SetHandoff(job, summary);
+    }
+
+    private static int HandoffSummaryPriority(string? handoff)
+    {
+        if (string.IsNullOrWhiteSpace(handoff))
+            return 0;
+
+        return handoff switch
         {
-            JobHandoffService.SetHandoff(job, JobHandoffStatuses.Completed);
-            return;
-        }
-
-        JobHandoffService.SetHandoff(job, active.InternalHandoffStatus ?? string.Empty);
+            JobHandoffStatuses.AdminReview => 100,
+            JobHandoffStatuses.MoaSharonApproved => 95,
+            JobHandoffStatuses.ReadyForMoa => 90,
+            JobHandoffStatuses.MoaCirculation => 85,
+            JobHandoffStatuses.PendingExecute => 80,
+            JobHandoffStatuses.ExecutionSecComplete => 79,
+            JobHandoffStatuses.ResoInProgress => 50,
+            JobHandoffStatuses.PendingPrep => 45,
+            JobHandoffStatuses.AwaitingSecAssignment => 40,
+            JobHandoffStatuses.ClientSubmitted => 30,
+            JobHandoffStatuses.Completed => -1,
+            _ => 10,
+        };
     }
 
     public static bool IsMoaPrepHandoff(string handoff) =>

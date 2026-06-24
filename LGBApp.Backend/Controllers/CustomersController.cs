@@ -68,6 +68,9 @@ public class CustomersController : ControllerBase
         _context.Customers.Add(customer);
         await _context.SaveChangesAsync();
 
+        await DivisionRosterService.ApplyRosterToCustomerAsync(_context, customer);
+        await _context.SaveChangesAsync();
+
         await _context.Entry(customer).Collection(c => c.AccountHolders).LoadAsync();
         await _context.Entry(customer).Collection(c => c.Packages).LoadAsync();
         await JobRequestSyncService.SyncCustomerWorkAsync(_context, customer);
