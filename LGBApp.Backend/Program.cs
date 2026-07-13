@@ -148,6 +148,9 @@ using (var scope = app.Services.CreateScope())
         SqliteSchemaMigrator.Apply(context);
         WorkflowConfigSeeder.Seed(context);
         InternalStaffSeeder.Seed(context, resetPasswordsInDevelopment: false);
+        // Real COSEC billing book (CubeV) — companies, billing parties, division recommenders.
+        // Sharon remains Admin via InternalStaffSeeder.
+        CubeVCustomerSeeder.SeedIfNeeded(context);
         BillingPartyService.SeedFromLegacyCustomerFieldsAsync(context).GetAwaiter().GetResult();
         CustomerClientAdminProvisioner.EnsureAllCustomersHaveClientAdminAsync(context).GetAwaiter().GetResult();
         CustomerSignatoryProvisioner.EnsureAllCustomerSignatoriesAsync(context).GetAwaiter().GetResult();
@@ -159,13 +162,16 @@ using (var scope = app.Services.CreateScope())
 
         // Full package/job sync is expensive (hundreds of units). Run once on empty DB;
         // per-customer sync runs from CustomersController on create/update.
-        var needsFullJobBootstrap = !context.JobRequests.Any();
+        // After CubeV import, also bootstrap jobs when customers exist but no jobs yet.
+        var needsFullJobBootstrap = !context.JobRequests.Any() && context.Customers.Any();
         if (needsFullJobBootstrap)
         {
+            Console.WriteLine("[Startup] Bootstrapping job requests for seeded customers (may take a minute)…");
             JobRequestSyncService.SyncAllCustomersAsync(context).GetAwaiter().GetResult();
             JobWorkflowIntegrityService.RepairAllAsync(context).GetAwaiter().GetResult();
             var allJobs = context.JobRequests.ToList();
             JobFormProvisioner.EnsureFormsForJobsAsync(context, allJobs).GetAwaiter().GetResult();
+            Console.WriteLine($"[Startup] Job bootstrap complete — {allJobs.Count} jobs.");
         }
         else
         {

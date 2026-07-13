@@ -151,6 +151,7 @@ public class JobRequestsController : ControllerBase
             item.MoiFormId = moi?.MOIFormId;
             item.MoiWorkflowState = moi?.WorkflowState;
             item.RequiredExecutionDate = MoiFormMetadataHelper.ReadRequiredExecutionDate(moi);
+            item.DocumentTitle = MoiFormMetadataHelper.ReadDocumentTitle(moi);
 
             var display = PackageItemStatusResolver.ResolveForUnit(job, unit, moi);
             item.DisplayStatus = display.Label;

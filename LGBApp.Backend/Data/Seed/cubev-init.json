@@ -1,0 +1,3060 @@
+{
+  "source": "COSEC Billing Tracking 2026 (CubeV)",
+  "companies": [
+    {
+      "company": "A&I Properties (Malaysia) Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "A&I Properties (Malaysia) Sdn Bhd",
+      "chargeTo": "A&I Properties (Malaysia) Sdn Bhd",
+      "billTo": "A&I Properties (Malaysia) Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Adil Cita Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Adil Cita Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Alam Ria Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Alam Ria Ventures Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Ventures Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "Alphagen Resources Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "Alphagen Resources Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Anekawal Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Anekawal Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Aqua-Flo Sdn Bhd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "Aqua-Flo Sdn Bhd",
+      "chargeTo": "Aqua-Flo Sdn Bhd",
+      "billTo": "Aqua-Flo Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Aqualand Oita Pte Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Parkwood Hospitality Sdn Bhd",
+      "billTo": "Parkwood Hospitality Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Bakat Muhibbah Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Bayfield Investment Limited",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Bayfield Investment Limited",
+      "billTo": "Bayfield Investment Limited",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Bell Fiore Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "Bell Fiore Sdn Bhd",
+      "billTo": "Bell Fiore Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Bellworth Asset Management Sdn Bhd",
+      "divisionCode": "BELLWORTH",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4250.0,
+      "resoQty": 5,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "Bellworth Asset Management Sdn Bhd",
+      "billTo": "Bellworth Asset Management Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Bellworth Developments Sdn Bhd",
+      "divisionCode": "BELLWORTH",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Bellworth Developments Sdn Bhd",
+      "billTo": "Bellworth Developments Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Bellworth Enterprise Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Bellworth Enterprise Sdn Bhd",
+      "billTo": "Bellworth Enterprise Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Bellworth Sanctuary Sdn Bhd (fka Bellworth Forest Hills SB)",
+      "divisionCode": "BELLWORTH",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Bellworth Developments Sdn Bhd",
+      "billTo": "Bellworth Sanctuary Sdn Bhd (fka Bellworth Forest Hills SB)",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Bellworth Saujana Sdn Bhd",
+      "divisionCode": "BELLWORTH",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Bellworth Developments Sdn Bhd",
+      "billTo": "Bellworth Saujana Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Bellworth Sdn Bhd",
+      "divisionCode": "BELLWORTH",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Bellworth Developments Sdn Bhd",
+      "billTo": "Bellworth Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Bellworth Ventures Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Bellworth Ventures Sdn Bhd",
+      "billTo": "Bellworth Ventures Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Bunga Abadi Sdn Bhd",
+      "divisionCode": "BELLWORTH",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Bunga Abadi Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Century General Water (M) Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Engineering Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Chesington Estate Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Chesington Estate Limited",
+      "billTo": "Chesington Estate Limited",
+      "msaDirect": true,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Chesington Estate Management Co. Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Chesington Estate Limited",
+      "billTo": "Chesington Estate Limited",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Chesington Investments Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Chesington Investments Limited",
+      "billTo": "Chesington Investments Limited",
+      "msaDirect": true,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "CMLim Capital Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "CMLim Capital Sdn Bhd",
+      "chargeTo": "CMLim Capital Sdn Bhd",
+      "billTo": "CMLim Capital Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "CMLim Energy Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "CMLim Energy Sdn Bhd",
+      "chargeTo": "CMLim Energy Sdn Bhd",
+      "billTo": "CMLim Energy Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "CM-Lim Holdings Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "CM-Lim Holdings Sdn Bhd",
+      "chargeTo": "CM-Lim Holdings Sdn Bhd",
+      "billTo": "CM-Lim Holdings Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "CMLim Infra Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "CMLim Infra Sdn Bhd",
+      "billTo": "CMLim Infra Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "CMLim Metropark",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "CMLim Metropark",
+      "billTo": "CMLim Metropark",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "CMLim Realty Ltd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "CMLim Realty Ltd",
+      "chargeTo": "CMLim Realty Ltd",
+      "billTo": "CMLim Realty Ltd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "CMLim Realty Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "CMLim Realty Sdn Bhd",
+      "chargeTo": "CMLim Realty Sdn Bhd",
+      "billTo": "CMLim Realty Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "CMLim Utilities Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "CMLim Utilities Sdn Bhd",
+      "billTo": "CMLim Utilities Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Conseec Gali Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1900.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Conseec Gali Sdn Bhd",
+      "billTo": "Conseec Gali Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "CoreMy (SG) Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "CoreMy (SG) Sdn Bhd",
+      "billTo": "CoreMy (SG) Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "CoreMy Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "CoreMy Sdn Bhd",
+      "billTo": "CoreMy Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "CS Estate Pte Ltd (fka Western Australia Fund 1 Pte Ltd)",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "CS Estate Pte Ltd (fka Western Australia Fund 1 Pte Ltd)",
+      "chargeTo": "CS Estate Pte Ltd (fka Western Australia Fund 1 Pte Ltd)",
+      "billTo": "CS Estate Pte Ltd (fka Western Australia Fund 1 Pte Ltd)",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "CSLim Holdings Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "CSLim Holdings Sdn Bhd",
+      "chargeTo": "CSLim Holdings Sdn Bhd",
+      "billTo": "CSLim Holdings Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Cube Value Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "Cube Value Sdn Bhd",
+      "chargeTo": "Cube Value Sdn Bhd",
+      "billTo": "Cube Value Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "D&I Management Services Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "D&I Management Services Sdn Bhd",
+      "chargeTo": "D&I Management Services Sdn Bhd",
+      "billTo": "D&I Management Services Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "D-Legend Holdings Pte Ltd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "D-Legend Holdings Pte Ltd",
+      "chargeTo": "D-Legend Holdings Pte Ltd",
+      "billTo": "D-Legend Holdings Pte Ltd",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Ecoleaf Holdings Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Ecoleaf Resources Sdn Bhd",
+      "billTo": "Ecoleaf Holdings Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Ecoleaf Resources Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Ecoleaf Resources Sdn Bhd",
+      "billTo": "Ecoleaf Resources Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Edaran SWM Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "Edaran SWM Sdn Bhd",
+      "chargeTo": "Edaran SWM Sdn Bhd",
+      "billTo": "Edaran SWM Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": true,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "Elenergy Enviro Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "Elenergy Enviro Sdn Bhd",
+      "chargeTo": "Elenergy Enviro Sdn Bhd",
+      "billTo": "Elenergy Enviro Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "E-Money Ventures Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "E-Money Ventures Sdn Bhd",
+      "chargeTo": "E-Money Ventures Sdn Bhd",
+      "billTo": "E-Money Ventures Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Era Erat Sdn Bhd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Erat Rasa Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "Erat Rasa Sdn Bhd",
+      "chargeTo": "Erat Rasa Sdn Bhd",
+      "billTo": "Erat Rasa Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Ertidaya Sdn Bhd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Esys Montenay (Malaysia) Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Esys Montenay (Malaysia) Sdn Bhd",
+      "billTo": "Esys Montenay (Malaysia) Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Exitra Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Exitra Sdn Bhd",
+      "billTo": "Exitra Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": true,
+      "moaWorkflowTemplateCode": "MOA_WITH_LOA"
+    },
+    {
+      "company": "Exitra Solutions Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Exitra Sdn Bhd",
+      "billTo": "Exitra Solutions Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": true,
+      "moaWorkflowTemplateCode": "MOA_WITH_LOA"
+    },
+    {
+      "company": "Factory 19 Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 23,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "Factory 19 Sdn Bhd",
+      "billTo": "Factory 19 Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Furano Kitanomine Pte Ltd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Parkwood Hospitality Sdn Bhd",
+      "billTo": "Parkwood Hospitality Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Future Garden Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "Future Garden Sdn Bhd",
+      "chargeTo": "Future Garden Sdn Bhd",
+      "billTo": "Future Garden Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Gagasan Sri Setia Sdn Bhd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Engineering Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Gamitan Asal Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Engineering Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "GB Odyssey Pte. Ltd.",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "GC Artisan Bakery Sdn Bhd (fka Lygon Gourmet SB)",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "GC Artisan Bakery Sdn Bhd (fka Lygon Gourmet SB)",
+      "chargeTo": "GC Artisan Bakery Sdn Bhd (fka Lygon Gourmet SB)",
+      "billTo": "GC Artisan Bakery Sdn Bhd (fka Lygon Gourmet SB)",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Grand East Pte Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Parkwood Hospitality Sdn Bhd",
+      "billTo": "Parkwood Hospitality Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Grand House Pte Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Parkwood Hospitality Sdn Bhd",
+      "billTo": "Parkwood Hospitality Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Grand Kinta Expressway Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "Grand Kinta Expressway Sdn Bhd",
+      "billTo": "Grand Kinta Expressway Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "GSL Development Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "GSL Development Sdn Bhd",
+      "billTo": "GSL Development Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "GSL Estate Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Global Limited",
+      "billTo": "LGB Global Limited",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "GSL Realty Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 23,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "GSL Development Sdn Bhd",
+      "billTo": "GSL Realty Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Harfield Investment Limited",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Harfield Investment Limited",
+      "billTo": "Harfield Investment Limited",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Hashtag It Sdn Bhd (fka Svago Sdn Bhd)",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "Hashtag It Sdn Bhd (fka Svago Sdn Bhd)",
+      "chargeTo": "Hashtag It Sdn Bhd (fka Svago Sdn Bhd)",
+      "billTo": "Hashtag It Sdn Bhd (fka Svago Sdn Bhd)",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Hexa East Pte. Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Properties (Overseas) Pte. Ltd.",
+      "billTo": "LGB Properties (Overseas) Pte. Ltd.",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Ikram Pelangi Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "Ikram Pelangi Sdn Bhd",
+      "chargeTo": "Ikram Pelangi Sdn Bhd",
+      "billTo": "Ikram Pelangi Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Ilham Setia Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Ilham Setia Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Jejak Sekata Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Kelrix Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Kelrix Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Kelso Capital Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Kelso Capital Sdn Bhd",
+      "billTo": "Kelso Capital Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Kembangan Restu Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Kembangan Sepadu Sdn Bhd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "KSG Capital Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Global Limited",
+      "billTo": "LGB Global Limited",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Laman Petra Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Laman Petra Sdn Bhd",
+      "billTo": "Laman Petra Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Lambang Progresif Sdn Bhd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Lancer Square Estate Management Co. Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Chesington Estate Limited",
+      "billTo": "Chesington Estate Limited",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Lancer Square Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 8400.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Lancer Square Limited",
+      "billTo": "Lancer Square Limited",
+      "msaDirect": true,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Lancer Square Residential Management Co. Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 8400.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Lancer Square Limited",
+      "billTo": "Lancer Square Limited",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Lexus Network Pte Ltd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "Lexus Network Pte Ltd",
+      "chargeTo": "Lexus Network Pte Ltd",
+      "billTo": "Lexus Network Pte Ltd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "LGB (Malaysia) Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBG",
+      "chargeTo": "LGB (Malaysia) Sdn Bhd",
+      "billTo": "LGB (Malaysia) Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Capital Management Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Properties (Overseas) Pte. Ltd.",
+      "billTo": "LGB Properties (Overseas) Pte. Ltd.",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Cares Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Cares Sdn Bhd",
+      "billTo": "LGB Cares Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB CSR Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB CSR Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Engineering Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Engineering Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Global Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Global Limited",
+      "billTo": "LGB Global Limited",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Group (HK) Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 6240.0,
+      "resoQty": 0,
+      "invoiceBy": "LGB Group (HK) Limited",
+      "chargeTo": "LGB Group (HK) Limited",
+      "billTo": "LGB Group (HK) Limited",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 4
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 4
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Group Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Group Sdn Bhd",
+      "billTo": "LGB Group Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Holdings Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Engineering Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Hospitality Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGB Hospitality Sdn Bhd",
+      "chargeTo": "LGB Hospitality Sdn Bhd",
+      "billTo": "LGB Hospitality Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB INS Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB INS Sdn Bhd",
+      "billTo": "LGB INS Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Management Services Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Management Services Sdn Bhd",
+      "billTo": "LGB Management Services Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Properties (M) Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 23,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Properties (M) Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": true,
+      "moaWorkflowTemplateCode": "MOA_WITH_LOA"
+    },
+    {
+      "company": "LGB Properties (Overseas) Pte. Ltd.",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Properties (Overseas) Pte. Ltd.",
+      "billTo": "LGB Properties (Overseas) Pte. Ltd.",
+      "msaDirect": true,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Property (UK) Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Global Limited",
+      "billTo": "LGB Global Limited",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Realty Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Realty Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Somerset Investment Pte. Ltd.",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Properties (Overseas) Pte. Ltd.",
+      "billTo": "LGB Properties (Overseas) Pte. Ltd.",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Taliworks Consortium Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Taliworks Consortium Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Utilities Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Utilities Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "LGB Ventures Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Engineering Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "L-Six Holdings Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBG",
+      "chargeTo": "L-Six Holdings Sdn Bhd",
+      "billTo": "L-Six Holdings Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Mal Monte Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Engineering Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Malar Teguh Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "Malar Teguh Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Malar Terang Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "Malar Terang Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Mass Ocean Sdn Bhd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Megature Construction Sdn Bhd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Mewah Reka Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "Mewah Reka Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Myrus Chemical Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "Myrus Chemical Sdn Bhd",
+      "billTo": "Myrus Chemical Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Outto Dine Productions Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "Outto Dine Productions Sdn Bhd",
+      "chargeTo": "Outto Dine Productions Sdn Bhd",
+      "billTo": "Outto Dine Productions Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Outto Dine Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "Outto Dine Sdn Bhd",
+      "chargeTo": "Outto Dine Sdn Bhd",
+      "billTo": "Outto Dine Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Park Ventures Development Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Park Ventures Development Sdn Bhd",
+      "billTo": "Park Ventures Development Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Parkwood Hospitality Pte Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Parkwood Hospitality Sdn Bhd",
+      "billTo": "Parkwood Hospitality Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Parkwood Hospitality Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Parkwood Hospitality Sdn Bhd",
+      "billTo": "Parkwood Hospitality Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Pasar Venture Sdn Bhd (fka D&I Trading SB)",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "Pasar Venture Sdn Bhd (fka D&I Trading SB)",
+      "chargeTo": "Pasar Venture Sdn Bhd (fka D&I Trading SB)",
+      "billTo": "Pasar Venture Sdn Bhd (fka D&I Trading SB)",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Pascucci (M) Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "Pascucci (M) Sdn Bhd",
+      "chargeTo": "Pascucci (M) Sdn Bhd",
+      "billTo": "Pascucci (M) Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Penawar Sepakat Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Penawar Sepakat Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Pickle Culture Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 23,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "Pickle Culture Sdn Bhd",
+      "billTo": "Pickle Culture Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Platinum East Pte Ltd (fka LGB Development Pte Ltd)",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Parkwood Hospitality Sdn Bhd",
+      "billTo": "Parkwood Hospitality Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Platinum House Pte Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Parkwood Hospitality Sdn Bhd",
+      "billTo": "Parkwood Hospitality Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Prismachem Sdn Bhd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Prismachem Sdn Bhd",
+      "billTo": "Prismachem Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Provencorp (M) Sdn Bhd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Puresino (Guanghan) Water Co., Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 6240.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Group (HK) Limited",
+      "billTo": "LGB Group (HK) Limited",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 4
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 4
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Rayston (Butterworth) Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "Rayston (Butterworth) Sdn Bhd",
+      "chargeTo": "Rayston (Butterworth) Sdn Bhd",
+      "billTo": "Rayston (Butterworth) Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Rayston Consortium (Butterworth) Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "Rayston Consortium (Butterworth) Sdn Bhd",
+      "chargeTo": "Rayston Consortium (Butterworth) Sdn Bhd",
+      "billTo": "Rayston Consortium (Butterworth) Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "RCB Development Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "RCB Development Sdn Bhd",
+      "chargeTo": "RCB Development Sdn Bhd",
+      "billTo": "RCB Development Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Repeat Domain Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "Repeat Domain Sdn Bhd",
+      "chargeTo": "Repeat Domain Sdn Bhd",
+      "billTo": "Repeat Domain Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Roppongi Grand Sdn Bhd (Project Giraffe)",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "Roppongi Grand Sdn Bhd",
+      "billTo": "Roppongi Grand Sdn Bhd (Project Giraffe)",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Spasso (KL) Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "Spasso (KL) Sdn Bhd",
+      "chargeTo": "Spasso (KL) Sdn Bhd",
+      "billTo": "Spasso (KL) Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Steel Eagle Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 0.0,
+      "resoQty": 0,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "Steel Eagle Limited",
+      "billTo": "Steel Eagle Limited",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Steel Eagle Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Steel Eagle Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Strategik Cekal Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "Strategik Cekal Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "Sumber SWM Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "Sumber SWM Sdn Bhd",
+      "chargeTo": "Sumber SWM Sdn Bhd",
+      "billTo": "Sumber SWM Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": true,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "SWM Energy Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "SWM Energy Sdn Bhd",
+      "chargeTo": "SWM Energy Sdn Bhd",
+      "billTo": "SWM Energy Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "SWM Enviro Holdings Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "SWM Enviro Holdings Sdn Bhd",
+      "chargeTo": "SWM Enviro Holdings Sdn Bhd",
+      "billTo": "SWM Enviro Holdings Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": true,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "SWM Enviro Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "SWM Enviro Sdn Bhd",
+      "chargeTo": "SWM Enviro Sdn Bhd",
+      "billTo": "SWM Enviro Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": true,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "SWM Environment Asianmax Corporation JV Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "SWM Environment Asianmax Corporation JV Sdn Bhd",
+      "chargeTo": "SWM Environment Asianmax Corporation JV Sdn Bhd",
+      "billTo": "SWM Environment Asianmax Corporation JV Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "SWM Environment Holdings Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 8880.0,
+      "resoQty": 10,
+      "invoiceBy": "SWM Environment Holdings Sdn Bhd",
+      "chargeTo": "SWM Environment Holdings Sdn Bhd",
+      "billTo": "SWM Environment Holdings Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 4
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 4
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "SWM Environment Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "SWM Environment Sdn Bhd",
+      "chargeTo": "SWM Environment Sdn Bhd",
+      "billTo": "SWM Environment Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "SWM Greentech Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "SWM Greentech Sdn Bhd",
+      "chargeTo": "SWM Greentech Sdn Bhd",
+      "billTo": "SWM Greentech Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "SWM Seelong Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 23,
+      "invoiceBy": "Pascucci",
+      "chargeTo": "SWM Seelong Sdn Bhd",
+      "billTo": "SWM Seelong Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "SWM Solutions Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "SWM Solutions Sdn Bhd",
+      "chargeTo": "SWM Solutions Sdn Bhd",
+      "billTo": "SWM Solutions Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": true,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "SWM Technologies (Malaysia) Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 10284.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBG",
+      "chargeTo": "SWM Technologies (Malaysia) Sdn Bhd",
+      "billTo": "SWM Technologies (Malaysia) Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "SWM-GC Energy JV Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "SWM-GC Energy JV Sdn Bhd",
+      "chargeTo": "SWM-GC Energy JV Sdn Bhd",
+      "billTo": "SWM-GC Energy JV Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "Synergy Estate Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "Synergy Estate Sdn Bhd",
+      "chargeTo": "Synergy Estate Sdn Bhd",
+      "billTo": "Synergy Estate Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Synicast (M) Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "Synicast (M) Sdn Bhd",
+      "chargeTo": "Synicast (M) Sdn Bhd",
+      "billTo": "Synicast (M) Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Tali-Eaux Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Tali-Eaux Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Taliworks (Sichuan) Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Group (HK) Limited",
+      "billTo": "LGB Group (HK) Limited",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Waterpro Analytical Laboratory Sdn Bhd (fka Taliworks Analytical Laboratory SB)",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Alam Ria Sdn Bhd",
+      "billTo": "Alam Ria Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Taliworks Consortium Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "Taliworks Consortium Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Taliworks Eco Pte Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "Taliworks Eco Pte Ltd",
+      "chargeTo": "Taliworks Eco Pte Ltd",
+      "billTo": "Taliworks Eco Pte Ltd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Taliworks Environment Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Group (HK) Limited",
+      "billTo": "LGB Group (HK) Limited",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Taliworks International Limited",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Group (HK) Limited",
+      "billTo": "LGB Group (HK) Limited",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Telaxis Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 600.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "LGB Engineering Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Tianjin-SWM (M) Environment Co., Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 6240.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Group (HK) Limited",
+      "billTo": "LGB Group (HK) Limited",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 4
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 4
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Triangle Asia Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "Parkwood Holdings Berhad",
+      "billTo": "Triangle Asia Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Trinitywin Ventures Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 4080.0,
+      "resoQty": 10,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Trinitywin Ventures Sdn Bhd",
+      "billTo": "Trinitywin Ventures Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "UER Resources Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "UER Resources Sdn Bhd",
+      "billTo": "UER Resources Sdn Bhd",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Universal Utilities Sdn Bhd",
+      "divisionCode": "SWM",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "Universal Utilities Sdn Bhd",
+      "chargeTo": "Universal Utilities Sdn Bhd",
+      "billTo": "Universal Utilities Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_SWM"
+    },
+    {
+      "company": "Water Clinic Sdn Bhd",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Enterprise Package",
+      "packageValue": 5400.0,
+      "resoQty": 18,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "Water Clinic Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Weissbrau Sdn Bhd",
+      "divisionCode": "",
+      "cosec": true,
+      "packageName": "Professional Package",
+      "packageValue": 3384.0,
+      "resoQty": 5,
+      "invoiceBy": "Weissbrau Sdn Bhd",
+      "chargeTo": "Weissbrau Sdn Bhd",
+      "billTo": "Weissbrau Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Wellco Capital Ltd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "Wellco Capital Ltd",
+      "chargeTo": "Wellco Capital Ltd",
+      "billTo": "Wellco Capital Ltd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Wellco Capital Pte Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Properties (Overseas) Pte. Ltd.",
+      "billTo": "LGB Properties (Overseas) Pte. Ltd.",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Wellco Estate Ltd",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 1440.0,
+      "resoQty": 0,
+      "invoiceBy": "Wellco Estate Ltd",
+      "chargeTo": "Wellco Estate Ltd",
+      "billTo": "Wellco Estate Ltd",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Yayasan Pendidikan LGB",
+      "divisionCode": "LGB",
+      "cosec": true,
+      "packageName": "Basic Package",
+      "packageValue": 2640.0,
+      "resoQty": 1,
+      "invoiceBy": "LGBMS",
+      "chargeTo": "LGB Engineering Sdn Bhd",
+      "billTo": "Yayasan Pendidikan LGB",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Yuki East Pte Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Parkwood Hospitality Sdn Bhd",
+      "billTo": "Parkwood Hospitality Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Yuki Furano Pte Ltd",
+      "divisionCode": "LGB",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 2640.0,
+      "resoQty": 0,
+      "invoiceBy": "LGBG",
+      "chargeTo": "Parkwood Hospitality Sdn Bhd",
+      "billTo": "Parkwood Hospitality Sdn Bhd",
+      "msaDirect": false,
+      "addOns": [
+        {
+          "name": "Attend Board Meeting",
+          "qty": 1
+        },
+        {
+          "name": "Prepare board meeting Minutes",
+          "qty": 1
+        }
+      ],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": "MOA_NO_LOA"
+    },
+    {
+      "company": "Newly Incorp. Company (please specify)",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 0.0,
+      "resoQty": 0,
+      "invoiceBy": "Newly Incorp. Company (please specify)",
+      "chargeTo": "Newly Incorp. Company (please specify)",
+      "billTo": "Newly Incorp. Company (please specify)",
+      "msaDirect": true,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "Other Ad-hoc & Complex Works (please specify)",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 0.0,
+      "resoQty": 0,
+      "invoiceBy": "Other Ad-hoc & Complex Works (please specify)",
+      "chargeTo": "Other Ad-hoc & Complex Works (please specify)",
+      "billTo": "Other Ad-hoc & Complex Works (please specify)",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    },
+    {
+      "company": "SSM lodgement fee for others (please specify)",
+      "divisionCode": "",
+      "cosec": false,
+      "packageName": "Add-ons only",
+      "packageValue": 0.0,
+      "resoQty": 0,
+      "invoiceBy": "SSM lodgement fee for others (please specify)",
+      "chargeTo": "SSM lodgement fee for others (please specify)",
+      "billTo": "SSM lodgement fee for others (please specify)",
+      "msaDirect": false,
+      "addOns": [],
+      "hasLoa": false,
+      "moaWorkflowTemplateCode": null
+    }
+  ],
+  "groups": {
+    "LGB": {
+      "moiIssuers": [
+        {
+          "name": "Tai Kok Hong",
+          "email": "khtai@lgb.com.my"
+        },
+        {
+          "name": "Sam Kit Phun",
+          "email": "kitphun.sam@lgb.com.my"
+        },
+        {
+          "name": "Khoo May Lin",
+          "email": "maylin@lgb.com.my"
+        },
+        {
+          "name": "Keneth Ng",
+          "email": "kenneth.ng@lgb.com.my"
+        },
+        {
+          "name": "Tenney Lee",
+          "email": "tenny.lee@lgb.com.my"
+        },
+        {
+          "name": "Shermay Loh",
+          "email": "shermay.loh@lgb.com.my"
+        },
+        {
+          "name": "Rosenne Cheok",
+          "email": "rosenne.cheok@lgb.com.my"
+        },
+        {
+          "name": "Ong Teng Yew",
+          "email": "tengyew.ong@gsl-development.com"
+        },
+        {
+          "name": "Magdelene Fong",
+          "email": "magdeline.fong@gsl-realty.com"
+        },
+        {
+          "name": "Kam Kah Ken",
+          "email": "kahken.kam@wellcocapital.com"
+        },
+        {
+          "name": "Steven Chan",
+          "email": "steven.chan@lgb.com.my"
+        },
+        {
+          "name": "Tiew Siong Yee",
+          "email": "siongyee.tiew@lgb.com.my"
+        },
+        {
+          "name": "Tan Yee Ting",
+          "email": "yeeting.tan@lgb.com.my"
+        },
+        {
+          "name": "Jess Hee",
+          "email": "jess.hee@lgb.com.my"
+        },
+        {
+          "name": "Kevin Teoh",
+          "email": "kevin.teoh@exitra.com.my"
+        },
+        {
+          "name": "Sam Lau",
+          "email": "sam.lau@ecoleaf.com.my"
+        },
+        {
+          "name": "Stephanie Chai",
+          "email": "stephanie.chai@taliworks.com.my"
+        },
+        {
+          "name": "Sia Kwee Siam",
+          "email": "kweesiam.sia@taliworks.com.my"
+        },
+        {
+          "name": "Lenny Wong",
+          "email": "lenny.wong@lgb.com.my"
+        },
+        {
+          "name": "Danny Ng",
+          "email": "danny.ng@lgb.com.my"
+        },
+        {
+          "name": "Casper Wong",
+          "email": "casper.wong@parkwood.my"
+        },
+        {
+          "name": "Adeline Liew",
+          "email": "adeline@parkwood.my"
+        },
+        {
+          "name": "Justin Hor",
+          "email": "justin.hor@parkwood.my"
+        }
+      ],
+      "moiApprovers": [
+        {
+          "name": "Datin Irene",
+          "email": "irene@lgb.com.my"
+        },
+        {
+          "name": "Tai Kok Hong",
+          "email": "khtai@lgb.com.my"
+        },
+        {
+          "name": "Shally Lim",
+          "email": "shally@lgb.com.my"
+        },
+        {
+          "name": "Sean",
+          "email": "seanlim@lgb.com.my"
+        },
+        {
+          "name": "Kevin Teoh",
+          "email": "kevin.teoh@exitra.com.my"
+        },
+        {
+          "name": "Sam Lau",
+          "email": "sam.lau@ecoleaf.com.my"
+        },
+        {
+          "name": "Sia Kwee Siam",
+          "email": "kweesiam.sia@taliworks.com.my"
+        },
+        {
+          "name": "David Au Yeong",
+          "email": "david.auyeong@taliworks.com.my"
+        }
+      ],
+      "moaApprovers": [
+        {
+          "name": "Teh SW",
+          "email": "teh@taliworks.com.my"
+        },
+        {
+          "name": "Dato' Lim",
+          "email": "lcm@lgbgroup.com"
+        }
+      ],
+      "recommenders": [
+        {
+          "name": "Datin Irene",
+          "email": "irene@lgb.com.my"
+        },
+        {
+          "name": "Tai Kok Hong",
+          "email": "khtai@lgb.com.my"
+        },
+        {
+          "name": "Shally Lim",
+          "email": "shally@lgb.com.my"
+        },
+        {
+          "name": "Sean",
+          "email": "seanlim@lgb.com.my"
+        },
+        {
+          "name": "Kevin Teoh",
+          "email": "kevin.teoh@exitra.com.my"
+        },
+        {
+          "name": "Sam Lau",
+          "email": "sam.lau@ecoleaf.com.my"
+        }
+      ]
+    },
+    "BELLWORTH": {
+      "moiIssuers": [
+        {
+          "name": "Wong Wai Ling",
+          "email": "waileng.wong@bellworth.com.my"
+        },
+        {
+          "name": "Gan Kah Mun",
+          "email": "kahmun.gan@bellworth.com.my"
+        },
+        {
+          "name": "Jasylyn Lim",
+          "email": "jaslyn.lim@bellworth.com.my"
+        },
+        {
+          "name": "Siti Farah",
+          "email": "norfarahhanim.ghani@bellworth.com.my"
+        },
+        {
+          "name": "Evelyn Lui",
+          "email": "evelyn.lui@bellworth.com.my"
+        },
+        {
+          "name": "Lam Kok Choong",
+          "email": "kokchoong.lam@bellworth.com.my"
+        }
+      ],
+      "moiApprovers": [
+        {
+          "name": "Kevin Kuok",
+          "email": "kkuok@bellworth.com.my"
+        }
+      ],
+      "moaApprovers": [
+        {
+          "name": "Teh SW",
+          "email": "teh@taliworks.com.my"
+        },
+        {
+          "name": "Kevin Kuok",
+          "email": "kkuok@bellworth.com.my"
+        },
+        {
+          "name": "Dato' Lim",
+          "email": "lcm@lgbgroup.com"
+        }
+      ],
+      "recommenders": [
+        {
+          "name": "Kevin Kuok",
+          "email": "kkuok@bellworth.com.my"
+        }
+      ]
+    },
+    "SWM": {
+      "moiIssuers": [
+        {
+          "name": "Yvonne Kong",
+          "email": "yeefong.kong@swmsb.com"
+        },
+        {
+          "name": "Bin Lay Thiam",
+          "email": "laythiam.bin@swmsb.com"
+        },
+        {
+          "name": "Shirley Nicholas",
+          "email": "shirley.nicholas@swmsb.com"
+        },
+        {
+          "name": "Tong Sheau Wei",
+          "email": "sheauwei.tong@swmsb.com"
+        },
+        {
+          "name": "Tan Swee Hock",
+          "email": "sweehock.tan@swmsb.com"
+        }
+      ],
+      "moiApprovers": [
+        {
+          "name": "Bin Lay Thiam",
+          "email": "laythiam.bin@swmsb.com"
+        },
+        {
+          "name": "Ho De Leong",
+          "email": "hdl@swmsb.com"
+        },
+        {
+          "name": "Goay Sook Min",
+          "email": "soonming.goay@swmsb.com"
+        },
+        {
+          "name": "Tn Hj Norlisam",
+          "email": "norlisam.nordin@swmsb.com"
+        }
+      ],
+      "moaApprovers": [
+        {
+          "name": "Teh SW",
+          "email": "teh@taliworks.com.my"
+        },
+        {
+          "name": "Janice Lim",
+          "email": "janice@swmsb.com"
+        },
+        {
+          "name": "Ho De Leong",
+          "email": "hdl@swmsb.com"
+        },
+        {
+          "name": "Shirley Nicholas",
+          "email": "shirley.nicholas@swmsb.com"
+        }
+      ],
+      "recommenders": [
+        {
+          "name": "Bin Lay Thiam",
+          "email": "laythiam.bin@swmsb.com"
+        },
+        {
+          "name": "Ho De Leong",
+          "email": "hdl@swmsb.com"
+        },
+        {
+          "name": "Goay Sook Min",
+          "email": "soonming.goay@swmsb.com"
+        },
+        {
+          "name": "Tn Hj Norlisam",
+          "email": "norlisam.nordin@swmsb.com"
+        }
+      ]
+    }
+  },
+  "loaCompanies": [
+    "Exitra Sdn Bhd",
+    "Exitra Solutions Sdn Bhd",
+    "LGB Properties (M) Sdn Bhd",
+    "SWM Environments Holding Sdn Bhd",
+    "SWM Enviroment Sdn Bhd",
+    "SWM Solutions Sdn Bhd",
+    "Sumber SWM Sdn Bhd",
+    "Edaran SWM Sdn Bhd",
+    "SWM Enviro Holdings Sdn Bhd",
+    "SWM Enviro Sdn Bhd",
+    "SWM GC Energy (JV) Sdn Bhd"
+  ],
+  "cosecStaff": [
+    {
+      "name": "Ng Poh Li",
+      "email": "pohli.ng@taliworks.com.my"
+    },
+    {
+      "name": "Nita",
+      "email": "dzatin.zaharuddin@taliworks.com.my"
+    },
+    {
+      "name": "Siti",
+      "email": "zalila.zainal@lgb.com.my"
+    },
+    {
+      "name": "Nadia",
+      "email": "nadia.rahman@taliworks.com.my"
+    }
+  ]
+}

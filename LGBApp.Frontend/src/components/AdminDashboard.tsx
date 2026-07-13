@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import { AdminPackageOverview } from './AdminPackageOverview';
 import { CompletedServicesTable } from './CompletedServicesTable';
 import { MyWorkTracker } from './MyWorkTracker';
 import { StatsCards } from './StatsCards';
@@ -13,8 +12,6 @@ import {
   assignJobRequest,
   getJobRequests,
   recordJobProgress,
-  type CustomerPackageDto,
-  type CustomerResponse,
   type JobRequestResponse,
   type UserResponse,
 } from '@/lib/api';
@@ -33,13 +30,13 @@ import {
 import { canAssignJobStaff } from '@/lib/roles';
 import { formatDateDisplay } from '@/lib/dates';
 import { formatQueueDate, parseQueueSortDate } from '@/lib/workQueueOrder';
+import { jobDisplayTitle } from '@/lib/jobDisplayTitle';
 
 interface AdminDashboardProps {
   refreshKey?: number;
   currentUser: UserResponse;
   assignableUsers: { id: number; name: string }[];
   secTeamUsers: { id: number; name: string }[];
-  onManagePackage: (customer: CustomerResponse, pkg: CustomerPackageDto) => void;
   onOpenTask: (jobId: number, unitNumber?: number) => void;
   onViewMoi?: (jobId: number, unitNumber: number, moiFormId: number) => void;
   onViewHistory: () => void;
@@ -101,7 +98,6 @@ export function AdminDashboard({
   currentUser,
   assignableUsers,
   secTeamUsers,
-  onManagePackage,
   onOpenTask,
   onViewMoi,
   onViewHistory,
@@ -233,9 +229,11 @@ export function AdminDashboard({
       <div>
         <h2 className="text-xl font-semibold">Operations</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Your work queue, packages needing action, and company-wide package overview.
+          Your work queue and company-wide activity at a glance.
         </p>
       </div>
+
+      <StatsCards refreshKey={refreshKey} />
 
       <section className="bg-card border border-border rounded-lg overflow-hidden">
         <div className="p-4 border-b border-border flex items-center gap-2">
@@ -298,7 +296,7 @@ export function AdminDashboard({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">
-                        {liveJob.customer} — {liveJob.taskType === 'Service' ? liveJob.service : liveJob.taskType}
+                        {liveJob.customer} — {jobDisplayTitle(liveJob)}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">{attentionLabel(liveJob)}</p>
                       {showAssignment && (
@@ -381,7 +379,7 @@ export function AdminDashboard({
                 <li key={job.id} className="px-4 py-3 text-sm flex flex-wrap items-center gap-3 justify-between">
                   <div className="min-w-0">
                     <p className="font-medium truncate">
-                      {job.customer} — {job.taskType === 'Service' ? job.service : job.taskType}
+                      {job.customer} — {jobDisplayTitle(job)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">Status: Executing</p>
                   </div>
@@ -425,10 +423,6 @@ export function AdminDashboard({
         onError={onError}
         onSuccess={onSuccess}
       />
-
-      <AdminPackageOverview refreshKey={refreshKey} onManagePackage={onManagePackage} />
-
-      <StatsCards refreshKey={refreshKey} />
 
       <CompletedServicesTable refreshKey={refreshKey} onViewHistory={onViewHistory} />
     </div>

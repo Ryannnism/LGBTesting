@@ -1,0 +1,16 @@
+LGB customer data workbook (for Sharon)
+==========================================
+
+Open in Excel — NOT in Cursor (you will see gibberish).
+Use Excel 365 / 2021+ so MOA setup formulas work (FILTER, etc.).
+
+Key tab: Company MOA setup — pick workflow per company, fill approver blanks.
+
+File:
+  docs/templates/LGB_Customer_Initialization_Template.xlsx
+
+CSV previews (formulas show as text):
+  docs/templates/csv/
+
+Regenerate:
+  python3 scripts/build_sharon_init_template.py

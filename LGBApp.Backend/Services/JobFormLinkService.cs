@@ -106,6 +106,9 @@ public static class JobFormLinkService
             {
                 ApplyRawFormLinks(job, list, moiForms, moaForms, serviceForms);
                 FinishUnitEnrichment(job, entity, moiForms, moaForms, user);
+                job.DocumentTitle = MoiFormMetadataHelper.ReadDocumentTitle(moiForm)
+                    ?? MoiFormMetadataHelper.ReadDocumentTitle(pairedMoiForm)
+                    ?? job.Units.Select(u => u.DocumentTitle).FirstOrDefault(t => !string.IsNullOrWhiteSpace(t));
                 continue;
             }
 
@@ -159,6 +162,14 @@ public static class JobFormLinkService
             }
 
             FinishUnitEnrichment(job, entity, moiForms, moaForms, user);
+
+            // Prefer an explicit MOI document title so all parties see the curated name.
+            var titleMoi = moiForms.FirstOrDefault(f => f.JobRequestId == job.Id)
+                ?? (pairedMoiForm != null
+                    ? moiForms.FirstOrDefault(f => f.MOIFormId == pairedMoiForm.MOIFormId)
+                    : null);
+            job.DocumentTitle = MoiFormMetadataHelper.ReadDocumentTitle(titleMoi)
+                ?? job.Units.Select(u => u.DocumentTitle).FirstOrDefault(t => !string.IsNullOrWhiteSpace(t));
         }
     }
 
@@ -216,6 +227,7 @@ public static class JobFormLinkService
             unitDto.MoiFormId = moi?.MOIFormId;
             unitDto.MoiWorkflowState = moi?.WorkflowState;
             unitDto.RequiredExecutionDate = MoiFormMetadataHelper.ReadRequiredExecutionDate(moi);
+            unitDto.DocumentTitle = MoiFormMetadataHelper.ReadDocumentTitle(moi);
 
             var display = PackageItemStatusResolver.ResolveForUnit(entity, unitEntity, moi);
             unitDto.DisplayStatus = display.Label;

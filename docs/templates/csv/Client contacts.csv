@@ -1,0 +1,4 @@
+Company name,Person name,Email,Phone,Fills in MOI?,Approves MOI (client)?,Signs MOA?,Usually starts the request?,Notes
+Acme Corp,Dan Ra,dra@lgb.test,+60 11-111 1111,Y,Y,Y,Y,Example — delete
+Acme Corp,Daniel Ra,dra2@lgb.test,,Y,N,Y,N,Example — delete
+Acme Corp,Dra Three,dra3@lgb.test,,N,Y,Y,N,Example — delete

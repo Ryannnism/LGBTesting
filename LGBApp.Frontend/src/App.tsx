@@ -409,12 +409,17 @@ export default function App() {
     setActiveTab(tab);
   };
 
+  /** Set true to show the Tracking tab in Sharon's nav again. */
+  const SHOW_TRACKING_TAB = false;
+
   const appTabs = userIsAdmin
     ? [
         { id: 'dashboard' as const, label: 'Operations', icon: LayoutDashboard },
         { id: 'customers' as const, label: 'Customers', icon: Users },
         { id: 'products' as const, label: 'Products', icon: Package },
-        { id: 'tracking' as const, label: 'Tracking', icon: CalendarDays },
+        ...(SHOW_TRACKING_TAB
+          ? [{ id: 'tracking' as const, label: 'Tracking', icon: CalendarDays }]
+          : []),
         { id: 'admin' as const, label: 'Settings', icon: Shield },
       ]
     : userIsClientAdmin
@@ -690,9 +695,10 @@ export default function App() {
       }
     }
     const saved = await getMOIForm(formId);
+    // Always refresh jobs so curated MOI documentTitle replaces generic names as soon as saved
+    bumpRefresh();
     if (!options?.silent) {
       await loadMOIForms();
-      bumpRefresh();
     }
     const nextForm = mapMoiFormResponseToModalState(saved, {
       id: jobId,
@@ -1729,7 +1735,6 @@ export default function App() {
                   currentUser={currentUser}
                   assignableUsers={assignableUsers}
                   secTeamUsers={secTeamUsers}
-                  onManagePackage={(customer, pkg) => setSelectedPackageWork({ customer, package: pkg })}
                   onOpenTask={(jobId) => void handleOpenTrackerTask(jobId)}
                   onViewMoi={(jobId, unitNumber, moiFormId) => void handleViewLinkedMoiFromTracker(jobId, unitNumber, moiFormId)}
                   onViewHistory={() => setIsHistoryModalOpen(true)}

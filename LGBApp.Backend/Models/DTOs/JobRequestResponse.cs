@@ -31,4 +31,6 @@ public class JobRequestResponse
     public string? TaskPhase { get; set; }
     public string DisplayStatus { get; set; } = string.Empty;
     public string DisplayStatusKey { get; set; } = string.Empty;
+    /// <summary>MOI document title when set — preferred display name for the work item.</summary>
+    public string? DocumentTitle { get; set; }
 }

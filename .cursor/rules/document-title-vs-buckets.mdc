@@ -1,0 +1,14 @@
+---
+description: MOI document title vs service/category buckets in LGB Services UI
+globs: LGBApp.Frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Document title vs buckets
+
+When an MOI has a curated **document title** (e.g. "Resolution for new director appointment"):
+
+- **Visible item name** for all parties: use `documentTitle` via `jobDisplayTitle()` — it replaces the generic **type of document / service** label in lists, carousels, workboards, and attention queues.
+- **Category buckets stay unchanged**: group and filter with `resolveServiceCategory(job.service)` (or package service key). Never bucket or re-categorize by `documentTitle`.
+
+Type of document / package service remains the structural identity; document title is display-only naming once saved.

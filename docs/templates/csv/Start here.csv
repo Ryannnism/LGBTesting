@@ -1,0 +1,20 @@
+LGB — customer data collection (for Sharon)
+""
+Open in Excel or Numbers — not in a code editor. Formulas need Excel 365 or Excel 2021+.
+""
+Fill in this order:
+  1. Who we invoice
+  2. Divisions — MOI managers + emails
+"  3. Companies — basics (division, LOA, billing)"
+"  4. Client contacts — who fills MOI, signs MOA, starts requests"
+  5. Company MOA setup — pick workflow per company; fill name/email blanks
+  6. Contracts — packages + extra LGB staff only
+""
+MOA workflows (read MOA workflow steps + MOA role matrix tabs):
+  • Each company can use a different MOA workflow.
+  • Row 2 on Company MOA setup shows what each column needs (Fill / Auto / —).
+  • Blue cells auto-pull from Client contacts or Companies.
+  • Yellow cells = Sharon fills in names/emails for that company's approvers.
+"  • CEO, CFO, board, LOA holders differ per company — only fill columns that apply."
+""
+Delete example rows before import.

@@ -46,7 +46,21 @@ LGBApp.Frontend/.env.local
 ## Local SQLite (created on first dotnet run)
 LGBApp.Backend/lgbapp.db
 LGBApp.Backend/lgbapp.db-*
+LGBApp.Backend/lgbapp-dev.db
+LGBApp.Backend/lgbapp-dev.db-*
+LGBApp.Backend/Data/lgbapp.db
+LGBApp.Backend/Data/lgbapp.db-*
+
+## Local tooling / build artifacts
+.dev-watch.log
+out/
+infra/terraform/**/.terraform/
+infra/terraform/**/terraform.tfvars
+infra/terraform/**/*.tfstate*
+infra/terraform/**/*.tfstate.backup
 
 ## Docs tooling (optional PDF build)
 docs/node_modules/
 uploads/
+LGBApp.Backend/uploads/
+

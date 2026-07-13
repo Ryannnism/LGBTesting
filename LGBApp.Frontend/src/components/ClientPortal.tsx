@@ -1,8 +1,6 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, FileText, Plus, Undo2 } from 'lucide-react';
-import { JobItemFolderPanel } from './JobItemFolderPanel';
-import { DateInput } from './DateInput';
-import { formatDateDisplay, parseDateToIso } from '@/lib/dates';
+import { useCallback, useEffect, useState } from 'react';
+import { FileText, Plus } from 'lucide-react';
+import { ClientCompanyWorkbench } from './ClientCompanyWorkbench';
 import {
   ApiError,
   getClientJobs,
@@ -13,7 +11,6 @@ import {
   issueMoiJob,
   recordClientJobProgress,
   updateMoiApprovalMode,
-  type ClientPortalSummaryDto,
   type JobRequestResponse,
   type JobRequestUnitDto,
   type UserResponse,
@@ -26,15 +23,11 @@ import {
   canClientViewMoa,
   canClientViewMoi,
   canOpenMoiForm,
-  displayStatusKeyForUnit,
-  displayStatusLabelForUnit,
   isMoaClientSignoffPhase,
   signatoryCanSignMoa,
   unitHasMoaForm,
   unitHasMoiForm,
-  packageItemStatusBadgeClass,
 } from '@/lib/packageItemStatus';
-import { ALL_SERVICES, resolveServiceCategory, SERVICE_CATEGORY_ORDER } from '@/lib/serviceCategory';
 
 interface ClientPortalProps {
   currentUser: UserResponse;
@@ -77,57 +70,9 @@ function canOpenJobForm(
   return canOpenMoiForm(job);
 }
 
-function jobUnits(job: JobRequestResponse): JobRequestUnitDto[] {
-  if (job.units?.length) return job.units;
-  return [{
-    id: 0,
-    unitNumber: 1,
-    assignedUserName: job.jobAssignedTo,
-    status: job.status as JobRequestUnitDto['status'],
-    scheduledDate: job.scheduledDate,
-    assignees: [],
-  }];
-}
-
-function CategoryCounter({ label, pending, inProgress, completed, total, highlight = false, onClick }: {
-  label: string;
-  pending: number;
-  inProgress: number;
-  completed: number;
-  total: number;
-  highlight?: boolean;
-  onClick?: () => void;
-}) {
-  if (total === 0) return null;
-  const open = pending + inProgress;
-  const Tag = onClick ? 'button' : 'div';
-  return (
-    <Tag
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-      className={`bg-card border rounded-lg p-4 text-left w-full ${
-        highlight ? 'border-primary ring-1 ring-primary/30' : 'border-border'
-      } ${onClick ? 'hover:border-primary/60 transition-colors cursor-pointer' : ''}`}
-    >
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-2xl font-semibold mt-1">{completed}<span className="text-base font-normal text-muted-foreground"> / {total}</span></p>
-      <p className="text-xs mt-2 text-muted-foreground">
-        {open} open · {completed} done
-      </p>
-      <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-        <div
-          className="h-full bg-green-600 rounded-full"
-          style={{ width: total ? `${(completed / total) * 100}%` : '0%' }}
-        />
-      </div>
-    </Tag>
-  );
-}
-
 export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refreshKey = 0, mode = 'admin' }: ClientPortalProps) {
   const isSignatoryView = mode === 'signatory';
   const [jobs, setJobs] = useState<JobRequestResponse[]>([]);
-  const [summary, setSummary] = useState<ClientPortalSummaryDto | null>(null);
   const [teamHint, setTeamHint] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -135,8 +80,6 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
   const [showIssue, setShowIssue] = useState(false);
   const [moiApprovalMode, setMoiApprovalMode] = useState<'AllRequired' | 'AnyOne'>('AllRequired');
   const [savingMode, setSavingMode] = useState(false);
-  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
-  const [activeCategory, setActiveCategory] = useState<string>(ALL_SERVICES);
   const [issueForm, setIssueForm] = useState({
     service: '',
     typeOfDocument: '',
@@ -154,7 +97,6 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
         isSignatoryView ? Promise.resolve(null) : getMyCompany(),
       ]);
       setJobs(data);
-      setSummary(portalSummary);
       if (company?.moiApprovalMode) {
         setMoiApprovalMode(company.moiApprovalMode);
       }
@@ -175,45 +117,6 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
   useEffect(() => {
     void load();
   }, [load, refreshKey]);
-
-  const categoryTabs = useMemo(() => {
-    const present = new Set(
-      jobs
-        .filter((j) => j.taskType === 'Service')
-        .map((j) => resolveServiceCategory(j.service)),
-    );
-    return SERVICE_CATEGORY_ORDER.filter((c) => c === ALL_SERVICES || present.has(c));
-  }, [jobs]);
-
-  const filteredJobs = useMemo(() => {
-    if (activeCategory === ALL_SERVICES) return jobs;
-    return jobs.filter((j) => {
-      if (j.taskType !== 'Service') return false;
-      return resolveServiceCategory(j.service) === activeCategory;
-    });
-  }, [jobs, activeCategory]);
-
-  const multiCompanyView = isSignatoryView && (currentUser.accessibleCompanies?.length ?? 0) > 1;
-
-  const jobsByCompany = useMemo(() => {
-    if (!multiCompanyView) return null;
-    const groups = new Map<string, JobRequestResponse[]>();
-    for (const job of filteredJobs) {
-      const company = job.customer?.trim() || 'Unknown company';
-      const list = groups.get(company) ?? [];
-      list.push(job);
-      groups.set(company, list);
-    }
-    const companyOrder = currentUser.accessibleCompanies?.map((c) => c.company) ?? [];
-    return [...groups.entries()].sort(([a], [b]) => {
-      const ai = companyOrder.indexOf(a);
-      const bi = companyOrder.indexOf(b);
-      if (ai >= 0 && bi >= 0) return ai - bi;
-      if (ai >= 0) return -1;
-      if (bi >= 0) return 1;
-      return a.localeCompare(b);
-    });
-  }, [filteredJobs, multiCompanyView, currentUser.accessibleCompanies]);
 
   const moiActionLabel = (job: JobRequestResponse, unit: JobRequestUnitDto) => {
     if (isMoiRejected(job, unit)) return 'Revise MOI';
@@ -282,10 +185,6 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
   };
 
   const handleSchedule = async (job: JobRequestResponse, unitNumber: number, isoValue: string) => {
-    const unit = jobUnits(job).find((u) => u.unitNumber === unitNumber);
-    const savedIso = unit?.scheduledDate ? parseDateToIso(unit.scheduledDate) ?? '' : '';
-    if (isoValue === savedIso) return;
-
     setError('');
     try {
       await recordClientJobProgress(job.id, { unitNumber, scheduledDate: isoValue });
@@ -339,18 +238,6 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
     }
   };
 
-  const unitKey = (jobId: number, unitNumber: number) => `${jobId}-${unitNumber}`;
-
-  const toggleExpanded = (jobId: number, unitNumber: number) => {
-    const key = unitKey(jobId, unitNumber);
-    setExpandedUnits((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
   const handleMoiApprovalModeChange = async (mode: 'AllRequired' | 'AnyOne') => {
     if (mode === moiApprovalMode) return;
     setSavingMode(true);
@@ -364,9 +251,6 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
       setSavingMode(false);
     }
   };
-
-  const showFormAction = (job: JobRequestResponse, unit: JobRequestUnitDto) =>
-    showMoiAction(job, unit) || showMoaAction(job, unit);
 
   const openMoiForm = async (job: JobRequestResponse, unit: JobRequestUnitDto) => {
     if (!canOpenJobForm(job, unit, isSignatoryView, currentUser)) return;
@@ -430,144 +314,6 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
     }
   };
 
-  const renderJobsTable = (companyJobs: JobRequestResponse[]) => (
-    <table className="w-full text-sm">
-      <thead className="bg-muted/50">
-        <tr>
-          <th className="px-4 py-3 w-8" />
-          <th className="px-4 py-3 text-left">Task</th>
-          <th className="px-4 py-3 text-left">Service</th>
-          <th className="px-4 py-3 text-left">Target date</th>
-          <th className="px-4 py-3 text-left">Status</th>
-          <th className="px-4 py-3 text-left">Form</th>
-          <th className="px-4 py-3 text-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {companyJobs.map((job) => {
-          const units = jobUnits(job);
-          const label = job.taskType === 'Service' ? job.service : job.taskType;
-          const isMultiSession = (job.totalQty ?? 1) > 1 && job.taskType === 'Service';
-
-          const renderUnitRow = (unit: JobRequestUnitDto) => {
-            const isExpanded = expandedUnits.has(unitKey(job.id, unit.unitNumber));
-            const taskClickable = showFormAction(job, unit) || canOpenJobForm(job, unit, isSignatoryView, currentUser);
-            return (
-              <Fragment key={`${job.id}-${unit.unitNumber}`}>
-                <tr className={`border-t border-border ${isMultiSession ? 'bg-muted/10' : ''}`}>
-                  <td className="px-2 py-3 align-top">
-                    <button
-                      type="button"
-                      title={isExpanded ? 'Hide folder' : 'Show session folder'}
-                      onClick={() => toggleExpanded(job.id, unit.unitNumber)}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground"
-                    >
-                      {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </button>
-                  </td>
-                  <td className={`px-4 py-3 ${isMultiSession ? 'pl-8' : ''}`}>
-                    {taskClickable ? (
-                      <button
-                        type="button"
-                        onClick={() => openPrimaryForm(job, unit)}
-                        className="text-sm font-medium text-primary hover:underline text-left"
-                      >
-                        {isMultiSession && (
-                          <span className="text-xs text-muted-foreground mr-2">#{unit.unitNumber}</span>
-                        )}
-                        {label}
-                      </button>
-                    ) : (
-                      <span className="text-sm font-medium">
-                        {isMultiSession && (
-                          <span className="text-xs text-muted-foreground mr-2">#{unit.unitNumber}</span>
-                        )}
-                        {label}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    {isMultiSession ? `Session ${unit.unitNumber}` : 'Package item'}
-                  </td>
-                  <td className="px-4 py-3">
-                    {isSignatoryView ? (
-                      <span className="text-sm text-muted-foreground">{formatDateDisplay(unit.scheduledDate) || '—'}</span>
-                    ) : (
-                      <DateInput
-                        value={unit.scheduledDate}
-                        onChange={(iso) => void handleSchedule(job, unit.unitNumber, iso)}
-                      />
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${packageItemStatusBadgeClass(displayStatusKeyForUnit(job, unit))}`}>
-                      {displayStatusLabelForUnit(job, unit)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {renderFormActions(job, unit)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2 flex-wrap">
-                      {!isSignatoryView && unit.status === 'Completed' ? (
-                        <button
-                          type="button"
-                          title="Undo completion"
-                          onClick={() => void handleUndo(job, unit.unitNumber)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted"
-                        >
-                          <Undo2 className="w-3 h-3" />
-                          Undo
-                        </button>
-                      ) : !isSignatoryView ? (
-                        <button
-                          type="button"
-                          title="Mark done"
-                          onClick={() => void handleMarkDone(job, unit.unitNumber)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                        >
-                          <Check className="w-3 h-3" />
-                          Done
-                        </button>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-                {isExpanded && (
-                  <tr className="border-t border-border bg-muted/20">
-                    <td colSpan={7} className="px-4 py-3">
-                      <JobItemFolderPanel
-                        job={jobForUnit(job, unit)}
-                        unitNumber={unit.unitNumber}
-                        onOpenMoi={() => void openMoiForm(job, unit)}
-                        onOpenMoa={() => openMoaForm(job, unit)}
-                      />
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            );
-          };
-
-          if (isMultiSession) {
-            return (
-              <Fragment key={job.id}>
-                <tr className="border-t border-border bg-muted/20">
-                  <td colSpan={7} className="px-4 py-3 font-semibold text-sm">
-                    {label}
-                  </td>
-                </tr>
-                {units.map((unit) => renderUnitRow(unit))}
-              </Fragment>
-            );
-          }
-
-          return <Fragment key={job.id}>{units.map((unit) => renderUnitRow(unit))}</Fragment>;
-        })}
-      </tbody>
-    </table>
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -575,10 +321,8 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
           <h2 className="text-xl font-semibold">{isSignatoryView ? 'My documents' : 'Client portal'}</h2>
           <p className="text-sm text-muted-foreground mt-1">
             {isSignatoryView
-              ? multiCompanyView
-                ? 'Your documents are grouped by company below — each package item has its own MOI/MOA; open a line to fill or sign.'
-                : `${currentUser.customerName ?? currentUser.accessibleCompanies?.[0]?.company ?? 'Your company'} — each package item has its own MOI/MOA; open a line to fill or sign.`
-              : `${currentUser.customerName ?? 'Your company'} — each package line has its own MOI/MOA workflow; set dates and track every item.`}
+              ? 'Pick a company, work one item at a time, and use History for completed work. Yellow borders mean something needs a signature.'
+              : 'Open a company tile to work by category. Yellow borders mean a signature is pending. Green badge opens completed history.'}
           </p>
         </div>
         {!isSignatoryView && (
@@ -592,44 +336,6 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
           </button>
         )}
       </div>
-
-      {summary?.categoryProgress && summary.categoryProgress.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">Package services progress</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {summary.categoryProgress.map((cat) => (
-              <CategoryCounter
-                key={cat.category}
-                label={cat.category}
-                pending={cat.pending}
-                inProgress={cat.inProgress}
-                completed={cat.completed}
-                total={cat.total}
-                highlight={activeCategory === cat.category}
-                onClick={() => setActiveCategory(cat.category)}
-              />
-            ))}
-          </div>
-          {categoryTabs.length > 1 && (
-            <div className="flex flex-wrap gap-2">
-              {categoryTabs.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveCategory(tab)}
-                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
-                    activeCategory === tab
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {!isSignatoryView && (
         <div className="bg-card border border-border rounded-lg p-4 space-y-3">
@@ -697,6 +403,7 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
                 className="w-full px-3 py-2 border border-border rounded-lg"
                 value={issueForm.documentTitle}
                 onChange={(e) => setIssueForm({ ...issueForm, documentTitle: e.target.value })}
+                placeholder="e.g. Resolution for new director appointment"
               />
             </div>
           </div>
@@ -719,31 +426,17 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
         </form>
       )}
 
-      {loading ? (
-        <p className="p-6 text-sm text-muted-foreground">Loading jobs…</p>
-      ) : filteredJobs.length === 0 ? (
-        <p className="p-6 text-sm text-muted-foreground">No jobs in this category yet.</p>
-      ) : multiCompanyView && jobsByCompany ? (
-        <div className="space-y-6">
-          {jobsByCompany.map(([company, companyJobs]) => (
-            companyJobs.length === 0 ? null : (
-              <section key={company} className="bg-card border border-border rounded-lg overflow-hidden">
-                <div className="px-4 py-3 border-b border-border bg-muted/30">
-                  <h3 className="font-semibold text-base">{company}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {companyJobs.length} package item{companyJobs.length === 1 ? '' : 's'}
-                  </p>
-                </div>
-                {renderJobsTable(companyJobs)}
-              </section>
-            )
-          ))}
-        </div>
-      ) : (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
-          {renderJobsTable(filteredJobs)}
-        </div>
-      )}
+      <ClientCompanyWorkbench
+        jobs={jobs}
+        currentUser={currentUser}
+        isSignatoryView={isSignatoryView}
+        loading={loading}
+        onOpenPrimary={openPrimaryForm}
+        renderFormActions={renderFormActions}
+        onSchedule={isSignatoryView ? undefined : (job, unitNumber, iso) => void handleSchedule(job, unitNumber, iso)}
+        onMarkDone={isSignatoryView ? undefined : (job, unitNumber) => void handleMarkDone(job, unitNumber)}
+        onUndo={isSignatoryView ? undefined : (job, unitNumber) => void handleUndo(job, unitNumber)}
+      />
     </div>
   );
 }

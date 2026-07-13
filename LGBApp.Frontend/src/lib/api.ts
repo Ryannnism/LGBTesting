@@ -187,6 +187,7 @@ export interface JobRequestUnitDto {
   displayStatus?: string;
   displayStatusKey?: string;
   awaitingIntakeApproval?: boolean;
+  documentTitle?: string;
 }
 
 export interface WorkTrackerItemDto {
@@ -214,6 +215,7 @@ export interface WorkTrackerItemDto {
   moiFormId?: number;
   moiWorkflowState?: string;
   requiredExecutionDate?: string;
+  documentTitle?: string;
 }
 
 export interface JobRequestResponse {
@@ -248,6 +250,8 @@ export interface JobRequestResponse {
   displayStatusKey?: string;
   /** Active session when opening a per-unit MOI from the portal. */
   activeUnitNumber?: number;
+  /** Curated MOI document title when set — preferred list/workboard label. */
+  documentTitle?: string;
 }
 
 export interface BillingPartyDto {

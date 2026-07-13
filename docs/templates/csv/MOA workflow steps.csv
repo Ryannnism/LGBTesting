@@ -1,0 +1,20 @@
+MOA workflow,Step,Approver role,Who Sharon fills
+MOA — No LOA,1,"Senior Manager, Company Secretarial",LGB internal (fixed)
+MOA — No LOA,2,Project initiator,Per company — client contact
+MOA — No LOA,3,Head of Finance / CFO,Per company — when finance-related
+MOA — No LOA,4,CEO / COO / GM,Per company — when finance / share movement
+MOA — No LOA,5,Ms Teh,LGB internal (bank signatory matters)
+MOA — No LOA,6,Full Board,Per company — board member names
+MOA — No LOA,7,DLCM,LGB / external (fixed)
+MOA — With LOA,1,"Senior Manager, Company Secretarial",LGB internal (fixed)
+MOA — With LOA,2,Project initiator,Per company — client contact
+MOA — With LOA,3,Head of Finance / CFO,Per company — when finance-related
+MOA — With LOA,4,Ms Teh,LGB internal (bank signatory matters)
+MOA — With LOA,5,DLCM — all bank matters,LGB / external (fixed)
+MOA — SWM Group,1,"Senior Manager, Company Secretarial",LGB internal (fixed)
+MOA — SWM Group,2,Project initiator,Per company — client contact
+MOA — SWM Group,3,Head of Finance / CFO,Per company — when finance-related
+MOA — SWM Group,4,LOA / BOD / EXCO holders,Per company — LOA holder names
+MOA — SWM Group,5,Regulator & Compliance,LGB internal (Shirley Nicholas)
+MOA — SWM Group,6,CEO / COO / Janice Lim,LGB internal (fixed)
+MOA — SWM Group,7,Ms Teh,LGB internal (bank signatory matters)

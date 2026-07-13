@@ -32,6 +32,7 @@ import {
   packageItemStatusBadgeClass,
   unitIsExecuting,
 } from '@/lib/packageItemStatus';
+import { jobDisplayTitle } from '@/lib/jobDisplayTitle';
 
 interface PackageWorkboardProps {
   customer: CustomerResponse;
@@ -133,6 +134,7 @@ export function PackageWorkboard({
       || canOpenMoaForJob(job)
       || (isForm && jobHasMoiForm(job));
     const showUnitLabel = (job.totalQty ?? 1) > 1;
+    const displayLabel = isForm ? label : jobDisplayTitle(job, unit);
 
     return (
       <tr key={key} className="border-t border-border bg-muted/10">
@@ -140,7 +142,7 @@ export function PackageWorkboard({
           {showUnitLabel && <span className="text-xs text-muted-foreground mr-2">#{unit.unitNumber}</span>}
           {canOpen ? (
             <button type="button" onClick={() => onOpenTask(job, unit)} className="text-primary hover:underline font-medium text-left">
-              {label}
+              {displayLabel}
               {job.linkedFormId && (
                 <span className="ml-2 text-xs font-normal text-muted-foreground">
                   ({job.linkedFormKind ?? 'Form'} #{job.linkedFormId})
@@ -149,7 +151,7 @@ export function PackageWorkboard({
             </button>
           ) : (
             <span className="font-medium">
-              {label}
+              {displayLabel}
               {job.linkedFormId && (
                 <span className="ml-2 text-xs font-normal text-muted-foreground">
                   ({job.linkedFormKind ?? 'Form'} #{job.linkedFormId})
@@ -323,7 +325,7 @@ export function PackageWorkboard({
 
   const renderJob = (job: JobRequestResponse) => {
     const isForm = FORM_TASKS.includes(job.taskType);
-    const label = isForm ? job.taskType : job.service;
+    const label = isForm ? job.taskType : jobDisplayTitle(job);
     const units = job.units?.length
       ? job.units
       : [{ id: 0, unitNumber: 1, assignedUserName: job.jobAssignedTo, status: job.status, scheduledDate: job.scheduledDate } as JobRequestUnitDto];

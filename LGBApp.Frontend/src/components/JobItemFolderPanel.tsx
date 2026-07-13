@@ -11,6 +11,7 @@ import {
   type JobRequestResponse,
 } from '@/lib/api';
 import { jobHasMoaForm, jobHasMoiForm } from '@/lib/packageItemStatus';
+import { jobDisplayTitle } from '@/lib/jobDisplayTitle';
 
 const FOLDER_LABELS: Record<string, string> = {
   moi: 'MOI',
@@ -111,7 +112,7 @@ export function JobItemFolderPanel({ job, unitNumber, onOpenMoi, onOpenMoa }: Jo
     <div className="space-y-3 py-1">
       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <FolderOpen className="w-4 h-4" />
-        Item folder — {job.service}
+        Item folder — {jobDisplayTitle(job)}
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

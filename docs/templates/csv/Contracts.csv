@@ -1,0 +1,3 @@
+Company name,Package,Contract length,Start date,End date (optional),Total fee (RM),Extra service 1,Qty 1,Extra service 2,Qty 2,Extra service 3,Qty 3,Additional LGB staff to tag (emails),Notes
+"NOTE: MOA approvers are on Company MOA setup + Client contacts. Here, only tag extra internal staff emails (e.g. nadia@lgb.test).",,,,,,,,,,,,,
+Acme Corp,Enterprise Plus,1 Year,2026-01-15,2027-01-14,6980,Attend Board Meeting,4,Prepare board meeting Minutes,2,,,,Example — delete this row

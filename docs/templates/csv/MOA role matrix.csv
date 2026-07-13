@@ -1,0 +1,15 @@
+Role slot,MOA — No LOA,MOA — With LOA,MOA — SWM Group
+Project initiator,Fill,Fill,Fill
+MOA signers (client),Auto,Auto,Auto
+CFO / Head of Finance,If finance,If finance,If finance
+CEO / COO / GM,If finance,—,—
+Board member 1,Fill,—,—
+Board member 2,Fill,—,—
+LOA holder 1,—,—,Fill
+LOA holder 2,—,—,Fill
+Senior Manager CoSec,LGB fixed,LGB fixed,LGB fixed
+Division MOI managers,Auto,Auto,Auto
+Ms Teh (bank),If bank,If bank,If bank
+DLCM,LGB fixed,LGB fixed,—
+,,,
+Legend: Fill = Sharon types name/email | Auto = formula from contacts | If finance = only when matter is finance-related | LGB fixed = system handles,,,

@@ -37,17 +37,19 @@ function trackerDisplayDate(item: WorkTrackerItemDto): string {
 }
 
 function trackerTaskLabel(item: WorkTrackerItemDto): string {
+  const title = (item.documentTitle || '').trim();
   const service = item.taskType === 'Service' ? item.service : item.taskType;
+  const base = title || service;
   const canOpenMoa = item.linkedFormKind === 'MOA'
     || (item.hasMoaForm && item.taskType === 'Service')
     || (item.taskType === 'Service' && isExecutingStatusKey(item.displayStatusKey));
   if (canOpenMoa) {
-    return `${service} · MOA`;
+    return `${base} · MOA`;
   }
   if (item.linkedFormKind === 'MOI' || item.hasMoiForm) {
-    return `${service} · MOI`;
+    return `${base} · MOI`;
   }
-  return service;
+  return base;
 }
 
 function canOpenTrackerForm(item: WorkTrackerItemDto): boolean {

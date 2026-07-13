@@ -17,6 +17,7 @@ public class JobRequestUnitDto
     public int? MoiFormId { get; set; }
     public string? MoiWorkflowState { get; set; }
     public string? RequiredExecutionDate { get; set; }
+    public string? DocumentTitle { get; set; }
     public string DisplayStatus { get; set; } = string.Empty;
     public string DisplayStatusKey { get; set; } = string.Empty;
     public bool AwaitingIntakeApproval { get; set; }
@@ -48,4 +49,5 @@ public class WorkTrackerItemDto
     public int? MoiFormId { get; set; }
     public string? MoiWorkflowState { get; set; }
     public string? RequiredExecutionDate { get; set; }
+    public string? DocumentTitle { get; set; }
 }

@@ -46,9 +46,20 @@ You do **not** need to commit or download a database file. On startup the API:
 
 To **reset** local data: stop the API, delete `LGBApp.Backend/lgbapp-dev.db`, and run `dotnet run` again.
 
+## Initial customer data (Sharon)
+
+Excel workbook and import guide for loading existing customers:
+
+- **[docs/INITIAL_DATA_COLLECTION.md](docs/INITIAL_DATA_COLLECTION.md)** — what to collect vs auto-seeded
+- **[docs/templates/LGB_Customer_Initialization_Template.xlsx](docs/templates/LGB_Customer_Initialization_Template.xlsx)** — fill-in template (plain-language sheets)
+- Regenerate: `python3 scripts/build_sharon_init_template.py`
+- Import: `python3 scripts/import-sharon-workbook.py --email sharon@lgb.test`
+
 ## Default accounts (Development)
 
 All seeded passwords: **`password123`** (must change on first login).
+
+On first SQLite startup the API also loads **CubeV COSEC Billing Tracking** (`Data/Seed/cubev-init.json`) — ~169 real companies, billing parties, division recommenders, and approval contacts. Re-seed: delete `LGBApp.Backend/lgbapp-dev.db` and restart. Source workbook: `docs/source/COSEC_Billing_Tracking_2026_CubeV.xlsx`.
 
 ### Internal (LGB)
 
