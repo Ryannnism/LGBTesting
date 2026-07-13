@@ -202,10 +202,17 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AppCors");
-app.UseHttpsRedirection();
+// Behind Railway/Render/etc. TLS terminates at the proxy — skip redirect there.
+var disableHttpsRedirection = string.Equals(
+    Environment.GetEnvironmentVariable("DISABLE_HTTPS_REDIRECTION"),
+    "true",
+    StringComparison.OrdinalIgnoreCase);
+if (!disableHttpsRedirection)
+    app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<MustChangePasswordMiddleware>();
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 
 app.Run();

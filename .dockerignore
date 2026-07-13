@@ -1,0 +1,13 @@
+.git
+.cursor
+.tools
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/*.db
+**/*.db-*
+uploads/
+docs/
+LGBApp.Frontend/
+LGBApp.Backend.Tests/

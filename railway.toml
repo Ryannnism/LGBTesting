@@ -1,0 +1,11 @@
+# Railway / Render / Fly — quick live API
+# Deploy from GitHub; Dockerfile is at repo root.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
