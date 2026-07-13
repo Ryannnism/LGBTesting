@@ -16,8 +16,9 @@ ENV Database__Provider=Sqlite
 ENV ConnectionStrings__DefaultConnection=Data Source=/data/lgbapp.db
 ENV DISABLE_HTTPS_REDIRECTION=true
 ENV AllowedHosts=*
+ENV SEED_FULL=false
 
 EXPOSE 8080
 VOLUME ["/data", "/app/uploads"]
 # Railway injects PORT — bind to that (fallback 8080 for local docker runs)
-ENTRYPOINT ["sh", "-c", "dotnet LGBApp.Backend.dll --urls http://0.0.0.0:${PORT:-8080}"]
+ENTRYPOINT ["sh", "-c", "echo Starting on PORT=${PORT:-8080} && dotnet LGBApp.Backend.dll --urls http://0.0.0.0:${PORT:-8080}"]

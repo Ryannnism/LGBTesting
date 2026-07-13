@@ -144,46 +144,64 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     if (string.Equals(dbProvider, "Sqlite", StringComparison.OrdinalIgnoreCase))
     {
+        // Light seed keeps Railway/free-tier boots under memory/time limits.
+        // Set SEED_FULL=true to import CubeV + bootstrap all jobs (slow/heavy).
+        var seedFull = string.Equals(
+            Environment.GetEnvironmentVariable("SEED_FULL"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+        Console.WriteLine($"[Startup] Sqlite init (SEED_FULL={seedFull})…");
         context.Database.EnsureCreated();
         SqliteSchemaMigrator.Apply(context);
         WorkflowConfigSeeder.Seed(context);
         InternalStaffSeeder.Seed(context, resetPasswordsInDevelopment: false);
-        // Real COSEC billing book (CubeV) — companies, billing parties, division recommenders.
-        // Sharon remains Admin via InternalStaffSeeder.
-        CubeVCustomerSeeder.SeedIfNeeded(context);
-        BillingPartyService.SeedFromLegacyCustomerFieldsAsync(context).GetAwaiter().GetResult();
-        CustomerClientAdminProvisioner.EnsureAllCustomersHaveClientAdminAsync(context).GetAwaiter().GetResult();
-        CustomerSignatoryProvisioner.EnsureAllCustomerSignatoriesAsync(context).GetAwaiter().GetResult();
-        scope.ServiceProvider.GetRequiredService<SignatoryAccessService>()
-            .BackfillFromHoldersAsync(context).GetAwaiter().GetResult();
-        FigmaProductCatalog.SyncCatalog(context);
-        JobRequestSyncService.LinkOrphanJobs(context);
-        context.SaveChanges();
 
-        // Full package/job sync is expensive (hundreds of units). Run once on empty DB;
-        // per-customer sync runs from CustomersController on create/update.
-        // After CubeV import, also bootstrap jobs when customers exist but no jobs yet.
-        var needsFullJobBootstrap = !context.JobRequests.Any() && context.Customers.Any();
-        if (needsFullJobBootstrap)
+        if (seedFull)
         {
-            Console.WriteLine("[Startup] Bootstrapping job requests for seeded customers (may take a minute)…");
-            JobRequestSyncService.SyncAllCustomersAsync(context).GetAwaiter().GetResult();
-            JobWorkflowIntegrityService.RepairAllAsync(context).GetAwaiter().GetResult();
-            var allJobs = context.JobRequests.ToList();
-            JobFormProvisioner.EnsureFormsForJobsAsync(context, allJobs).GetAwaiter().GetResult();
-            Console.WriteLine($"[Startup] Job bootstrap complete — {allJobs.Count} jobs.");
+            // Real COSEC billing book (CubeV) — companies, billing parties, division recommenders.
+            // Sharon remains Admin via InternalStaffSeeder.
+            CubeVCustomerSeeder.SeedIfNeeded(context);
+            BillingPartyService.SeedFromLegacyCustomerFieldsAsync(context).GetAwaiter().GetResult();
+            CustomerClientAdminProvisioner.EnsureAllCustomersHaveClientAdminAsync(context).GetAwaiter().GetResult();
+            CustomerSignatoryProvisioner.EnsureAllCustomerSignatoriesAsync(context).GetAwaiter().GetResult();
+            scope.ServiceProvider.GetRequiredService<SignatoryAccessService>()
+                .BackfillFromHoldersAsync(context).GetAwaiter().GetResult();
+            FigmaProductCatalog.SyncCatalog(context);
+            JobRequestSyncService.LinkOrphanJobs(context);
+            context.SaveChanges();
+
+            // Full package/job sync is expensive (hundreds of units). Run once on empty DB;
+            // per-customer sync runs from CustomersController on create/update.
+            // After CubeV import, also bootstrap jobs when customers exist but no jobs yet.
+            var needsFullJobBootstrap = !context.JobRequests.Any() && context.Customers.Any();
+            if (needsFullJobBootstrap)
+            {
+                Console.WriteLine("[Startup] Bootstrapping job requests for seeded customers (may take a minute)…");
+                JobRequestSyncService.SyncAllCustomersAsync(context).GetAwaiter().GetResult();
+                JobWorkflowIntegrityService.RepairAllAsync(context).GetAwaiter().GetResult();
+                var allJobs = context.JobRequests.ToList();
+                JobFormProvisioner.EnsureFormsForJobsAsync(context, allJobs).GetAwaiter().GetResult();
+                Console.WriteLine($"[Startup] Job bootstrap complete — {allJobs.Count} jobs.");
+            }
+            else
+            {
+                // Backfill draft MOI shells for single-qty service lines created after initial bootstrap.
+                var jobsMissingMoi = context.JobRequests
+                    .Where(j => j.TaskType == "Service"
+                        && j.CustomerPackageId != null
+                        && j.TotalQty <= 1
+                        && !context.MOIForms.Any(m => m.JobRequestId == j.JobRequestId))
+                    .ToList();
+                if (jobsMissingMoi.Count > 0)
+                    JobFormProvisioner.EnsureFormsForJobsAsync(context, jobsMissingMoi).GetAwaiter().GetResult();
+            }
         }
         else
         {
-            // Backfill draft MOI shells for single-qty service lines created after initial bootstrap.
-            var jobsMissingMoi = context.JobRequests
-                .Where(j => j.TaskType == "Service"
-                    && j.CustomerPackageId != null
-                    && j.TotalQty <= 1
-                    && !context.MOIForms.Any(m => m.JobRequestId == j.JobRequestId))
-                .ToList();
-            if (jobsMissingMoi.Count > 0)
-                JobFormProvisioner.EnsureFormsForJobsAsync(context, jobsMissingMoi).GetAwaiter().GetResult();
+            FigmaProductCatalog.SyncCatalog(context);
+            context.SaveChanges();
+            Console.WriteLine("[Startup] Light seed complete (staff + catalog). Set SEED_FULL=true for CubeV data.");
         }
     }
     else
