@@ -42,9 +42,18 @@ public class JobRequestsController : ControllerBase
         {
             var package = await _context.CustomerPackages.FindAsync(customerPackageId.Value);
             if (package == null)
-                return NotFound();
+                return Ok(Array.Empty<JobRequestResponse>());
 
             query = query.Where(j => j.CustomerPackageId == customerPackageId.Value);
+        }
+
+        // C6 / EF1: filter accessible companies in SQL for multi-company signatories
+        if (AuthHelper.IsExternalUser(User))
+        {
+            var ids = AuthHelper.GetAccessibleCustomerIds(User);
+            if (ids.Count == 0)
+                return Ok(Array.Empty<JobRequestResponse>());
+            query = query.Where(j => j.CustomerId.HasValue && ids.Contains(j.CustomerId.Value));
         }
 
         var jobs = await query
@@ -53,14 +62,7 @@ public class JobRequestsController : ControllerBase
             .ThenBy(j => j.AccountHolder)
             .ToListAsync();
 
-        if (AuthHelper.IsExternalUser(User))
-        {
-            var customerId = AuthHelper.CurrentCustomerId(User);
-            if (!customerId.HasValue)
-                return Ok(Array.Empty<JobRequestResponse>());
-            jobs = jobs.Where(j => j.CustomerId == customerId).ToList();
-        }
-        else
+        if (!AuthHelper.IsExternalUser(User))
         {
             var moisByJobId = await LoadMoisByJobIdAsync(jobs.Select(j => j.JobRequestId));
             jobs = InternalWorkVisibilityHelper.FilterJobsForInternal(jobs, moisByJobId);
@@ -615,12 +617,24 @@ public class JobRequestsController : ControllerBase
         if (job == null)
             return NotFound();
 
-        var isAdmin = AuthHelper.IsAdmin(User);
-        if (!isAdmin && !AuthHelper.CanAccessJob(User, job))
+        // Full-field job updates are admin-only (C1) — clients/staff must use workflow endpoints.
+        if (!AuthHelper.IsAdmin(User))
             return Forbid();
 
+        var allowedStatuses = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Pending", "In Progress", "Completed", "Canceled",
+        };
+        if (string.IsNullOrWhiteSpace(request.Status) || !allowedStatuses.Contains(request.Status))
+            return BadRequest(new { message = "Status must be Pending, In Progress, Completed, or Canceled." });
+
+        if (request.TotalQty < 1)
+            return BadRequest(new { message = "TotalQty must be at least 1." });
+        if (request.TotalQty < request.UsedQty)
+            return BadRequest(new { message = "TotalQty cannot be less than UsedQty." });
+
         var previousStatus = job.Status;
-        JobRequestMapper.ApplyRequest(job, request, isAdmin);
+        JobRequestMapper.ApplyRequest(job, request, isAdmin: true);
 
         if (request.Status is "Completed" or "Canceled" && previousStatus != request.Status)
         {
@@ -715,16 +729,17 @@ public class JobRequestsController : ControllerBase
 
     private async Task<MOAForm?> ResolveMoaFormForHandoffAsync(JobRequest job, int? unitNumber = null)
     {
+        // S5: never fall through to another session's MOA when a unitNumber was requested
         if (unitNumber.HasValue && job.TotalQty > 1)
         {
             var unit = job.Units.FirstOrDefault(u => u.UnitNumber == unitNumber.Value);
-            if (unit != null)
-            {
-                return await _context.MOAForms
-                    .Where(f => f.JobRequestId == job.JobRequestId && f.JobRequestUnitId == unit.JobRequestUnitId)
-                    .OrderByDescending(f => f.UpdatedAt)
-                    .FirstOrDefaultAsync();
-            }
+            if (unit == null)
+                return null;
+
+            return await _context.MOAForms
+                .Where(f => f.JobRequestId == job.JobRequestId && f.JobRequestUnitId == unit.JobRequestUnitId)
+                .OrderByDescending(f => f.UpdatedAt)
+                .FirstOrDefaultAsync();
         }
 
         return await _context.MOAForms

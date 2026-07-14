@@ -25,12 +25,18 @@ AllowedHosts=*
 App__PublicFrontendUrl=https://lgb-testing.vercel.app
 Email__From=LGB Services <noreply@your-verified-domain.com>
 Email__ResendApiKey=<your-resend-api-key>
+# First boot only — creates Sharon + prep staff (must change password)
+SEED_STAFF=true
+SEED_STAFF_PASSWORD=<strong-password-not-password123>
 ```
+
+`Jwt__Key` must be ≥32 random characters (app refuses committed placeholders in Production).  
+Uploads persist under `/data/uploads` (same Railway volume as the DB).
 
 6. **Settings → Networking → Generate Domain**  
    Copy the URL, e.g. `https://lgbtesting-production-xxxx.up.railway.app`
 
-First boot may take 1–2 minutes while it seeds the DB.
+First boot may take 1–2 minutes while it seeds the DB. After staff exist you can remove `SEED_STAFF` / `SEED_STAFF_PASSWORD`.
 
 ### Email (forgot password OTP + MOI/MOA alerts)
 

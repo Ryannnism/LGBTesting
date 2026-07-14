@@ -1,10 +1,12 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using LGBApp.Backend.Data;
 using LGBApp.Backend.Middleware;
 using LGBApp.Backend.Tools;
 using LGBApp.Backend.Services;
 using LGBApp.Backend.Services.Email;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -59,6 +61,38 @@ else
     builder.Services.AddScoped<IEmailSender, LoggingEmailSender>();
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Jwt:Key is not configured.");
+
+// C2: refuse known/placeholder JWT keys (forgeable Admin tokens)
+var committedJwtPlaceholders = new HashSet<string>(StringComparer.Ordinal)
+{
+    "LGBApp-Dev-Secret-Key-Change-In-Production-32chars!",
+    "REPLACE_WITH_RANDOM_SECRET_AT_LEAST_32_CHARS",
+};
+if (!builder.Environment.IsDevelopment())
+{
+    if (string.IsNullOrWhiteSpace(jwtKey)
+        || jwtKey.Length < 32
+        || committedJwtPlaceholders.Contains(jwtKey))
+    {
+        throw new InvalidOperationException(
+            "Jwt:Key must be a random secret of at least 32 characters in non-Development environments. "
+            + "Set Jwt__Key on the host (never use the appsettings placeholder).");
+    }
+}
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -164,7 +198,24 @@ using (var scope = app.Services.CreateScope())
         context.Database.EnsureCreated();
         SqliteSchemaMigrator.Apply(context);
         WorkflowConfigSeeder.Seed(context);
-        InternalStaffSeeder.Seed(context, resetPasswordsInDevelopment: false);
+
+        // C2: seeded default-password staff only in Development or when SEED_STAFF=true
+        var seedStaff = builder.Environment.IsDevelopment()
+            || string.Equals(Environment.GetEnvironmentVariable("SEED_STAFF"), "true", StringComparison.OrdinalIgnoreCase);
+        if (seedStaff)
+        {
+            var seedPassword = Environment.GetEnvironmentVariable("SEED_STAFF_PASSWORD");
+            if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(seedPassword))
+            {
+                throw new InvalidOperationException(
+                    "SEED_STAFF=true requires SEED_STAFF_PASSWORD in non-Development environments.");
+            }
+
+            InternalStaffSeeder.Seed(
+                context,
+                resetPasswordsInDevelopment: builder.Environment.IsDevelopment(),
+                initialPassword: string.IsNullOrWhiteSpace(seedPassword) ? "password123" : seedPassword);
+        }
 
         if (seedFull)
         {
@@ -229,6 +280,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AppCors");
+app.UseRateLimiter();
 // Behind Railway/Render/etc. TLS terminates at the proxy — skip redirect there.
 var disableHttpsRedirection = string.Equals(
     Environment.GetEnvironmentVariable("DISABLE_HTTPS_REDIRECTION"),

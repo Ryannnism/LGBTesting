@@ -113,6 +113,17 @@ public class MOIFormsController : ControllerBase
                 return Ok(FormMapper.ToMoiResponse(existing, customer: linkedCustomer));
             }
         }
+        else
+        {
+            // S6: floating MOI (no job) requires staff, or external access to that company
+            if (!AuthHelper.IsInternalStaff(User))
+            {
+                var companyCustomer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, request.Company);
+                if (companyCustomer == null
+                    || !AuthHelper.CanAccessCustomer(User, companyCustomer.CustomerId))
+                    return Forbid();
+            }
+        }
 
         var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, request.Company);
         DivisionGroup? group = null;
@@ -426,6 +437,22 @@ public class MOIFormsController : ControllerBase
 
         var form = await _context.MOIForms.FindAsync(id);
         if (form == null) return NotFound();
+
+        // C4: Sharon MOI sign-off only from states that await intake/sign-off.
+        // Use admin-override for deliberate escapes from Draft/other states.
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            MoiWorkflowStates.PendingAdminIntake,
+            MoiWorkflowStates.PendingRecommendation,
+        };
+        if (!allowed.Contains(form.WorkflowState ?? string.Empty))
+        {
+            return BadRequest(new
+            {
+                message = $"MOI cannot be approved from state '{form.WorkflowState}'. "
+                    + "It must be PendingAdminIntake or PendingRecommendation (use admin-override if needed).",
+            });
+        }
 
         await JobHandoffService.OnMoiApprovedAsync(_context, form);
         var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);

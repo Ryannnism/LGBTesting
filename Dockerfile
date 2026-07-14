@@ -14,11 +14,13 @@ RUN mkdir -p /data /app/uploads
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV Database__Provider=Sqlite
 ENV ConnectionStrings__DefaultConnection=Data Source=/data/lgbapp.db
+ENV LGB_UPLOAD_ROOT=/data/uploads
 ENV DISABLE_HTTPS_REDIRECTION=true
 ENV AllowedHosts=*
 ENV SEED_FULL=false
 
 EXPOSE 8080
 # Do not use Docker VOLUME — Railway requires its own volume mount at /data
+# Uploads go under /data/uploads so they survive redeploys with the SQLite volume (C3)
 # Railway injects PORT — bind to that (fallback 8080 for local docker runs)
-ENTRYPOINT ["sh", "-c", "mkdir -p /data /app/uploads && echo Starting on PORT=${PORT:-8080} && dotnet LGBApp.Backend.dll --urls http://0.0.0.0:${PORT:-8080}"]
+ENTRYPOINT ["sh", "-c", "mkdir -p /data /data/uploads && echo Starting on PORT=${PORT:-8080} && dotnet LGBApp.Backend.dll --urls http://0.0.0.0:${PORT:-8080}"]

@@ -5,7 +5,7 @@ namespace LGBApp.Backend.Data;
 
 /// <summary>
 /// Seeds LGB internal team: Sharon (admin + intake/MOI/MOA sign-off), resolution prep staff (assigned work only).
-/// Default password for seeded accounts: password123 (must change on first login).
+/// Default password only for Development; production must pass SEED_STAFF_PASSWORD via env (C2).
 /// </summary>
 public static class InternalStaffSeeder
 {
@@ -26,8 +26,14 @@ public static class InternalStaffSeeder
         "danra69@gmail.com",
     ];
 
-    public static void Seed(AppDbContext context, bool resetPasswordsInDevelopment = false)
+    public static void Seed(
+        AppDbContext context,
+        bool resetPasswordsInDevelopment = false,
+        string initialPassword = "password123")
     {
+        if (string.IsNullOrWhiteSpace(initialPassword) || initialPassword.Length < 6)
+            throw new InvalidOperationException("Initial staff password must be at least 6 characters.");
+
         foreach (var (email, name, role, jobTitle, canApproveIntake, canRecommend, canApproveMoi, canApproveMoa) in Staff)
         {
             var existing = context.Users.FirstOrDefault(u => u.Email == email);
@@ -42,7 +48,7 @@ public static class InternalStaffSeeder
                 existing.CanApproveMoa = canApproveMoa;
                 if (resetPasswordsInDevelopment)
                 {
-                    existing.PasswordHash = PasswordHasher.Hash("password123");
+                    existing.PasswordHash = PasswordHasher.Hash(initialPassword);
                     existing.MustChangePassword = true;
                 }
                 continue;
@@ -51,7 +57,7 @@ public static class InternalStaffSeeder
             context.Users.Add(new User
             {
                 Email = email,
-                PasswordHash = PasswordHasher.Hash("password123"),
+                PasswordHash = PasswordHasher.Hash(initialPassword),
                 Name = name,
                 Mobile = "",
                 Role = role,

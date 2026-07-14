@@ -40,7 +40,7 @@ This app is workflow-heavy (forms, approvals, PDF uploads), not a high-traffic c
 | Reference data | Form templates, workflows, catalog | **Auto-seeded on startup** (idempotent) |
 | API host | `http://localhost:5003` | HTTPS behind reverse proxy |
 | Frontend | Vite dev server `:5173` | `npm run build` → static files |
-| Uploads | `LGBApp.Backend/uploads/` | Same path, but on **persistent storage** |
+| Uploads | `LGBApp.Backend/uploads/` (dev) | Set `LGB_UPLOAD_ROOT` to persistent storage (Docker/Railway: `/data/uploads`) |
 | JWT | Dev key in `appsettings.json` | Long random secret via env vars |
 | CORS | Any origin (dev) | Restricted to your frontend URL |
 | Swagger | Enabled | Disabled (`IsDevelopment` only) |
