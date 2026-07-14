@@ -8,6 +8,10 @@ public class MOIForm
     /// <summary>Package session — one MOI per unit for multi-qty services.</summary>
     public int? JobRequestUnitId { get; set; }
     public JobRequestUnit? JobRequestUnit { get; set; }
+    public int? CustomerId { get; set; }
+    public Customer? Customer { get; set; }
+    /// <summary>FormDataJson shape version for future migrations.</summary>
+    public int SchemaVersion { get; set; } = 1;
     public string Company { get; set; } = string.Empty;
     public string FormDataJson { get; set; } = "{}";
     public string FormTemplateCode { get; set; } = string.Empty;

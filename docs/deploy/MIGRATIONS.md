@@ -5,9 +5,9 @@ Production (Railway Docker) uses **SQLite** at `/data/lgbapp.db`.
 ## Boot path
 
 1. `DatabaseBootstrap.ApplyMigrations`
-2. If the DB already has tables but **no** `__EFMigrationsHistory` (legacy `EnsureCreated` DBs), stamp `20260714084624_Baseline_FullSchema` as applied
-3. `Database.Migrate()`
-4. **Coexistence:** `SqliteSchemaMigrator.Apply` still runs once so older volumes stay patched
+2. If the DB already has tables but **no** `__EFMigrationsHistory` (legacy `EnsureCreated` DBs), stamp **all pending** migrations as applied (schema already matches via EnsureCreated/hand migrator)
+3. `Database.Migrate()` for environments that already have history (applies new additive migrations)
+4. **Coexistence:** `SqliteSchemaMigrator.Apply` still runs on Sqlite so older volumes stay patched (including Wave 5 columns until the hand migrator is retired)
 
 ## After this release is stable
 

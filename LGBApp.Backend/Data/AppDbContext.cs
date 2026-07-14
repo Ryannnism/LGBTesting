@@ -158,6 +158,9 @@ public class AppDbContext : DbContext
                 .WithOne(u => u.JobRequest)
                 .HasForeignKey(u => u.JobRequestId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(j => j.CustomerId);
+            entity.HasIndex(j => j.CustomerPackageId);
+            entity.HasIndex(j => j.Status);
         });
 
         modelBuilder.Entity<JobRequestUnit>(entity =>
@@ -188,11 +191,14 @@ public class AppDbContext : DbContext
             entity.Property(s => s.Customer).HasMaxLength(200);
             entity.Property(s => s.Service).HasMaxLength(200);
             entity.Property(s => s.Status).HasMaxLength(50);
+            entity.HasIndex(s => s.JobRequestId);
+            entity.HasIndex(s => s.DateCompleted);
         });
 
         modelBuilder.Entity<MOIForm>(entity =>
         {
             entity.HasKey(f => f.MOIFormId);
+            entity.Property(f => f.SchemaVersion).HasDefaultValue(1);
             entity.HasOne(f => f.JobRequest)
                 .WithMany()
                 .HasForeignKey(f => f.JobRequestId)
@@ -201,11 +207,18 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(f => f.JobRequestUnitId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(f => f.Customer)
+                .WithMany()
+                .HasForeignKey(f => f.CustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(f => f.JobRequestId);
+            entity.HasIndex(f => f.CustomerId);
         });
 
         modelBuilder.Entity<MOAForm>(entity =>
         {
             entity.HasKey(f => f.MOAFormId);
+            entity.Property(f => f.SchemaVersion).HasDefaultValue(1);
             entity.HasOne(f => f.JobRequest)
                 .WithMany()
                 .HasForeignKey(f => f.JobRequestId)
@@ -214,6 +227,12 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(f => f.JobRequestUnitId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(f => f.Customer)
+                .WithMany()
+                .HasForeignKey(f => f.CustomerId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(f => f.JobRequestId);
+            entity.HasIndex(f => f.CustomerId);
             entity.HasOne(f => f.MOIForm)
                 .WithMany()
                 .HasForeignKey(f => f.MOIFormId)
@@ -314,6 +333,7 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(d => d.JobRequestId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(d => d.JobRequestId);
         });
 
         modelBuilder.Entity<WorkflowStepInstance>(entity =>
@@ -343,6 +363,14 @@ public class AppDbContext : DbContext
             entity.Property(i => i.Currency).HasMaxLength(10);
             entity.Property(i => i.Status).HasMaxLength(50);
             entity.HasIndex(i => i.InvoiceNumber).IsUnique();
+            entity.HasOne(i => i.Customer)
+                .WithMany()
+                .HasForeignKey(i => i.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(i => i.JobRequest)
+                .WithMany()
+                .HasForeignKey(i => i.JobRequestId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<PasswordResetOtp>(entity =>

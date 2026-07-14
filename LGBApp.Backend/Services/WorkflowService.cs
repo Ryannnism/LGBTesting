@@ -16,6 +16,61 @@ public static class WorkflowService
             .FirstOrDefaultAsync(c => c.Company == company);
     }
 
+    /// <summary>Prefer FK, fall back to company name (display string).</summary>
+    public static async Task<Customer?> ResolveCustomerForMoiAsync(AppDbContext context, MOIForm form)
+    {
+        if (form.CustomerId.HasValue)
+        {
+            return await context.Customers
+                .Include(c => c.AccountHolders)
+                .FirstOrDefaultAsync(c => c.CustomerId == form.CustomerId.Value);
+        }
+
+        var customer = await ResolveCustomerForCompanyAsync(context, form.Company);
+        if (customer != null && form.CustomerId == null)
+            form.CustomerId = customer.CustomerId;
+        return customer;
+    }
+
+    public static async Task<Customer?> ResolveCustomerForMoaAsync(AppDbContext context, MOAForm form)
+    {
+        if (form.CustomerId.HasValue)
+        {
+            return await context.Customers
+                .Include(c => c.AccountHolders)
+                .FirstOrDefaultAsync(c => c.CustomerId == form.CustomerId.Value);
+        }
+
+        var customer = await ResolveCustomerForCompanyAsync(context, form.Company);
+        if (customer != null && form.CustomerId == null)
+            form.CustomerId = customer.CustomerId;
+        return customer;
+    }
+
+    /// <summary>EF2: one query for distinct companies → dictionary (case-insensitive).</summary>
+    public static async Task<Dictionary<string, Customer>> ResolveCustomersByCompanyAsync(
+        AppDbContext context,
+        IEnumerable<string> companies)
+    {
+        var keys = companies
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(c => c.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (keys.Count == 0)
+            return new Dictionary<string, Customer>(StringComparer.OrdinalIgnoreCase);
+
+        var rows = await context.Customers
+            .Include(c => c.AccountHolders)
+            .Where(c => keys.Contains(c.Company))
+            .ToListAsync();
+
+        var map = new Dictionary<string, Customer>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+            map.TryAdd(row.Company, row);
+        return map;
+    }
+
     public static string ResolveMoaTemplateCode(Customer? customer, DivisionGroup? divisionGroup)
     {
         if (customer != null && !string.IsNullOrWhiteSpace(customer.MoaFormTemplateCode))

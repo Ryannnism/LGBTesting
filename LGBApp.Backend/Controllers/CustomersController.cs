@@ -94,29 +94,55 @@ public class CustomersController : ControllerBase
         if (customer == null)
             return NotFound();
 
+        await using var tx = await _context.Database.BeginTransactionAsync();
+
         CustomerMapper.ApplyUpdate(customer, request);
         await BillingPartyService.ApplyPartySelectionsAsync(
             _context, customer, request.InvoiceByPartyIds, request.ChargeToPartyIds);
 
+        // §7.5: upsert holders by id — do not churn IDs on every save
         var existingById = customer.AccountHolders.ToDictionary(h => h.AccountHolderId);
-        _context.AccountHolders.RemoveRange(customer.AccountHolders);
-        customer.AccountHolders = request.AccountHolders.Select(h =>
+        var keepIds = new HashSet<int>();
+        foreach (var h in request.AccountHolders)
         {
-            existingById.TryGetValue(h.Id, out var prior);
-            return new Models.AccountHolder
+            var needsMoi = h.Moi || request.Moi.Contains(h.Name, StringComparer.OrdinalIgnoreCase);
+            var needsMoiApproval = h.MoiApproval || request.MoiApproval.Contains(h.Name, StringComparer.OrdinalIgnoreCase);
+            var needsMoa = h.Moa || request.Moa.Contains(h.Name, StringComparer.OrdinalIgnoreCase);
+
+            if (h.Id > 0 && existingById.TryGetValue(h.Id, out var prior))
             {
-                CustomerId = id,
-                Name = h.Name,
-                Email = h.Email,
-                Phone = h.Phone,
-                NeedsMoi = h.Moi || request.Moi.Contains(h.Name, StringComparer.OrdinalIgnoreCase),
-                NeedsMoiApproval = h.MoiApproval || request.MoiApproval.Contains(h.Name, StringComparer.OrdinalIgnoreCase),
-                NeedsMoa = h.Moa || request.Moa.Contains(h.Name, StringComparer.OrdinalIgnoreCase),
-                UserId = prior?.UserId,
-                ClientAdded = prior?.ClientAdded ?? h.ClientAdded,
-                AddedByUserId = prior?.AddedByUserId ?? h.AddedByUserId,
-            };
-        }).ToList();
+                prior.Name = h.Name;
+                prior.Email = h.Email;
+                prior.Phone = h.Phone;
+                prior.NeedsMoi = needsMoi;
+                prior.NeedsMoiApproval = needsMoiApproval;
+                prior.NeedsMoa = needsMoa;
+                prior.ClientAdded = prior.ClientAdded || h.ClientAdded;
+                if (h.AddedByUserId.HasValue)
+                    prior.AddedByUserId = h.AddedByUserId;
+                keepIds.Add(prior.AccountHolderId);
+            }
+            else
+            {
+                customer.AccountHolders.Add(new Models.AccountHolder
+                {
+                    CustomerId = id,
+                    Name = h.Name,
+                    Email = h.Email,
+                    Phone = h.Phone,
+                    NeedsMoi = needsMoi,
+                    NeedsMoiApproval = needsMoiApproval,
+                    NeedsMoa = needsMoa,
+                    ClientAdded = h.ClientAdded,
+                    AddedByUserId = h.AddedByUserId,
+                });
+            }
+        }
+
+        foreach (var orphan in customer.AccountHolders
+                     .Where(h => h.AccountHolderId > 0 && !keepIds.Contains(h.AccountHolderId))
+                     .ToList())
+            _context.AccountHolders.Remove(orphan);
 
         CustomerSignatoryProvisioner.SyncCustomerSignerLists(customer);
         await _context.SaveChangesAsync();
@@ -129,6 +155,8 @@ public class CustomersController : ControllerBase
         var jobs = await _context.JobRequests.Where(j => j.CustomerId == customer.CustomerId).ToListAsync();
         foreach (var job in jobs)
             await JobRequestUnitService.SyncUnitsForJobAsync(_context, job);
+
+        await tx.CommitAsync();
         return CustomerMapper.ToResponse(customer);
     }
 
@@ -138,6 +166,17 @@ public class CustomersController : ControllerBase
         var customer = await _context.Customers.FindAsync(id);
         if (customer == null)
             return NotFound();
+
+        // §6.6: block delete when jobs exist — cascading strands forms with stale names
+        var jobCount = await _context.JobRequests.CountAsync(j => j.CustomerId == id);
+        if (jobCount > 0)
+        {
+            return Conflict(new
+            {
+                message = $"Cannot delete customer with {jobCount} job request(s). Cancel or reassign jobs first.",
+                jobCount,
+            });
+        }
 
         _context.Customers.Remove(customer);
         await _context.SaveChangesAsync();

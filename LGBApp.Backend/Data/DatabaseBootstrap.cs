@@ -50,15 +50,26 @@ public static class DatabaseBootstrap
         if (!TableExists(context, "Users"))
             return;
 
+        // Stamp every pending migration. Legacy EnsureCreated DBs already match the live
+        // model (plus SqliteSchemaMigrator). Environments that already have history apply
+        // new migrations normally via Migrate() on the next lines.
+        var pending = context.Database.GetPendingMigrations().ToList();
+        if (pending.Count == 0)
+            return;
+
         Console.WriteLine(
             "[Startup] Existing database has no EF migration history — stamping "
-            + BaselineMigrationId + " (legacy EnsureCreated / SqliteSchemaMigrator).");
+            + string.Join(", ", pending)
+            + " (legacy EnsureCreated / SqliteSchemaMigrator).");
 
         if (!history.Exists())
             context.Database.ExecuteSqlRaw(history.GetCreateScript());
 
-        context.Database.ExecuteSqlRaw(
-            history.GetInsertScript(new HistoryRow(BaselineMigrationId, EfProductVersion)));
+        foreach (var migrationId in pending)
+        {
+            context.Database.ExecuteSqlRaw(
+                history.GetInsertScript(new HistoryRow(migrationId, EfProductVersion)));
+        }
     }
 
     private static bool TableExists(AppDbContext context, string table)

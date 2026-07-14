@@ -97,7 +97,19 @@ public static class JobRequestUnitService
 
     public static async Task SyncUnitAssigneeFieldsAsync(AppDbContext context, JobRequestUnit unit)
     {
-        var assignees = await LoadAssigneesAsync(context, unit);
+        // EF4: prefer already-loaded Assignees→User when the collection is loaded
+        List<JobRequestUnitAssignee> assignees;
+        if (context.Entry(unit).Collection(u => u.Assignees).IsLoaded)
+        {
+            assignees = unit.Assignees
+                .OrderBy(a => a.JobRequestUnitAssigneeId)
+                .ToList();
+        }
+        else
+        {
+            assignees = await LoadAssigneesAsync(context, unit);
+        }
+
         var names = assignees
             .Select(a => a.User.Name.Trim())
             .Where(n => !string.IsNullOrWhiteSpace(n))

@@ -4,7 +4,9 @@ public class Invoice
 {
     public int InvoiceId { get; set; }
     public int CustomerId { get; set; }
+    public Customer? Customer { get; set; }
     public int? JobRequestId { get; set; }
+    public JobRequest? JobRequest { get; set; }
     public string InvoiceNumber { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "MYR";

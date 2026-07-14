@@ -37,7 +37,15 @@ Uploads persist under `/data/uploads` (same Railway volume as the DB).
 6. **Settings → Networking → Generate Domain**  
    Copy the URL, e.g. `https://lgbtesting-production-xxxx.up.railway.app`
 
-First boot may take 1–2 minutes while it seeds the DB. After staff exist you can remove `SEED_STAFF` / `SEED_STAFF_PASSWORD`.
+First boot seeds staff + product catalog only. After staff exist you can remove `SEED_STAFF` / `SEED_STAFF_PASSWORD`.
+
+To import the full CubeV customer book (heavy — run once via Railway shell, not on every deploy):
+
+```
+dotnet LGBApp.Backend.dll seed-full
+```
+
+`Cors__AllowedOrigins__0` is **required** in Production (app refuses to boot without it).
 
 ### Email (forgot password OTP + MOI/MOA alerts)
 

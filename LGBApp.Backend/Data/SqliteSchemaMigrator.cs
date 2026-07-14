@@ -411,6 +411,12 @@ public static class SqliteSchemaMigrator
             CREATE INDEX IF NOT EXISTS "IX_CompletedServices_JobRequestId"
             ON "CompletedServices" ("JobRequestId");
             """);
+
+        // Wave 5 coexistence (until hand migrator is retired)
+        EnsureColumn(context, "MOIForms", "CustomerId", "INTEGER NULL");
+        EnsureColumn(context, "MOIForms", "SchemaVersion", "INTEGER NOT NULL DEFAULT 1");
+        EnsureColumn(context, "MOAForms", "CustomerId", "INTEGER NULL");
+        EnsureColumn(context, "MOAForms", "SchemaVersion", "INTEGER NOT NULL DEFAULT 1");
     }
 
     private static void EnsureColumn(AppDbContext context, string table, string column, string definition)

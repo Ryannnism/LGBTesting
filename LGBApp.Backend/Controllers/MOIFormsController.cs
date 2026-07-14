@@ -58,10 +58,28 @@ public class MOIFormsController : ControllerBase
 
         query = await FormAccessHelper.ScopeMoiFormsAsync(_context, User, query);
         var forms = await query.OrderByDescending(f => f.UpdatedAt).ToListAsync();
+        var byCompany = await WorkflowService.ResolveCustomersByCompanyAsync(
+            _context, forms.Select(f => f.Company));
+        var byId = forms
+            .Where(f => f.CustomerId.HasValue)
+            .Select(f => f.CustomerId!.Value)
+            .Distinct()
+            .ToList();
+        var customersById = byId.Count == 0
+            ? new Dictionary<int, Customer>()
+            : await _context.Customers.Include(c => c.AccountHolders)
+                .Where(c => byId.Contains(c.CustomerId))
+                .ToDictionaryAsync(c => c.CustomerId);
+
         var results = new List<FormResponse>();
         foreach (var form in forms)
         {
-            var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+            Customer? customer = null;
+            if (form.CustomerId.HasValue)
+                customersById.TryGetValue(form.CustomerId.Value, out customer);
+            customer ??= byCompany.GetValueOrDefault(form.Company);
+            if (customer != null && form.CustomerId == null)
+                form.CustomerId = customer.CustomerId;
             results.Add(FormMapper.ToMoiResponse(form, customer: customer));
         }
         return results;
@@ -150,12 +168,14 @@ public class MOIFormsController : ControllerBase
         {
             JobRequestId = request.JobId,
             JobRequestUnitId = unit?.JobRequestUnitId,
+            CustomerId = customer?.CustomerId ?? job?.CustomerId,
             Company = request.Company,
             FormDataJson = JsonHelper.Serialize(formData),
             FormTemplateCode = templateCode,
             WorkflowState = workflowState,
             FinanceRelated = request.FinanceRelated,
             BankSignatoryMatter = request.BankSignatoryMatter,
+            SchemaVersion = 1,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
