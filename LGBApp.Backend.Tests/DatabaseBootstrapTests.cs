@@ -74,6 +74,7 @@ public class DatabaseBootstrapTests
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite($"Data Source={path}")
+            .ReplaceService<IMigrationsAssembly, ProviderFilteredMigrationsAssembly>()
             .Options;
         return new AppDbContext(options);
     }

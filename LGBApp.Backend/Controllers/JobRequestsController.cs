@@ -563,6 +563,18 @@ public class JobRequestsController : ControllerBase
             }
             else
             {
+                // R3: AdminBypass never had prep assignees — attribute completion to the acting admin
+                var unitMode = !string.IsNullOrWhiteSpace(unit.WorkflowMode)
+                    ? unit.WorkflowMode
+                    : job.WorkflowMode;
+                if (JobWorkflowModes.IsAdminBypass(unitMode)
+                    && string.IsNullOrWhiteSpace(job.JobAssignedTo))
+                {
+                    var actor = AuthHelper.CurrentUserName(User);
+                    if (!string.IsNullOrWhiteSpace(actor))
+                        job.JobAssignedTo = actor.Trim();
+                }
+
                 unit.Status = "Completed";
                 unit.CompletedAt = DateTime.UtcNow;
                 await JobRequestUnitService.SyncUnitToTrackerAsync(_context, unit, job);

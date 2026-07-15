@@ -74,9 +74,25 @@ VITE_API_BASE=https://YOUR-RAILWAY-URL.up.railway.app
 4. **Forgot password:** request a code → check email (or Railway logs if Resend is unset) → reset  
 5. Push an MOI/MOA for client approval → signatory gets in-app + email notice  
 
+## Optional: Postgres instead of SQLite
+
+The API now supports `Database__Provider=Postgres` (Npgsql). Schema is created by
+`Migrations/Postgres/Pg_Baseline` (SQLite migrations stay for local/Railway until cutover).
+Full cutover steps (data copy via pgloader, UTC DateTimes, rollback): see
+[`docs/POSTGRES_MIGRATION_GUIDE.md`](../POSTGRES_MIGRATION_GUIDE.md).
+
+Example Railway variables after a managed Postgres is attached:
+
+```
+Database__Provider=Postgres
+ConnectionStrings__DefaultConnection=Host=xxx;Port=5432;Database=lgbapp;Username=…;Password=…;SSL Mode=Require
+```
+
+Keep the `/data` volume for uploads (`LGB_UPLOAD_ROOT=/data/uploads`) — files are not in the DB.
+
 ## Later (real production)
 
-- Move DB to Azure SQL / Postgres  
+- Cut over DB to managed Postgres (guide above) or Azure SQL  
 - Host API on Azure App Service  
 - See [DEPLOYMENT.md](../DEPLOYMENT.md)  
 

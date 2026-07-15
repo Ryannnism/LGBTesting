@@ -1,6 +1,7 @@
 ﻿using LGBApp.Backend.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace LGBApp.Backend.Data;
 
@@ -410,5 +411,29 @@ public class AppDbContext : DbContext
             entity.Property(o => o.CodeHash).HasMaxLength(128).IsRequired();
             entity.HasIndex(o => new { o.Email, o.CreatedAt });
         });
+
+        // Postgres (Npgsql) rejects DateTime Kind=Unspecified on timestamptz. Force UTC on
+        // read/write for all DateTime columns — safe on Sqlite/SqlServer too (Review #3 F1 class).
+        var toUtc = new ValueConverter<DateTime, DateTime>(
+            v => v.Kind == DateTimeKind.Utc ? v : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+        var toUtcN = new ValueConverter<DateTime?, DateTime?>(
+            v => !v.HasValue
+                ? v
+                : (v.Value.Kind == DateTimeKind.Utc
+                    ? v
+                    : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc)),
+            v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
+
+        foreach (var et in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var p in et.GetProperties())
+            {
+                if (p.ClrType == typeof(DateTime))
+                    p.SetValueConverter(toUtc);
+                else if (p.ClrType == typeof(DateTime?))
+                    p.SetValueConverter(toUtcN);
+            }
+        }
     }
 }

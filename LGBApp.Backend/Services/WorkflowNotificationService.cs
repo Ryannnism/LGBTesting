@@ -98,6 +98,22 @@ public static class WorkflowNotificationService
             job.CustomerId);
     }
 
+    /// <summary>R1: when bypass is reversed to MoiMoa, clear dangling bypass alerts for that job.</summary>
+    public static async Task MarkAdminBypassNotificationsReadAsync(AppDbContext context, int jobRequestId)
+    {
+        var pending = await context.AppNotifications
+            .Where(n => n.JobRequestId == jobRequestId
+                && n.EventType == "admin_bypass"
+                && !n.IsRead)
+            .ToListAsync();
+        if (pending.Count == 0) return;
+
+        foreach (var n in pending)
+            n.IsRead = true;
+
+        await context.SaveChangesAsync();
+    }
+
     public static async Task NotifyIntakeApprovedAsync(AppDbContext context, JobRequest job)
     {
         var assigneeIds = await GetJobAssigneeUserIdsAsync(context, job);

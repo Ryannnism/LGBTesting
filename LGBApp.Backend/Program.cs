@@ -48,12 +48,21 @@ var dbProvider = builder.Configuration["Database:Provider"] ?? "SqlServer";
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
+var isSqlite = string.Equals(dbProvider, "Sqlite", StringComparison.OrdinalIgnoreCase);
+var isPostgres = string.Equals(dbProvider, "Postgres", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(dbProvider, "Postgresql", StringComparison.OrdinalIgnoreCase);
+
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    if (string.Equals(dbProvider, "Sqlite", StringComparison.OrdinalIgnoreCase))
+    if (isSqlite)
         options.UseSqlite(connectionString);
+    else if (isPostgres)
+        options.UseNpgsql(connectionString);
     else
         options.UseSqlServer(connectionString);
+
+    // Dual-provider migrations live in one assembly; filter by provider (see ProviderFilteredMigrationsAssembly).
+    options.ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsAssembly, ProviderFilteredMigrationsAssembly>();
 });
 
 builder.Services.AddScoped<JwtTokenService>();
@@ -207,11 +216,13 @@ if (args.Contains("seed-full"))
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (string.Equals(dbProvider, "Sqlite", StringComparison.OrdinalIgnoreCase))
+    if (isSqlite || isPostgres)
     {
-        Console.WriteLine("[Startup] Sqlite init via EF Migrate…");
-        // Wave 4: Migrate() + stamp legacy DBs; hand migrator still runs for coexistence.
-        DatabaseBootstrap.ApplyMigrations(context, runSqliteHandMigrator: true);
+        Console.WriteLine(isPostgres
+            ? "[Startup] Postgres init via EF Migrate…"
+            : "[Startup] Sqlite init via EF Migrate…");
+        // Wave 4: Migrate() + stamp legacy DBs; SQLite hand migrator never runs on Postgres.
+        DatabaseBootstrap.ApplyMigrations(context, runSqliteHandMigrator: isSqlite);
         WorkflowConfigSeeder.Seed(context);
 
         // C2: seeded default-password staff only in Development or when SEED_STAFF=true

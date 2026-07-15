@@ -27,8 +27,16 @@ public static class FormConcurrencyHelper
             ? DateTime.SpecifyKind(expected, DateTimeKind.Utc)
             : expected.ToUniversalTime();
 
+        // form.UpdatedAt is written as UTC, but SQLite/EF hands it back with Kind=Unspecified.
+        // Calling ToUniversalTime() on an Unspecified value shifts it by the server's local
+        // offset, so on any non-UTC host every save falsely conflicts. Treat Unspecified as UTC
+        // to mirror the expected-side normalization above.
+        var storedNormalized = storedUtc.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(storedUtc, DateTimeKind.Utc)
+            : storedUtc.ToUniversalTime();
+
         // Compare to the millisecond so ISO round-trips match; no multi-second grace window.
-        var storedMs = storedUtc.ToUniversalTime().Ticks / TimeSpan.TicksPerMillisecond;
+        var storedMs = storedNormalized.Ticks / TimeSpan.TicksPerMillisecond;
         var expectedMs = expectedUtc.Ticks / TimeSpan.TicksPerMillisecond;
         if (storedMs == expectedMs)
             return null;

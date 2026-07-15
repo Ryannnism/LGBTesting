@@ -14,16 +14,29 @@ public static class DevDatabaseReset
     public static async Task RunAsync(AppDbContext context, IConfiguration configuration)
     {
         var provider = configuration["Database:Provider"] ?? "SqlServer";
-        if (!string.Equals(provider, "Sqlite", StringComparison.OrdinalIgnoreCase))
+        var isSqlite = string.Equals(provider, "Sqlite", StringComparison.OrdinalIgnoreCase);
+        var isPostgres = string.Equals(provider, "Postgres", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(provider, "Postgresql", StringComparison.OrdinalIgnoreCase);
+
+        if (!isSqlite && !isPostgres)
         {
-            Console.Error.WriteLine("reset-dev-db is only supported for SQLite development databases.");
+            Console.Error.WriteLine("reset-dev-db is only supported for SQLite or Postgres development databases.");
             return;
         }
 
-        Console.WriteLine("Resetting development database…");
+        Console.WriteLine($"Resetting development database ({provider})…");
 
-        await context.Database.EnsureDeletedAsync();
-        DatabaseBootstrap.ApplyMigrations(context, runSqliteHandMigrator: true);
+        if (isSqlite)
+        {
+            await context.Database.EnsureDeletedAsync();
+            DatabaseBootstrap.ApplyMigrations(context, runSqliteHandMigrator: true);
+        }
+        else
+        {
+            // Postgres: drop/recreate schema via EF (no local file to delete).
+            await context.Database.EnsureDeletedAsync();
+            DatabaseBootstrap.ApplyMigrations(context, runSqliteHandMigrator: false);
+        }
 
         WorkflowConfigSeeder.SeedReferenceData(context);
         FigmaProductCatalog.SyncCatalog(context);

@@ -124,19 +124,36 @@ public class ClientJobsController : ControllerBase
         else
         {
             // MoiMoa — mark choice; client continues with issue-moi
+            var wasAdminBypass = JobWorkflowModes.IsAdminBypass(unit.WorkflowMode)
+                || string.Equals(unit.InternalHandoffStatus, JobHandoffStatuses.AdminBypass, StringComparison.OrdinalIgnoreCase)
+                || JobWorkflowModes.IsAdminBypass(job.WorkflowMode);
+
             unit.WorkflowMode = JobWorkflowModes.MoiMoa;
             unit.AdminBypassNote = string.Empty;
             unit.AdminBypassAt = null;
             unit.AdminBypassByUserId = null;
+            if (string.Equals(unit.InternalHandoffStatus, JobHandoffStatuses.AdminBypass, StringComparison.OrdinalIgnoreCase))
+                unit.InternalHandoffStatus = string.Empty;
+
             if (job.TotalQty <= 1)
             {
                 job.WorkflowMode = JobWorkflowModes.MoiMoa;
                 job.AdminBypassNote = string.Empty;
                 job.AdminBypassAt = null;
                 job.AdminBypassByUserId = null;
+                if (string.Equals(job.InternalHandoffStatus, JobHandoffStatuses.AdminBypass, StringComparison.OrdinalIgnoreCase))
+                    JobHandoffService.SetHandoff(job, string.Empty);
+            }
+            else
+            {
+                JobHandoffResolver.SyncJobHandoffFromUnits(job);
             }
 
             await _context.SaveChangesAsync();
+
+            // R1: drop stale "client wants bypass" alerts once the unit is back on MOI/MOA
+            if (wasAdminBypass)
+                await WorkflowNotificationService.MarkAdminBypassNotificationsReadAsync(_context, job.JobRequestId);
         }
 
         job = await _context.JobRequests
@@ -417,6 +434,14 @@ public class ClientJobsController : ControllerBase
                 {
                     message = "This request was sent to LGB. Sharon will mark it complete after the work is done.",
                 });
+            }
+
+            // R3: AdminBypass has no prep assignees — attribute to the actor when closing
+            if (JobWorkflowModes.IsAdminBypass(mode) && string.IsNullOrWhiteSpace(job.JobAssignedTo))
+            {
+                var actor = AuthHelper.CurrentUserName(User);
+                if (!string.IsNullOrWhiteSpace(actor))
+                    job.JobAssignedTo = actor.Trim();
             }
 
             unit.Status = "Completed";

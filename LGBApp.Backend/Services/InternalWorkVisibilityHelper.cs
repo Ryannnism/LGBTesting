@@ -8,6 +8,9 @@ public static class InternalWorkVisibilityHelper
 {
     private static readonly string[] PostIntakeUnitHandoffs =
     [
+        // AdminBypass (D1): client skipped MOI/MOA and sent a note — Sharon must see it in her
+        // work list, not only via the notification, or the request silently stalls (B1).
+        JobHandoffStatuses.AdminBypass,
         JobHandoffStatuses.AwaitingSecAssignment,
         JobHandoffStatuses.PendingPrep,
         JobHandoffStatuses.ResoInProgress,

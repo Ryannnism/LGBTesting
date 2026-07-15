@@ -205,7 +205,10 @@ public class MOAFormsController : ControllerBase
         var form = await _context.MOAForms.FindAsync(id);
         if (form == null) return NotFound();
 
-        // N4: tenant check before state oracle
+        // R2/N4: access before any state/phase oracle (404 for foreign tenants)
+        if (isExternal && !await FormAccessHelper.CanAccessMoaFormAsync(_context, User, form))
+            return NotFound();
+
         var customer = await WorkflowService.ResolveCustomerForMoaAsync(_context, form);
         if (customer == null) return NotFound();
         if (isExternal && !AuthHelper.CanAccessCustomer(User, customer.CustomerId))
@@ -271,7 +274,10 @@ public class MOAFormsController : ControllerBase
         var form = await _context.MOAForms.FindAsync(id);
         if (form == null) return NotFound();
 
-        // N4: tenant check before state oracle
+        // R2/N4: access before any state/phase oracle (404 for foreign tenants)
+        if (!await FormAccessHelper.CanAccessMoaFormAsync(_context, User, form))
+            return NotFound();
+
         var customer = await WorkflowService.ResolveCustomerForMoaAsync(_context, form);
         if (customer == null || !AuthHelper.CanAccessCustomer(User, customer.CustomerId))
             return NotFound();

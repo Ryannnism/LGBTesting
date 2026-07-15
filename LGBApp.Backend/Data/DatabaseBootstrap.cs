@@ -91,6 +91,16 @@ public static class DatabaseBootstrap
                 p.Value = table;
                 command.Parameters.Add(p);
             }
+            else if (context.Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                // EF quotes PascalCase table names on Postgres ("Users").
+                command.CommandText =
+                    """SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = @name LIMIT 1;""";
+                var p = command.CreateParameter();
+                p.ParameterName = "@name";
+                p.Value = table;
+                command.Parameters.Add(p);
+            }
             else
             {
                 command.CommandText =
