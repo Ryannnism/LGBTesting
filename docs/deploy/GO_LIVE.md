@@ -9,14 +9,15 @@ Skip Supabase for now. Use **Railway** (free trial / hobby) + SQLite — good en
 1. Go to [railway.app](https://railway.app) → login with GitHub  
 2. **New Project** → **Deploy from GitHub repo** → `Ryannnism/LGBTesting`  
 3. It should pick up the root `Dockerfile`  
-4. Add a **Volume** mounted at `/data` (keeps the SQLite DB)  
-   - After Wave 4, boots use EF `Migrate()` (existing DBs are baseline-stamped; no data wipe). See `docs/deploy/MIGRATIONS.md`.  
-5. **Variables** (Settings → Variables):
+4. Attach a **Volume** at `/data` for uploads (`LGB_UPLOAD_ROOT=/data/uploads`)  
+5. Add a **Postgres** plugin (managed). Cutover steps: [`POSTGRES_MIGRATION_GUIDE.md`](../POSTGRES_MIGRATION_GUIDE.md).  
+6. **Variables** (Settings → Variables):
 
 ```
 ASPNETCORE_ENVIRONMENT=Production
-Database__Provider=Sqlite
-ConnectionStrings__DefaultConnection=Data Source=/data/lgbapp.db
+Database__Provider=Postgres
+ConnectionStrings__DefaultConnection=Host=postgres.railway.internal;Port=5432;Database=railway;Username=postgres;Password=<from Postgres plugin>;SSL Mode=Disable
+# (or paste Postgres DATABASE_URL if you prefer URI form — Npgsql accepts both)
 Jwt__Key=<paste-a-long-random-string-at-least-32-chars>
 Jwt__Issuer=LGBApp.Backend
 Jwt__Audience=LGBApp.Frontend
@@ -26,13 +27,10 @@ AllowedHosts=*
 App__PublicFrontendUrl=https://lgb-testing.vercel.app
 Email__From=LGB Services <noreply@your-verified-domain.com>
 Email__ResendApiKey=<your-resend-api-key>
-# First boot only — creates Sharon + prep staff (must change password)
-SEED_STAFF=true
-SEED_STAFF_PASSWORD=<strong-password-not-password123>
+LGB_UPLOAD_ROOT=/data/uploads
 ```
 
-`Jwt__Key` must be ≥32 random characters (app refuses committed placeholders in Production).  
-Uploads persist under `/data/uploads` (same Railway volume as the DB).
+> **Live (beneficial-vitality / LGBTesting)** already runs `Database__Provider=Postgres` against the Railway Postgres plugin. SQLite file remains on the volume as rollback only.
 
 6. **Settings → Networking → Generate Domain**  
    Copy the URL, e.g. `https://lgbtesting-production-xxxx.up.railway.app`
