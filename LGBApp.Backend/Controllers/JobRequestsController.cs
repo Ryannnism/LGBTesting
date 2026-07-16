@@ -83,7 +83,12 @@ public class JobRequestsController : ControllerBase
             .ToListAsync();
 
         var moisByJobId = await LoadMoisByJobIdAsync(jobs.Select(j => j.JobRequestId));
-        jobs = InternalWorkVisibilityHelper.FilterJobsForInternal(jobs, moisByJobId);
+
+        // Package workboard (GET ?customerPackageId=…) is the full deliverables catalog —
+        // admins must see seeded lines before the client issues MOI. The release gate applies
+        // to the operational queue (dashboard / tracker), not this scoped package view.
+        if (!(customerPackageId.HasValue && AuthHelper.IsAdmin(User)))
+            jobs = InternalWorkVisibilityHelper.FilterJobsForInternal(jobs, moisByJobId);
 
         if (!AuthHelper.IsAdmin(User))
         {
