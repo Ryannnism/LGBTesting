@@ -1,9 +1,9 @@
-import { X, Calendar, User, MessageSquare, ClipboardList, Mail, Phone } from 'lucide-react';
+import { X, Calendar, User, MessageSquare, ClipboardList, Mail, Phone, Printer } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { DateInput } from './DateInput';
 import { UserAssignCell } from './UserAssignCell';
 import { formatDateDisplay } from '@/lib/dates';
-import type { JobRequestResponse, JobRequestUnitDto } from '@/lib/api';
+import { ApiError, openTaskPack, type JobRequestResponse, type JobRequestUnitDto } from '@/lib/api';
 
 type JobRequest = JobRequestResponse;
 
@@ -27,6 +27,8 @@ export function JobRequestDetailsModal({
   const [unitNumber, setUnitNumber] = useState('1');
   const [acceptedDate, setAcceptedDate] = useState('');
   const [comments, setComments] = useState('');
+  const [packBusy, setPackBusy] = useState(false);
+  const [packError, setPackError] = useState('');
 
   useEffect(() => {
     if (!isOpen || !jobRequest) return;
@@ -69,13 +71,40 @@ export function JobRequestDetailsModal({
       <div className="bg-card rounded-lg border border-border w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="p-6 border-b border-border flex items-center justify-between">
           <h2>Job Request Details</h2>
-          <button
-            onClick={handleClose}
-            className="p-1 hover:bg-muted rounded transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                setPackError('');
+                setPackBusy(true);
+                try {
+                  await openTaskPack(
+                    jobRequest.id,
+                    multiUnit ? selectedUnit.unitNumber : undefined,
+                  );
+                } catch (err) {
+                  setPackError(err instanceof ApiError ? err.message : 'Failed to open pack.');
+                } finally {
+                  setPackBusy(false);
+                }
+              }}
+              disabled={packBusy}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded hover:bg-muted transition-colors disabled:opacity-50"
+              title={multiUnit ? `Print the pack for session ${selectedUnit.unitNumber}` : 'Print the full pack for this task'}
+            >
+              <Printer className="w-4 h-4" />
+              {packBusy ? 'Preparing…' : 'Print pack'}
+            </button>
+            <button
+              onClick={handleClose}
+              className="p-1 hover:bg-muted rounded transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+        {packError && (
+          <div className="px-6 py-2 text-sm text-red-700 bg-red-50 border-b border-red-100">{packError}</div>
+        )}
 
         <div className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-6">
