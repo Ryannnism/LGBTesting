@@ -475,6 +475,17 @@ public class ClientJobsController : ControllerBase
         {
             // D1: tasks that chose MOI/MOA cannot be closed client-side until LGB completes the workflow
             var mode = string.IsNullOrWhiteSpace(unit.WorkflowMode) ? job.WorkflowMode : unit.WorkflowMode;
+
+            // Review #7 W3 / §6.2: Unset (default) previously fell through to Completed with no
+            // MOI, MOA, or note — defeating the compliance workflow. Require an explicit choice.
+            if (JobWorkflowModes.BlocksCompleteUntilWorkflowChosen(mode))
+            {
+                return BadRequest(new
+                {
+                    message = "Choose how LGB should handle this first — MOI/MOA workflow, or send a note to LGB — before marking it done.",
+                });
+            }
+
             if (JobWorkflowModes.IsMoiMoa(mode))
             {
                 var handoff = JobHandoffResolver.ResolveEffectiveHandoff(job, unit);

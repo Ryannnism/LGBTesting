@@ -314,6 +314,14 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
 
   const handleMarkDone = async (job: JobRequestResponse, unitNumber: number) => {
     setError('');
+    const unit = job.units?.find((u) => u.unitNumber === unitNumber)
+      ?? { unitNumber, status: job.status, assignees: [] } as JobRequestUnitDto;
+    // Review #7 W3: Unset mode cannot complete — force workflow choice first.
+    if (!unitWorkflowMode(job, unit)) {
+      setBypassNote('');
+      setWorkflowChoice({ job, unit });
+      return;
+    }
     try {
       await recordClientJobProgress(job.id, { unitNumber, markUnitComplete: true });
       await load();
