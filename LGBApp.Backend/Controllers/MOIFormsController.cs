@@ -331,7 +331,8 @@ public class MOIFormsController : ControllerBase
         var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
         if (customer == null) return BadRequest(new { message = "Customer not found." });
 
-        await JobHandoffService.OnMoiSubmittedForApprovalAsync(_context, job, form, customer, _notifier);
+        var submitter = await GetCurrentUserAsync();
+        await JobHandoffService.OnMoiSubmittedForApprovalAsync(_context, job, form, customer, _notifier, submitter);
         return FormMapper.ToMoiResponse(form, customer: customer);
     }
 
@@ -355,7 +356,7 @@ public class MOIFormsController : ControllerBase
         if (form.WorkflowState != MoiWorkflowStates.PendingClientMoiApproval)
             return BadRequest(new { message = "MOI is not awaiting client approval." });
 
-        var holder = ClientApprovalService.FindMoiApprovalHolderForUser(customer, user);
+        var holder = ClientApprovalService.FindMoiApprovalHolderForUser(customer, user, form);
         if (holder == null)
             return Forbid();
 
@@ -412,7 +413,7 @@ public class MOIFormsController : ControllerBase
         if (form.WorkflowState != MoiWorkflowStates.PendingClientMoiApproval)
             return BadRequest(new { message = "MOI is not awaiting client approval." });
 
-        var holder = ClientApprovalService.FindMoiApprovalHolderForUser(customer, user);
+        var holder = ClientApprovalService.FindMoiApprovalHolderForUser(customer, user, form);
         if (holder == null)
             return Forbid();
 

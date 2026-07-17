@@ -113,10 +113,11 @@ public class MoaFlowchartChainTests
             [
                 new AccountHolder { Name = "Bob Approver", NeedsMoiApproval = true },
             ],
+            MoaApproversJson = JsonHelper.Serialize(new[] { "Kevin Kuok" }),
         };
         var division = new DivisionGroup
         {
-            MandatoryMoaApproversJson = JsonHelper.Serialize(new[] { "Kevin Kuok" }),
+            MandatoryMoaApproversJson = JsonHelper.Serialize(new[] { "Ignored Division List" }),
         };
 
         var requester = new WorkflowStepTemplate { AssigneeType = "ProjectInitiator" };

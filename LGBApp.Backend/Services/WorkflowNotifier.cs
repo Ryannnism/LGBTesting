@@ -27,9 +27,27 @@ public class WorkflowNotifier
 
     public async Task NotifyMoiPendingSignOffAsync(JobRequest job, Customer customer, MOIForm form)
     {
-        var holders = customer.AccountHolders
-            .Where(h => h.NeedsMoiApproval)
-            .ToList();
+        List<AccountHolder> holders;
+        if (!string.IsNullOrWhiteSpace(form.RequiredApproverEmail)
+            || !string.IsNullOrWhiteSpace(form.RequiredApproverName))
+        {
+            holders =
+            [
+                new AccountHolder
+                {
+                    Name = string.IsNullOrWhiteSpace(form.RequiredApproverName)
+                        ? form.RequiredApproverEmail
+                        : form.RequiredApproverName,
+                    Email = form.RequiredApproverEmail,
+                    NeedsMoiApproval = true,
+                },
+            ];
+        }
+        else
+        {
+            holders = customer.AccountHolders.Where(h => h.NeedsMoiApproval).ToList();
+        }
+
         var userIds = await ResolveUserIdsAsync(holders, customer.CustomerId);
         var title = DisplayTitle(job, form);
         var message = $"{job.Customer} — {title} needs your MOI signature.";
@@ -108,7 +126,7 @@ public class WorkflowNotifier
 
     public async Task NotifyRemainingMoaSignersAsync(JobRequest job, Customer customer, MOAForm form, MOIForm? pairedMoi = null)
     {
-        var required = ClientApprovalService.GetRequiredMoaHolders(customer);
+        var required = ClientApprovalService.GetRequiredMoaHolders(customer, form);
         var records = ClientApprovalService.ParseMoa(form);
         var pendingHolders = required.Where(h => !ClientApprovalService.HasSigned(records, h)).ToList();
         if (pendingHolders.Count == 0) return;
@@ -151,6 +169,9 @@ public class WorkflowNotifier
 
         return ids.Distinct().ToList();
     }
+
+    public async Task EmailUserIdsAsync(IEnumerable<int> userIds, string subject, string textBody) =>
+        await EmailUsersAsync(userIds, subject, textBody);
 
     private async Task EmailUsersAsync(IEnumerable<int> userIds, string subject, string textBody)
     {

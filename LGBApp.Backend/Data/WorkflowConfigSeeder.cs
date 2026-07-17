@@ -26,6 +26,9 @@ public static class WorkflowConfigSeeder
         SeedDivisionGroups(context);
         EnsureMoaFlowchartChain(context);
         EnsureGroupMandatoryApprovers(context);
+        MoiApprovalMatrixSeeder.Seed(context);
+        if (context.Customers.Any())
+            CosecWorkdoneImporter.Seed(context);
     }
 
     private static void SeedClientUsers(AppDbContext context)

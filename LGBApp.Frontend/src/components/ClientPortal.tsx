@@ -8,11 +8,9 @@ import {
   getClientJobs,
   getClientPortalSummary,
   getMOIForms,
-  getMyCompany,
   issueMoiForJob,
   issueMoiJob,
   recordClientJobProgress,
-  updateMoiApprovalMode,
   type JobRequestResponse,
   type JobRequestUnitDto,
   type UserResponse,
@@ -80,8 +78,6 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
   const [error, setError] = useState('');
   const [issuing, setIssuing] = useState(false);
   const [showIssue, setShowIssue] = useState(false);
-  const [moiApprovalMode, setMoiApprovalMode] = useState<'AllRequired' | 'AnyOne'>('AllRequired');
-  const [savingMode, setSavingMode] = useState(false);
   const [issueForm, setIssueForm] = useState({
     service: '',
     typeOfDocument: '',
@@ -99,15 +95,11 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
     setLoading(true);
     setError('');
     try {
-      const [data, portalSummary, company] = await Promise.all([
+      const [data, portalSummary] = await Promise.all([
         getClientJobs(true),
         getClientPortalSummary(),
-        isSignatoryView ? Promise.resolve(null) : getMyCompany(),
       ]);
       setJobs(data);
-      if (company?.moiApprovalMode) {
-        setMoiApprovalMode(company.moiApprovalMode);
-      }
       if (isSignatoryView) {
         setTeamHint('');
       } else if (portalSummary.teamMembers === 0) {
@@ -376,20 +368,6 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
     }
   };
 
-  const handleMoiApprovalModeChange = async (mode: 'AllRequired' | 'AnyOne') => {
-    if (mode === moiApprovalMode) return;
-    setSavingMode(true);
-    setError('');
-    try {
-      const updated = await updateMoiApprovalMode(mode);
-      setMoiApprovalMode(updated.moiApprovalMode ?? mode);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to update MOI signing policy.');
-    } finally {
-      setSavingMode(false);
-    }
-  };
-
   const openMoaForm = (job: JobRequestResponse, unit: JobRequestUnitDto) => {
     if (!canOpenJobForm(job, unit, isSignatoryView, currentUser)) return;
     onOpenMoaForm(jobForUnit(job, unit));
@@ -436,44 +414,12 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
       </div>
 
       {!isSignatoryView && (
-        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-          <div>
-            <h3 className="text-sm font-medium">MOI signing policy</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Choose how many client approvers must sign each MOI before it is released to LGB.
-              MOA always requires every listed MOA signatory.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 text-sm">
-            <label className={`flex items-start gap-2 border rounded-lg px-3 py-2 cursor-pointer ${moiApprovalMode === 'AllRequired' ? 'border-primary bg-primary/5' : 'border-border'}`}>
-              <input
-                type="radio"
-                name="moiApprovalMode"
-                className="mt-1"
-                checked={moiApprovalMode === 'AllRequired'}
-                disabled={savingMode}
-                onChange={() => void handleMoiApprovalModeChange('AllRequired')}
-              />
-              <span>
-                <span className="font-medium">All approvers must sign</span>
-                <span className="block text-xs text-muted-foreground">Every MOI approver signs before LGB intake.</span>
-              </span>
-            </label>
-            <label className={`flex items-start gap-2 border rounded-lg px-3 py-2 cursor-pointer ${moiApprovalMode === 'AnyOne' ? 'border-primary bg-primary/5' : 'border-border'}`}>
-              <input
-                type="radio"
-                name="moiApprovalMode"
-                className="mt-1"
-                checked={moiApprovalMode === 'AnyOne'}
-                disabled={savingMode}
-                onChange={() => void handleMoiApprovalModeChange('AnyOne')}
-              />
-              <span>
-                <span className="font-medium">Any one approver can sign</span>
-                <span className="block text-xs text-muted-foreground">One MOI approver is enough to release to LGB.</span>
-              </span>
-            </label>
-          </div>
+        <div className="bg-card border border-border rounded-lg p-4 space-y-2">
+          <h3 className="text-sm font-medium">MOI approval</h3>
+          <p className="text-xs text-muted-foreground">
+            Each MOI is approved by the single approver mapped for the requester (Approval Matrix).
+            MOA always requires every listed MOA signatory.
+          </p>
         </div>
       )}
 

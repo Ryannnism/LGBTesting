@@ -1,4 +1,6 @@
+using LGBApp.Backend.Data;
 using LGBApp.Backend.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace LGBApp.Backend.Services;
 
@@ -24,11 +26,47 @@ public static class ClientApprovalService
             .ToList();
 
     public static List<AccountHolder> GetRequiredMoaHolders(Customer customer) =>
-        customer.AccountHolders
+        GetRequiredMoaHolders(customer, form: null);
+
+    public static List<AccountHolder> GetRequiredMoaHolders(Customer customer, MOAForm? form)
+    {
+        // Per-job Admin override at Start MOA wins.
+        if (form != null)
+        {
+            var overrideNames = JsonHelper.Deserialize<List<string>>(form.MoaApproversOverrideJson ?? "[]")
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (overrideNames.Count > 0)
+            {
+                return overrideNames.Select(name =>
+                    customer.AccountHolders.FirstOrDefault(h =>
+                        h.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    ?? new AccountHolder { Name = name, NeedsMoa = true }).ToList();
+            }
+        }
+
+        // Prefer Admin-set MoaApproversJson when present.
+        var fromJson = JsonHelper.Deserialize<List<string>>(customer.MoaApproversJson ?? "[]")
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (fromJson.Count > 0)
+        {
+            return fromJson.Select(name =>
+                customer.AccountHolders.FirstOrDefault(h =>
+                    h.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                ?? new AccountHolder { Name = name, NeedsMoa = true }).ToList();
+        }
+
+        return customer.AccountHolders
             .Where(h => h.NeedsMoa && !string.IsNullOrWhiteSpace(h.Name))
             .GroupBy(h => h.AccountHolderId)
             .Select(g => g.First())
             .ToList();
+    }
 
     public static List<string> GetRequiredMoiApproverNames(Customer customer) =>
         GetRequiredMoiApprovalHolders(customer)
@@ -36,21 +74,102 @@ public static class ClientApprovalService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+    public static List<string> GetRequiredMoiApproverNames(MOIForm form, Customer customer)
+    {
+        if (!string.IsNullOrWhiteSpace(form.RequiredApproverName))
+            return [form.RequiredApproverName.Trim()];
+        return GetRequiredMoiApproverNames(customer);
+    }
+
     public static List<string> GetRequiredMoaApproverNames(Customer customer) =>
         GetRequiredMoaHolders(customer)
             .Select(h => h.Name.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    public static AccountHolder? FindMoiApprovalHolderForUser(Customer customer, User user) =>
-        customer.AccountHolders.FirstOrDefault(h => h.UserId == user.UserId && h.NeedsMoiApproval)
-        ?? customer.AccountHolders.FirstOrDefault(h =>
-            h.NeedsMoiApproval
-            && !string.IsNullOrWhiteSpace(h.Email)
-            && h.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase))
-        ?? customer.AccountHolders.FirstOrDefault(h =>
-            h.NeedsMoiApproval
-            && h.Name.Equals(user.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+    public static List<string> GetRequiredMoaApproverNames(Customer customer, MOAForm? form) =>
+        GetRequiredMoaHolders(customer, form)
+            .Select(h => h.Name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    /// <summary>Bind CubeV 1:1 matrix approver onto the MOI at submit time.</summary>
+    public static async Task<bool> TryBindMatrixApproverAsync(
+        AppDbContext context,
+        MOIForm form,
+        User? submitter,
+        string? requestedByName)
+    {
+        MoiApprovalMatrixEntry? entry = null;
+        if (submitter != null && !string.IsNullOrWhiteSpace(submitter.Email))
+        {
+            entry = await context.MoiApprovalMatrixEntries
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.RequesterEmail == submitter.Email.Trim().ToLowerInvariant());
+        }
+
+        if (entry == null && !string.IsNullOrWhiteSpace(requestedByName))
+        {
+            var name = requestedByName.Trim();
+            entry = await context.MoiApprovalMatrixEntries
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.RequesterName == name);
+        }
+
+        // Fall back: parse requestedBy from form JSON
+        if (entry == null)
+        {
+            var fromForm = ReadFormString(form.FormDataJson, "requestedBy")
+                ?? ReadFormString(form.FormDataJson, "projectInitiator");
+            if (!string.IsNullOrWhiteSpace(fromForm))
+            {
+                entry = await context.MoiApprovalMatrixEntries
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.RequesterName == fromForm.Trim());
+            }
+        }
+
+        if (entry == null)
+            return false;
+
+        form.RequiredApproverName = entry.ApproverName;
+        form.RequiredApproverEmail = entry.ApproverEmail.Trim().ToLowerInvariant();
+        return true;
+    }
+
+    public static AccountHolder? FindMoiApprovalHolderForUser(Customer customer, User user, MOIForm? form = null)
+    {
+        if (form != null && !string.IsNullOrWhiteSpace(form.RequiredApproverEmail))
+        {
+            if (user.Email.Equals(form.RequiredApproverEmail, StringComparison.OrdinalIgnoreCase))
+            {
+                return customer.AccountHolders.FirstOrDefault(h =>
+                           !string.IsNullOrWhiteSpace(h.Email)
+                           && h.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase))
+                       ?? new AccountHolder
+                       {
+                           Name = string.IsNullOrWhiteSpace(form.RequiredApproverName)
+                               ? user.Name
+                               : form.RequiredApproverName,
+                           Email = form.RequiredApproverEmail,
+                           UserId = user.UserId,
+                           NeedsMoiApproval = true,
+                       };
+            }
+
+            // Not the matrix approver
+            return null;
+        }
+
+        return customer.AccountHolders.FirstOrDefault(h => h.UserId == user.UserId && h.NeedsMoiApproval)
+            ?? customer.AccountHolders.FirstOrDefault(h =>
+                h.NeedsMoiApproval
+                && !string.IsNullOrWhiteSpace(h.Email)
+                && h.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase))
+            ?? customer.AccountHolders.FirstOrDefault(h =>
+                h.NeedsMoiApproval
+                && h.Name.Equals(user.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
 
     public static AccountHolder? FindMoaHolderForUser(Customer customer, User user) =>
         customer.AccountHolders.FirstOrDefault(h => h.UserId == user.UserId && h.NeedsMoa)
@@ -60,9 +179,12 @@ public static class ClientApprovalService
             && h.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase))
         ?? customer.AccountHolders.FirstOrDefault(h =>
             h.NeedsMoa
-            && h.Name.Equals(user.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+            && h.Name.Equals(user.Name.Trim(), StringComparison.OrdinalIgnoreCase))
+        ?? (JsonHelper.Deserialize<List<string>>(customer.MoaApproversJson ?? "[]")
+                .Any(n => n.Trim().Equals(user.Name.Trim(), StringComparison.OrdinalIgnoreCase))
+            ? new AccountHolder { Name = user.Name.Trim(), Email = user.Email, UserId = user.UserId, NeedsMoa = true }
+            : null);
 
-    /// <summary>External account holder or internal LGB signatory (template/CFO/DLCM).</summary>
     public static string? ResolveMoaSignerName(Customer customer, User user, bool allowInternalSigner)
     {
         var holder = FindMoaHolderForUser(customer, user);
@@ -75,11 +197,6 @@ public static class ClientApprovalService
         return null;
     }
 
-    /// <summary>
-    /// D4: prefer UserId match scoped to this customer’s holder; name fallback only when
-    /// the holder has no UserId (unprovisioned). Internal-only countersign records must
-    /// not satisfy a required client holder via display-name collision.
-    /// </summary>
     public static bool HasSigned(List<ClientApprovalRecord> records, AccountHolder holder)
     {
         if (holder.UserId is int uid && uid > 0)
@@ -89,6 +206,22 @@ public static class ClientApprovalService
         return records.Any(r =>
             r.UserId == 0
             && r.AccountHolderName.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Matrix 1:1 — complete when the required approver has signed (by email or name).</summary>
+    public static bool HasMatrixApproverSigned(MOIForm form, List<ClientApprovalRecord> records)
+    {
+        if (string.IsNullOrWhiteSpace(form.RequiredApproverName)
+            && string.IsNullOrWhiteSpace(form.RequiredApproverEmail))
+            return false;
+
+        return records.Any(r =>
+            (!string.IsNullOrWhiteSpace(form.RequiredApproverName)
+             && r.AccountHolderName.Equals(form.RequiredApproverName.Trim(), StringComparison.OrdinalIgnoreCase))
+            || (!string.IsNullOrWhiteSpace(form.RequiredApproverEmail)
+                && !string.IsNullOrWhiteSpace(r.AccountHolderName)
+                && r.AccountHolderName.Contains('@')
+                && r.AccountHolderName.Equals(form.RequiredApproverEmail, StringComparison.OrdinalIgnoreCase)));
     }
 
     [Obsolete("Use HasSigned(records, AccountHolder) — name-only matching is unsafe.")]
@@ -104,14 +237,22 @@ public static class ClientApprovalService
     public static List<string> PendingApprovers(IEnumerable<AccountHolder> required, List<ClientApprovalRecord> records) =>
         required.Where(h => !HasSigned(records, h)).Select(h => h.Name.Trim()).ToList();
 
-    // Keep name-list overloads for call sites that still pass names (delegate to holders by name on customer when possible)
     public static List<string> PendingApprovers(List<string> requiredNames, List<ClientApprovalRecord> records) =>
         requiredNames.Where(name => !records.Any(r =>
             r.AccountHolderName.Equals(name, StringComparison.OrdinalIgnoreCase))).ToList();
 
-    /// <summary>MOI client phase complete — mode from customer; MOA always requires all signers.</summary>
-    public static bool MoiClientPhaseComplete(Customer customer, List<ClientApprovalRecord> records)
+    /// <summary>MOI client phase — CubeV 1:1 matrix when bound; else legacy holder list.</summary>
+    public static bool MoiClientPhaseComplete(Customer customer, List<ClientApprovalRecord> records) =>
+        MoiClientPhaseComplete(customer, form: null, records);
+
+    public static bool MoiClientPhaseComplete(Customer customer, MOIForm? form, List<ClientApprovalRecord> records)
     {
+        if (form != null && !string.IsNullOrWhiteSpace(form.RequiredApproverName))
+        {
+            return records.Any(r =>
+                r.AccountHolderName.Equals(form.RequiredApproverName.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
         var required = GetRequiredMoiApprovalHolders(customer);
         if (required.Count == 0)
             return true;
@@ -122,13 +263,12 @@ public static class ClientApprovalService
         return AllRequiredSigned(required, records);
     }
 
-    /// <summary>
-    /// MOA sign-off requires every listed client holder. Internal countersignatures
-    /// (UserId not in required client holder set) do not count toward client completion.
-    /// </summary>
-    public static bool MoaClientPhaseComplete(Customer customer, List<ClientApprovalRecord> records)
+    public static bool MoaClientPhaseComplete(Customer customer, List<ClientApprovalRecord> records) =>
+        MoaClientPhaseComplete(customer, form: null, records);
+
+    public static bool MoaClientPhaseComplete(Customer customer, MOAForm? form, List<ClientApprovalRecord> records)
     {
-        var required = GetRequiredMoaHolders(customer);
+        var required = GetRequiredMoaHolders(customer, form);
         return AllRequiredSigned(required, records);
     }
 
@@ -141,7 +281,6 @@ public static class ClientApprovalService
         if (!url.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        // Drawn PNG/JPEG or attached image / PDF
         var comma = url.IndexOf(',');
         if (comma <= 5)
             return false;
@@ -154,5 +293,21 @@ public static class ClientApprovalService
             || meta.Contains("application/pdf");
 
         return okMime && url.Length > comma + 4;
+    }
+
+    private static string? ReadFormString(string? json, string key)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            var map = JsonHelper.Deserialize<Dictionary<string, object?>>(json);
+            if (map != null && map.TryGetValue(key, out var v) && v != null)
+            {
+                var s = v.ToString();
+                return string.IsNullOrWhiteSpace(s) ? null : s;
+            }
+        }
+        catch { /* ignore */ }
+        return null;
     }
 }

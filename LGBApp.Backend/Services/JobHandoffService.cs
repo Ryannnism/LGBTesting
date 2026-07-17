@@ -66,18 +66,26 @@ public static class JobHandoffService
         JobRequest job,
         MOIForm form,
         Customer customer,
-        WorkflowNotifier? notifier = null)
+        WorkflowNotifier? notifier = null,
+        User? submitter = null)
     {
+        await ClientApprovalService.TryBindMatrixApproverAsync(
+            context,
+            form,
+            submitter,
+            requestedByName: null);
+
         var records = ClientApprovalService.ParseMoi(form);
-        if (ClientApprovalService.MoiClientPhaseComplete(customer, records))
+        if (ClientApprovalService.MoiClientPhaseComplete(customer, form, records))
         {
             await OnClientMoiPhaseCompleteAsync(context, job, form);
             return;
         }
 
-        var required = ClientApprovalService.GetRequiredMoiApproverNames(customer);
-        if (required.Count == 0)
+        var required = ClientApprovalService.GetRequiredMoiApproverNames(form, customer);
+        if (required.Count == 0 && string.IsNullOrWhiteSpace(form.RequiredApproverName))
         {
+            // No matrix row and no company approvers — advance (Admin will see unbound forms)
             await OnClientMoiPhaseCompleteAsync(context, job, form);
             return;
         }
@@ -99,7 +107,7 @@ public static class JobHandoffService
         WorkflowNotifier? notifier = null)
     {
         var records = ClientApprovalService.ParseMoi(form);
-        if (!ClientApprovalService.MoiClientPhaseComplete(customer, records))
+        if (!ClientApprovalService.MoiClientPhaseComplete(customer, form, records))
         {
             form.UpdatedAt = DateTime.UtcNow;
             await context.SaveChangesAsync();
@@ -443,9 +451,9 @@ public static class JobHandoffService
         JobRequestUnit? unit = null,
         WorkflowNotifier? notifier = null)
     {
-        var required = ClientApprovalService.GetRequiredMoaApproverNames(customer);
+        var required = ClientApprovalService.GetRequiredMoaApproverNames(customer, form);
         var records = ClientApprovalService.ParseMoa(form);
-        if (!ClientApprovalService.MoaClientPhaseComplete(customer, records))
+        if (!ClientApprovalService.MoaClientPhaseComplete(customer, form, records))
         {
             JobHandoffResolver.MirrorJobHandoff(job, unit, JobHandoffStatuses.MoaCirculation);
             form.UpdatedAt = DateTime.UtcNow;
@@ -509,6 +517,7 @@ public static class JobHandoffService
 
             await context.SaveChangesAsync();
             await WorkflowNotificationService.NotifyJobCompletedAsync(context, job);
+            await PackageCompletionNotifier.TryNotifyIfPackageCompleteAsync(context, job, notifier: null);
             return;
         }
 

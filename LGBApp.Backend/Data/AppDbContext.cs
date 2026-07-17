@@ -50,6 +50,7 @@ public class AppDbContext : DbContext
     public DbSet<PackageScheduleItem> PackageScheduleItems { get; set; }
     public DbSet<DivisionGroup> DivisionGroups { get; set; }
     public DbSet<DivisionGroupRecommender> DivisionGroupRecommenders { get; set; }
+    public DbSet<MoiApprovalMatrixEntry> MoiApprovalMatrixEntries { get; set; }
     public DbSet<FormTemplate> FormTemplates { get; set; }
     public DbSet<WorkflowTemplate> WorkflowTemplates { get; set; }
     public DbSet<WorkflowStepTemplate> WorkflowStepTemplates { get; set; }
@@ -97,6 +98,7 @@ public class AppDbContext : DbContext
             entity.Property(c => c.MoiFormTemplateCode).HasMaxLength(50);
             entity.Property(c => c.MoaFormTemplateCode).HasMaxLength(50);
             entity.Property(c => c.MoaWorkflowTemplateCode).HasMaxLength(50);
+            entity.Property(c => c.MoaApproversJson).HasMaxLength(2000).HasDefaultValue("[]");
             entity.Property(c => c.MoiApprovalMode).HasMaxLength(50).HasDefaultValue(MoiApprovalModes.AllRequired);
             entity.Property(c => c.InvoiceByPartyIdsJson).HasDefaultValue("[]");
             entity.Property(c => c.ChargeToPartyIdsJson).HasDefaultValue("[]");
@@ -229,6 +231,8 @@ public class AppDbContext : DbContext
             entity.HasKey(f => f.MOIFormId);
             entity.Property(f => f.SchemaVersion).HasDefaultValue(1);
             entity.Property(f => f.ConcurrencyStamp).IsConcurrencyToken();
+            entity.Property(f => f.RequiredApproverName).HasMaxLength(200);
+            entity.Property(f => f.RequiredApproverEmail).HasMaxLength(256);
             entity.HasOne(f => f.JobRequest)
                 .WithMany()
                 .HasForeignKey(f => f.JobRequestId)
@@ -250,6 +254,7 @@ public class AppDbContext : DbContext
             entity.HasKey(f => f.MOAFormId);
             entity.Property(f => f.SchemaVersion).HasDefaultValue(1);
             entity.Property(f => f.ConcurrencyStamp).IsConcurrencyToken();
+            entity.Property(f => f.MoaApproversOverrideJson).HasMaxLength(2000).HasDefaultValue("[]");
             entity.HasOne(f => f.JobRequest)
                 .WithMany()
                 .HasForeignKey(f => f.JobRequestId)
@@ -278,6 +283,17 @@ public class AppDbContext : DbContext
             entity.Property(g => g.Name).HasMaxLength(200).IsRequired();
             entity.Property(g => g.MoaWorkflowTemplateCode).HasMaxLength(50);
             entity.Property(g => g.MandatoryMoaApproversJson).HasMaxLength(2000);
+        });
+
+        modelBuilder.Entity<MoiApprovalMatrixEntry>(entity =>
+        {
+            entity.HasKey(e => e.MoiApprovalMatrixEntryId);
+            entity.HasIndex(e => e.RequesterEmail).IsUnique();
+            entity.Property(e => e.GroupCode).HasMaxLength(50);
+            entity.Property(e => e.RequesterName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.RequesterEmail).HasMaxLength(256).IsRequired();
+            entity.Property(e => e.ApproverName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ApproverEmail).HasMaxLength(256).IsRequired();
         });
 
         modelBuilder.Entity<DivisionGroupRecommender>(entity =>

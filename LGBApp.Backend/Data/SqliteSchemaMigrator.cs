@@ -453,6 +453,30 @@ public static class SqliteSchemaMigrator
             """);
 
         EnsureColumn(context, "DivisionGroups", "MandatoryMoaApproversJson", "TEXT NOT NULL DEFAULT '[]'");
+        EnsureColumn(context, "Customers", "MoaApproversJson", "TEXT NOT NULL DEFAULT '[]'");
+        EnsureColumn(context, "MOAForms", "MoaApproversOverrideJson", "TEXT NOT NULL DEFAULT '[]'");
+        EnsureColumn(context, "MOIForms", "RequiredApproverName", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(context, "MOIForms", "RequiredApproverEmail", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn(context, "CustomerPackages", "CompletionNotifiedAt", "TEXT NULL");
+        EnsureMoiApprovalMatrixTable(context);
+    }
+
+    private static void EnsureMoiApprovalMatrixTable(AppDbContext context)
+    {
+        if (TableExists(context, "MoiApprovalMatrixEntries"))
+            return;
+        context.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS "MoiApprovalMatrixEntries" (
+                "MoiApprovalMatrixEntryId" INTEGER NOT NULL CONSTRAINT "PK_MoiApprovalMatrixEntries" PRIMARY KEY AUTOINCREMENT,
+                "GroupCode" TEXT NOT NULL DEFAULT '',
+                "RequesterName" TEXT NOT NULL DEFAULT '',
+                "RequesterEmail" TEXT NOT NULL DEFAULT '',
+                "ApproverName" TEXT NOT NULL DEFAULT '',
+                "ApproverEmail" TEXT NOT NULL DEFAULT ''
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_MoiApprovalMatrixEntries_RequesterEmail"
+                ON "MoiApprovalMatrixEntries" ("RequesterEmail");
+            """);
     }
 
     private static void EnsureColumn(AppDbContext context, string table, string column, string definition)

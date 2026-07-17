@@ -104,11 +104,22 @@ public static class FormMapper
 
         if (customer != null)
         {
-            var requiredHolders = ClientApprovalService.GetRequiredMoiApprovalHolders(customer);
-            response.RequiredApprovers = requiredHolders.Select(h => h.Name.Trim()).ToList();
-            response.PendingApprovers = ClientApprovalService.MoiClientPhaseComplete(customer, records)
-                ? []
-                : ClientApprovalService.PendingApprovers(requiredHolders, records);
+            if (!string.IsNullOrWhiteSpace(form.RequiredApproverName))
+            {
+                response.RequiredApprovers = [form.RequiredApproverName.Trim()];
+                var recordsComplete = ClientApprovalService.MoiClientPhaseComplete(customer, form, records);
+                response.PendingApprovers = recordsComplete
+                    ? []
+                    : [form.RequiredApproverName.Trim()];
+            }
+            else
+            {
+                var requiredHolders = ClientApprovalService.GetRequiredMoiApprovalHolders(customer);
+                response.RequiredApprovers = requiredHolders.Select(h => h.Name.Trim()).ToList();
+                response.PendingApprovers = ClientApprovalService.MoiClientPhaseComplete(customer, form, records)
+                    ? []
+                    : ClientApprovalService.PendingApprovers(requiredHolders, records);
+            }
         }
 
         response.Rejections = FormRejectionService.ParseMoi(form)
@@ -139,7 +150,7 @@ public static class FormMapper
 
         if (customer != null)
         {
-            var requiredHolders = ClientApprovalService.GetRequiredMoaHolders(customer);
+            var requiredHolders = ClientApprovalService.GetRequiredMoaHolders(customer, form);
             response.RequiredApprovers = requiredHolders.Select(h => h.Name.Trim()).ToList();
             response.PendingApprovers = ClientApprovalService.PendingApprovers(requiredHolders, records);
         }

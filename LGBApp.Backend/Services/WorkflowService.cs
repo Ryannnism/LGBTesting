@@ -183,6 +183,18 @@ public static class WorkflowService
         }
 
         var conditions = ParseConditions(form.FinanceRelated, form.BankSignatoryMatter, form.ShareMovement);
+        MOIForm? linkedMoi = null;
+        if (form.MOIFormId.HasValue)
+            linkedMoi = await context.MOIForms.FindAsync(form.MOIFormId.Value);
+
+        // Stamp matrix MOI approver onto MOA formData for sync ResolveAssigneeName.
+        if (linkedMoi != null && !string.IsNullOrWhiteSpace(linkedMoi.RequiredApproverName))
+        {
+            var map = JsonHelper.Deserialize<Dictionary<string, object?>>(form.FormDataJson);
+            map["requiredMoiApprover"] = linkedMoi.RequiredApproverName.Trim();
+            form.FormDataJson = JsonHelper.Serialize(map);
+        }
+
         var instance = new WorkflowInstance
         {
             WorkflowTemplateId = template.WorkflowTemplateId,
@@ -248,6 +260,10 @@ public static class WorkflowService
 
         if (step.AssigneeType == "MoiApprovalHolder" && customer != null)
         {
+            var fromOverride = ReadFormDataString(form?.FormDataJson, "requiredMoiApprover");
+            if (!string.IsNullOrWhiteSpace(fromOverride))
+                return fromOverride.Trim();
+
             var holders = ClientApprovalService.GetRequiredMoiApprovalHolders(customer);
             return holders.Count > 0
                 ? string.Join(", ", holders.Select(h => h.Name))
@@ -256,13 +272,22 @@ public static class WorkflowService
 
         if (step.AssigneeType == "GroupMandatoryApprovers")
         {
-            var names = JsonHelper.Deserialize<List<string>>(division?.MandatoryMoaApproversJson ?? "[]")
+            // Admin company MOA list (or Start-MOA override) — not division spreadsheet column.
+            var fromForm = JsonHelper.Deserialize<List<string>>(form?.MoaApproversOverrideJson ?? "[]")
                 .Where(n => !string.IsNullOrWhiteSpace(n))
                 .Select(n => n.Trim())
                 .ToList();
-            return names.Count > 0
-                ? string.Join(", ", names)
-                : "Group mandatory approvers (none preset)";
+            if (fromForm.Count > 0)
+                return string.Join(", ", fromForm);
+
+            var fromCustomer = JsonHelper.Deserialize<List<string>>(customer?.MoaApproversJson ?? "[]")
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n.Trim())
+                .ToList();
+            if (fromCustomer.Count > 0)
+                return string.Join(", ", fromCustomer);
+
+            return "MOA approvers (none set — Admin)";
         }
 
         if (!string.IsNullOrWhiteSpace(step.AssigneeDisplayName))
@@ -364,6 +389,11 @@ public static class WorkflowService
 
         if (step.AssigneeType == "MoiApprovalHolder" && customer != null)
         {
+            // Prefer matrix-bound MOI on the linked form when assignee was stamped.
+            if (AssigneeListContainsName(step.AssigneeName, user.Name)
+                || user.Email.Equals(step.AssigneeName, StringComparison.OrdinalIgnoreCase))
+                return true;
+
             if (ClientApprovalService.FindMoiApprovalHolderForUser(customer, user) != null)
                 return true;
             return AssigneeListContainsName(step.AssigneeName, user.Name);
