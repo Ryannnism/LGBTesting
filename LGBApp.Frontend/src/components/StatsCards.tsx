@@ -121,14 +121,14 @@ export function StatsCards({ refreshKey = 0 }: StatsCardsProps) {
         icon={<Users className="w-5 h-5" />}
       />
       <StatCard
-        title="Total Revenue"
+        title="Booked package revenue"
         value={`MYR ${(stats.totalRevenue ?? 0).toLocaleString('en-MY', { minimumFractionDigits: 0 })}`}
         change={stats.totalRevenueChange}
         trend={formatChange(stats.totalRevenueChange).startsWith('-') ? 'down' : 'up'}
         icon={<DollarSign className="w-5 h-5" />}
       />
       <StatCard
-        title="Outstanding Services"
+        title="Active work"
         value={(stats.outstandingServices ?? 0).toLocaleString()}
         change={stats.outstandingServicesChange}
         trend={formatChange(stats.outstandingServicesChange).startsWith('-') ? 'down' : 'up'}

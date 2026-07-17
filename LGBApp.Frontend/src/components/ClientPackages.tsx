@@ -44,15 +44,15 @@ export function ClientPackages({ refreshKey = 0 }: ClientPackagesProps) {
 
       {summary && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <div className="bg-card border border-border rounded-lg p-4">
               <p className="text-xs text-muted-foreground">Active packages</p>
               <p className="text-2xl font-semibold mt-1">{summary.activePackages}</p>
             </div>
             <div className="bg-card border border-border rounded-lg p-4">
-              <p className="text-xs text-muted-foreground">Active value (MYR)</p>
+              <p className="text-xs text-muted-foreground">Active value (remaining)</p>
               <p className="text-2xl font-semibold mt-1">
-                {summary.activePackageValue.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
+                MYR {summary.activePackageValue.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
               </p>
             </div>
             <div className="bg-card border border-border rounded-lg p-4">
@@ -62,6 +62,10 @@ export function ClientPackages({ refreshKey = 0 }: ClientPackagesProps) {
             <div className="bg-card border border-border rounded-lg p-4">
               <p className="text-xs text-muted-foreground">Completed tasks</p>
               <p className="text-2xl font-semibold mt-1">{summary.completedJobs}</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <p className="text-xs text-muted-foreground">Team members</p>
+              <p className="text-2xl font-semibold mt-1">{summary.teamMembers}</p>
             </div>
           </div>
           {summary.categoryProgress && summary.categoryProgress.length > 0 && (

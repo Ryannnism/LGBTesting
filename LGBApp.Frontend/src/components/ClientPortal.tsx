@@ -111,7 +111,7 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
       if (isSignatoryView) {
         setTeamHint('');
       } else if (portalSummary.teamMembers === 0) {
-        setTeamHint('Invite additional client admins under the Team tab.');
+        setTeamHint('Invite client admins or signatories under the Team tab.');
       } else {
         setTeamHint('');
       }
@@ -415,11 +415,14 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
         {!isSignatoryView && (
           <button
             type="button"
-            onClick={() => setShowIssue(true)}
+            onClick={() => {
+              setIssueForm({ service: '', typeOfDocument: '', documentTitle: '', adHoc: true });
+              setShowIssue(true);
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
           >
             <Plus className="w-4 h-4" />
-            Issue MOI
+            Request a service
           </button>
         )}
       </div>
@@ -473,7 +476,7 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
 
       {showIssue && (
         <form onSubmit={(e) => void handleIssue(e)} className="bg-card border border-border rounded-lg p-6 space-y-4">
-          <h3 className="font-medium">New MOI</h3>
+          <h3 className="font-medium">Request a service</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm mb-1">Service / document type *</label>
@@ -500,11 +503,11 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
               checked={issueForm.adHoc}
               onChange={(e) => setIssueForm({ ...issueForm, adHoc: e.target.checked })}
             />
-            Ad-hoc service (not tied to package)
+            On-demand / ad-hoc (not tied to a package line)
           </label>
           <div className="flex gap-2">
             <button type="submit" disabled={issuing} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm disabled:opacity-50">
-              {issuing ? 'Issuing…' : 'Issue MOI'}
+              {issuing ? 'Submitting…' : 'Submit request'}
             </button>
             <button type="button" onClick={() => setShowIssue(false)} className="px-4 py-2 border border-border rounded-lg text-sm">
               Cancel
@@ -524,6 +527,14 @@ export function ClientPortal({ currentUser, onOpenMoiForm, onOpenMoaForm, refres
         onMarkDone={isSignatoryView ? undefined : (job, unitNumber) => void handleMarkDone(job, unitNumber)}
         onUndo={isSignatoryView ? undefined : (job, unitNumber) => void handleUndo(job, unitNumber)}
         onActivateSession={(job) => handleActivateSession(job)}
+        onRequestService={
+          isSignatoryView
+            ? undefined
+            : () => {
+                setIssueForm({ service: '', typeOfDocument: '', documentTitle: '', adHoc: true });
+                setShowIssue(true);
+              }
+        }
       />
 
       {workflowChoice && (

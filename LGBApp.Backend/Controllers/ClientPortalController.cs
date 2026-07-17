@@ -64,9 +64,10 @@ public class ClientPortalController : ControllerBase
         var completedJobs = jobs.Count(j => j.Status == "Completed");
 
         var currentUserId = AuthHelper.CurrentUserId(User);
+        // Review #7 §2.2: count the whole company team (admins + signatories), not only admins.
         var teamCount = await _context.Users.CountAsync(u =>
             u.CustomerId == customerId
-            && u.Role == UserRoles.ClientAdmin
+            && (u.Role == UserRoles.ClientAdmin || u.Role == UserRoles.ClientSignatory)
             && (!currentUserId.HasValue || u.UserId != currentUserId.Value));
 
         return new ClientPortalSummaryDto

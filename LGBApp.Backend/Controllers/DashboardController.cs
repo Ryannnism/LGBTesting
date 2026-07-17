@@ -1,4 +1,5 @@
 using LGBApp.Backend.Data;
+using LGBApp.Backend.Models;
 using LGBApp.Backend.Models.DTOs;
 using LGBApp.Backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -51,13 +52,29 @@ public class DashboardController : ControllerBase
             .Where(p => p.PurchasedDate >= lastMonthStart && p.PurchasedDate < thisMonthStart)
             .Sum(p => PackageProration.GetActiveValue(p, lastMonthStart.AddDays(15)));
 
-        var outstandingServices = await _context.JobRequests
-            .CountAsync(j => j.Status == "Pending" || j.Status == "In Progress");
+        // Match the admin job queue: only work past the client-release gate (not the full
+        // seeded package catalog). See SYSTEM_REVIEW_7 §2.1.
+        var openJobs = await _context.JobRequests
+            .Include(j => j.Units)
+            .Where(j => j.Status == "Pending" || j.Status == "In Progress")
+            .ToListAsync();
+        var openJobIds = openJobs.Select(j => j.JobRequestId).ToList();
+        var moisByJobId = openJobIds.Count == 0
+            ? new Dictionary<int, List<MOIForm>>()
+            : (await _context.MOIForms
+                    .Where(f => f.JobRequestId != null && openJobIds.Contains(f.JobRequestId.Value))
+                    .ToListAsync())
+                .GroupBy(f => f.JobRequestId!.Value)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
-        var outstandingLastMonth = await _context.JobRequests
-            .CountAsync(j =>
-                (j.Status == "Pending" || j.Status == "In Progress")
-                && j.DateRequested < thisMonthStart);
+        static bool IsReleased(JobRequest job, IReadOnlyDictionary<int, List<MOIForm>> mois) =>
+            InternalWorkVisibilityHelper.IsJobLineReleasedToInternal(
+                job,
+                mois.GetValueOrDefault(job.JobRequestId) ?? []);
+
+        var outstandingServices = openJobs.Count(j => IsReleased(j, moisByJobId));
+        var outstandingLastMonth = openJobs.Count(j =>
+            j.DateRequested < thisMonthStart && IsReleased(j, moisByJobId));
 
         var totalCompleted = await _context.CompletedServices
             .CountAsync(s => s.Status == "Completed");

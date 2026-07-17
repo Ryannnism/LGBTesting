@@ -173,7 +173,9 @@ export function MyWorkTracker({
       {loading ? (
         <p className="p-6 text-sm text-muted-foreground">Loading...</p>
       ) : orderedItems.length === 0 ? (
-        <p className="p-6 text-sm text-muted-foreground">No assigned work items yet.</p>
+        <p className="p-6 text-sm text-muted-foreground">
+          No active work yet — items appear here once clients start their sessions and you are assigned.
+        </p>
       ) : (
         <div className="overflow-auto">
           <table className="w-full text-sm">

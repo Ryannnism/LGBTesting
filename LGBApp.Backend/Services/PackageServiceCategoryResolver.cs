@@ -14,11 +14,15 @@ public static class PackageServiceCategoryResolver
         "Secretarial & audit",
         "Support services",
         "Lodgement fees",
+        "On-demand",
         "Other services",
     ];
 
-    public static string Resolve(string serviceName)
+    public static string Resolve(string serviceName, string? taskType = null)
     {
+        if (string.Equals(taskType, "MOI", StringComparison.OrdinalIgnoreCase))
+            return "On-demand";
+
         var s = (serviceName ?? string.Empty).Trim();
         if (s.Length == 0)
             return "Other services";

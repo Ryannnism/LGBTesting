@@ -146,7 +146,9 @@ export function JobRequestsTable({
             ) : orderedJobs.length === 0 ? (
               <tr>
                 <td colSpan={isAdmin ? 9 : 8} className="px-4 py-8 text-center text-muted-foreground">
-                  {isAdmin ? 'No active job requests.' : 'No job requests assigned to you.'}
+                  {isAdmin
+                    ? 'No active work yet — items appear here once clients start their sessions and release work to LGB.'
+                    : 'No job requests assigned to you yet — items appear here once clients release work you are assigned to.'}
                 </td>
               </tr>
             ) : (

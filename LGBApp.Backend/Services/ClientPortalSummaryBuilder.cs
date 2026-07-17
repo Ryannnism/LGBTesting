@@ -23,7 +23,9 @@ public static class ClientPortalSummaryBuilder
         IEnumerable<JobRequest> jobs)
     {
         var jobList = jobs
-            .Where(j => string.Equals(j.TaskType, "Service", StringComparison.OrdinalIgnoreCase))
+            .Where(j =>
+                string.Equals(j.TaskType, "Service", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(j.TaskType, "MOI", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         if (jobList.Count == 0)
@@ -52,7 +54,7 @@ public static class ClientPortalSummaryBuilder
             {
                 var moi = FindMoiForUnit(mois, job, unit);
                 var status = PackageItemStatusResolver.ResolveForUnit(job, unit, moi);
-                var category = PackageServiceCategoryResolver.Resolve(job.Service);
+                var category = PackageServiceCategoryResolver.Resolve(job.Service, job.TaskType);
                 statusKeys.Add((category, status.Key));
                 statusKeys.Add((PackageServiceCategoryResolver.AllServices, status.Key));
             }

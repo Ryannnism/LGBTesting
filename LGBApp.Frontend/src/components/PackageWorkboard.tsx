@@ -396,7 +396,9 @@ export function PackageWorkboard({
                 {serviceItems.length === 0 && formItems.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                      No work items yet. Re-save the customer to sync from the product catalog.
+                      No package service lines on this account. Add-ons-only customers request work
+                      on demand from the client portal (Request a service). Re-save the customer
+                      if a catalog package should sync lines here.
                     </td>
                   </tr>
                 ) : (

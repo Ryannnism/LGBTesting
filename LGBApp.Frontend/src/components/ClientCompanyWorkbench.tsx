@@ -29,6 +29,8 @@ interface ClientCompanyWorkbenchProps {
   onUndo?: (job: JobRequestResponse, unitNumber: number) => void | Promise<void>;
   /** Claim next dormant multi-qty session; returns updated job. */
   onActivateSession?: (job: JobRequestResponse) => Promise<JobRequestResponse | void>;
+  /** Add-ons-only / empty package: open ad-hoc request flow. */
+  onRequestService?: () => void;
 }
 
 function jobUnits(job: JobRequestResponse): JobRequestUnitDto[] {
@@ -148,6 +150,14 @@ function ProgressBorderFrame({
   );
 }
 
+function isPortalVisibleJob(job: JobRequestResponse): boolean {
+  return job.taskType === 'Service' || job.taskType === 'MOI';
+}
+
+function jobCategory(job: JobRequestResponse): string {
+  return resolveServiceCategory(job.service, job.taskType);
+}
+
 function collectItems(
   jobs: JobRequestResponse[],
   company: string,
@@ -157,8 +167,8 @@ function collectItems(
   const items: PortalWorkItem[] = [];
   for (const job of jobs) {
     if ((job.customer?.trim() || 'Unknown company') !== company) continue;
-    if (job.taskType !== 'Service') continue;
-    if (category && category !== ALL_SERVICES && resolveServiceCategory(job.service) !== category) continue;
+    if (!isPortalVisibleJob(job)) continue;
+    if (category && category !== ALL_SERVICES && jobCategory(job) !== category) continue;
     for (const unit of jobUnits(job)) {
       const done = unitIsComplete(job, unit);
       if (mode === 'open') {
@@ -178,8 +188,8 @@ function categoryStats(jobs: JobRequestResponse[], company: string) {
   const map = new Map<string, { completed: number; open: number; total: number; remaining: number; needsSign: boolean }>();
   for (const job of jobs) {
     if ((job.customer?.trim() || 'Unknown company') !== company) continue;
-    if (job.taskType !== 'Service') continue;
-    const cat = resolveServiceCategory(job.service);
+    if (!isPortalVisibleJob(job)) continue;
+    const cat = jobCategory(job);
     for (const unit of jobUnits(job)) {
       const row = map.get(cat) ?? { completed: 0, open: 0, total: 0, remaining: 0, needsSign: false };
       row.total += 1;
@@ -209,6 +219,7 @@ export function ClientCompanyWorkbench({
   onMarkDone,
   onUndo,
   onActivateSession,
+  onRequestService,
 }: ClientCompanyWorkbenchProps) {
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -259,8 +270,8 @@ export function ClientCompanyWorkbench({
     const lines: { job: JobRequestResponse; remaining: number }[] = [];
     for (const job of jobs) {
       if ((job.customer?.trim() || 'Unknown company') !== selectedCompany) continue;
-      if (job.taskType !== 'Service') continue;
-      if (resolveServiceCategory(job.service) !== selectedCategory) continue;
+      if (!isPortalVisibleJob(job)) continue;
+      if (jobCategory(job) !== selectedCategory) continue;
       if ((job.totalQty ?? 1) <= 1) continue;
       const remaining = jobUnits(job).filter((u) => isSessionDormant(job, u)).length;
       if (remaining > 0) lines.push({ job, remaining });
@@ -427,7 +438,7 @@ export function ClientCompanyWorkbench({
                   {viewingCompleted
                     ? 'No completed items in this category yet.'
                     : multiQtyAddable.length > 0
-                      ? 'No sessions in progress. Start one below when you need it.'
+                      ? 'No sessions in progress. Start the next session below when you need it.'
                       : 'All items in this category are complete.'}
                 </p>
                 {!viewingCompleted && multiQtyAddable.length > 0 && onActivateSession && (
@@ -441,7 +452,9 @@ export function ClientCompanyWorkbench({
                         className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
                       >
                         <Plus className="w-4 h-4" />
-                        {activatingJobId === job.id ? 'Starting…' : `Add ${job.service}`}
+                        {activatingJobId === job.id
+                          ? 'Starting…'
+                          : `Start next session — ${job.service}`}
                         <span className="text-xs opacity-80">({remaining} left)</span>
                       </button>
                     ))}
@@ -480,7 +493,9 @@ export function ClientCompanyWorkbench({
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        {activatingJobId === job.id ? 'Starting…' : `Add ${job.service}`}
+                        {activatingJobId === job.id
+                          ? 'Starting…'
+                          : `Start next session — ${job.service}`}
                         <span className="text-xs text-muted-foreground">{remaining} left</span>
                       </button>
                     ))}
@@ -490,14 +505,16 @@ export function ClientCompanyWorkbench({
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground mb-1">
                       {viewingCompleted ? 'Completed' : 'Open'} item {safeIndex + 1} of {workItems.length}
-                      {(current.job.totalQty ?? 1) > 1 ? ` · session #${current.unit.unitNumber}` : ''}
+                      {(current.job.totalQty ?? 1) > 1
+                        ? ` · Session ${current.unit.unitNumber} of ${current.job.totalQty}`
+                        : ''}
                     </p>
                     <h3 className="text-lg font-semibold break-words">
                       {jobDisplayTitle(current.job, current.unit)}
                     </h3>
                     {/* Bucket stays on service category — never on document title */}
                     <p className="text-xs text-muted-foreground mt-1">
-                      {resolveServiceCategory(current.job.service)}
+                      {jobCategory(current.job)}
                     </p>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${packageItemStatusBadgeClass(displayStatusKeyForUnit(current.job, current.unit))}`}>
@@ -630,9 +647,23 @@ export function ClientCompanyWorkbench({
           </div>
         </div>
         {categories.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {browseMode === 'completed' ? 'No completed items yet.' : 'No package services for this company yet.'}
-          </p>
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {browseMode === 'completed'
+                ? 'No completed items yet.'
+                : 'No package service lines on this account yet. You can still request an on-demand service when you need one.'}
+            </p>
+            {!isSignatoryView && browseMode === 'open' && onRequestService && (
+              <button
+                type="button"
+                onClick={onRequestService}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg"
+              >
+                <Plus className="w-4 h-4" />
+                Request a service
+              </button>
+            )}
+          </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {categories.map((cat) => {
@@ -662,7 +693,7 @@ export function ClientCompanyWorkbench({
                         : cat.open > 0
                           ? `${cat.open} open · ${cat.completed} done`
                           : cat.remaining > 0
-                            ? `${cat.remaining} available to start`
+                            ? `${cat.remaining} session${cat.remaining === 1 ? '' : 's'} not started`
                             : `${cat.completed} done`}
                     </span>
                   </button>

@@ -43,9 +43,10 @@ public class ClientJobsController : ControllerBase
         if (accessibleCustomerIds != null)
             query = query.Where(j => j.CustomerId.HasValue && accessibleCustomerIds.Contains(j.CustomerId.Value));
 
-        // Review #4 §6: push external Service-only filter into SQL; page in DB.
+        // External portal: package lines (Service) + ad-hoc / on-demand MOI requests.
+        // Review #7 §2.3: ad-hoc issue-moi creates TaskType=MOI — must not be filtered out.
         if (AuthHelper.IsExternalUser(User))
-            query = query.Where(j => j.TaskType == "Service");
+            query = query.Where(j => j.TaskType == "Service" || j.TaskType == "MOI");
 
         // Omit page/pageSize → return full set (client portal company tiles need every job).
         var jobs = await Pagination.Apply(

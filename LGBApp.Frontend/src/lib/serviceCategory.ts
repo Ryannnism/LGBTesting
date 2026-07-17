@@ -9,12 +9,14 @@ export const SERVICE_CATEGORY_ORDER = [
   'Secretarial & audit',
   'Support services',
   'Lodgement fees',
+  'On-demand',
   'Other services',
 ] as const;
 
 export type ServiceCategory = (typeof SERVICE_CATEGORY_ORDER)[number];
 
-export function resolveServiceCategory(serviceName: string): ServiceCategory {
+export function resolveServiceCategory(serviceName: string, taskType?: string): ServiceCategory {
+  if (taskType === 'MOI') return 'On-demand';
   const s = (serviceName ?? '').trim();
   if (!s) return 'Other services';
 

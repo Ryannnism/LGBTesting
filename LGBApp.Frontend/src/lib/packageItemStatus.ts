@@ -268,6 +268,17 @@ export function resolveUnitDisplayStatus(
   job: JobRequestResponse,
   unit: JobRequestUnitDto,
 ): { key: string; label: string } {
+  // Multi-qty dormant: not started until client activates a session.
+  if (
+    (job.totalQty ?? 1) > 1
+    && unit.status !== 'Completed'
+    && !unit.clientActivatedAt
+  ) {
+    return {
+      key: PACKAGE_ITEM_STATUS_KEYS.notStarted,
+      label: `Session ${unit.unitNumber} of ${job.totalQty} — not started`,
+    };
+  }
   if (unit.displayStatusKey) {
     return {
       key: unit.displayStatusKey,
