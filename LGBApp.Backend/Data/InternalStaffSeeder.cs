@@ -4,27 +4,42 @@ using LGBApp.Backend.Services;
 namespace LGBApp.Backend.Data;
 
 /// <summary>
-/// Seeds LGB internal team: Sharon (admin + intake/MOI/MOA sign-off), resolution prep staff (assigned work only).
-/// Default password only for Development; production must pass SEED_STAFF_PASSWORD via env (C2).
-/// Also ensures live email-chain test accounts (gmail admin / berkeley client).
+/// Seeds LGB internal team from CubeV Cosec Email + Group Legal Email tabs.
+/// Sharon + Poh Li are Admins. SEED_STAFF_PASSWORD required in non-Development.
 /// </summary>
 public static class InternalStaffSeeder
 {
     private static readonly (string Email, string Name, string Role, string JobTitle,
-        bool CanApproveMoiIntake, bool CanRecommendMoi, bool CanApproveMoi, bool CanApproveMoa)[] Staff =
+        bool CanApproveMoiIntake, bool CanRecommendMoi, bool CanApproveMoi, bool CanApproveMoa,
+        bool IsInternalSignatory)[] Staff =
     [
-        ("sharon@lgb.test", "Sharon", UserRoles.Admin, "Senior Manager, Company Secretarial", true, true, true, true),
-        // Live email-chain testing (Resend): admin + full MOA powers
-        ("ryannnism@gmail.com", "Ryan Admin", UserRoles.Admin, "Senior Manager, Company Secretarial", true, true, true, true),
-        ("ngpohli@lgb.test", "Ng Poh Li", UserRoles.User, "Resolution preparation", false, false, false, false),
-        ("nita@lgb.test", "Nita", UserRoles.User, "Resolution preparation", false, false, false, false),
-        ("siti@lgb.test", "Siti", UserRoles.User, "Resolution preparation", false, false, false, false),
-        ("nadia@lgb.test", "Nadia", UserRoles.User, "Resolution preparation", false, false, false, false),
+        ("sharon@lgb.com.my", "Sharon", UserRoles.Admin, "Senior Manager, Company Secretarial", true, true, true, true, true),
+        ("pohli.ng@taliworks.com.my", "Ng Poh Li", UserRoles.Admin, "Senior Manager, Company Secretarial", true, true, true, true, true),
+        ("dzatin.zaharuddin@taliworks.com.my", "Nita", UserRoles.User, "Resolution preparation", false, false, false, false, false),
+        ("zalila.zainal@lgb.com.my", "Siti", UserRoles.User, "Resolution preparation", false, false, false, false, false),
+        ("nadia.rahman@taliworks.com.my", "Nadia", UserRoles.User, "Resolution preparation", false, false, false, false, false),
+        ("raj@taliworks.com.my", "Datin Raj", UserRoles.User, "Group Legal", false, false, false, true, true),
+        ("seetmei.lee@taliworks.com.my", "Seet Mei", UserRoles.User, "Group Legal", false, false, false, true, true),
+        ("deenee.ooi@taliworks.com.my", "Dee Nee", UserRoles.User, "Group Legal", false, false, false, true, true),
+        ("sutina.sujeno@taliworks.com.my", "Sutina", UserRoles.User, "Group Legal", false, false, false, true, true),
+        // Live email-chain testing
+        ("ryannnism@gmail.com", "Ryan Admin", UserRoles.Admin, "Senior Manager, Company Secretarial", true, true, true, true, true),
+    ];
+
+    /// <summary>Old seed emails → real CubeV addresses (update in place on existing DBs).</summary>
+    private static readonly (string From, string To)[] EmailAliases =
+    [
+        ("sharon@lgb.test", "sharon@lgb.com.my"),
+        ("ngpohli@lgb.test", "pohli.ng@taliworks.com.my"),
+        ("nita@lgb.test", "dzatin.zaharuddin@taliworks.com.my"),
+        ("siti@lgb.test", "zalila.zainal@lgb.com.my"),
+        ("nadia@lgb.test", "nadia.rahman@taliworks.com.my"),
     ];
 
     private static readonly string[] IntakeApproverEmails =
     [
-        "sharon@lgb.test",
+        "sharon@lgb.com.my",
+        "pohli.ng@taliworks.com.my",
         "ryannnism@gmail.com",
         "danra69@gmail.com",
     ];
@@ -41,7 +56,16 @@ public static class InternalStaffSeeder
             throw new InvalidOperationException(
                 $"Initial staff password must be at least {PasswordPolicy.MinLength} characters.");
 
-        foreach (var (email, name, role, jobTitle, canApproveIntake, canRecommend, canApproveMoi, canApproveMoa) in Staff)
+        foreach (var (from, to) in EmailAliases)
+        {
+            var old = context.Users.FirstOrDefault(u => u.Email == from);
+            if (old == null) continue;
+            if (context.Users.Any(u => u.Email == to))
+                continue; // real account already exists — leave alias row alone
+            old.Email = to;
+        }
+
+        foreach (var (email, name, role, jobTitle, canApproveIntake, canRecommend, canApproveMoi, canApproveMoa, isInternalSignatory) in Staff)
         {
             var existing = context.Users.FirstOrDefault(u => u.Email == email);
             if (existing != null)
@@ -53,6 +77,7 @@ public static class InternalStaffSeeder
                 existing.CanRecommendMoi = canRecommend;
                 existing.CanApproveMoi = canApproveMoi;
                 existing.CanApproveMoa = canApproveMoa;
+                existing.IsInternalSignatory = isInternalSignatory;
                 if (resetPasswordsInDevelopment)
                 {
                     existing.PasswordHash = PasswordHasher.Hash(initialPassword);
@@ -73,6 +98,7 @@ public static class InternalStaffSeeder
                 CanRecommendMoi = canRecommend,
                 CanApproveMoi = canApproveMoi,
                 CanApproveMoa = canApproveMoa,
+                IsInternalSignatory = isInternalSignatory,
                 IsVerified = true,
                 MustChangePassword = true,
                 CreatedAt = DateTime.UtcNow,
@@ -90,10 +116,6 @@ public static class InternalStaffSeeder
         context.SaveChanges();
     }
 
-    /// <summary>
-    /// Client portal test account for live email-chain runs (berkeley.edu).
-    /// Linked to the first Active customer when present.
-    /// </summary>
     private static void EnsureLiveTestClientAdmin(
         AppDbContext context,
         string initialPassword,
