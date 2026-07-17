@@ -69,10 +69,11 @@ builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<SignatoryAccessService>();
 builder.Services.AddScoped<SignatoryDedupService>();
 builder.Services.AddScoped<PasswordResetService>();
-builder.Services.AddScoped<WorkflowNotifier>();
 builder.Services.AddSingleton<IAppClock, SystemAppClock>();
+builder.Services.AddScoped<ApprovalActionTokenService>();
 builder.Services.AddScoped<ReminderEvaluationService>();
 builder.Services.AddHostedService<ReminderWorker>();
+builder.Services.AddScoped<WorkflowNotifier>();
 builder.Services.AddHttpClient<ResendEmailSender>();
 var resendKey = builder.Configuration["Email:ResendApiKey"];
 if (!string.IsNullOrWhiteSpace(resendKey))

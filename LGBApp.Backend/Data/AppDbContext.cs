@@ -57,6 +57,7 @@ public class AppDbContext : DbContext
     public DbSet<WorkflowInstance> WorkflowInstances { get; set; }
     public DbSet<WorkflowStepInstance> WorkflowStepInstances { get; set; }
     public DbSet<ReminderLog> ReminderLogs { get; set; }
+    public DbSet<ApprovalActionToken> ApprovalActionTokens { get; set; }
     public DbSet<ServiceJobForm> ServiceJobForms { get; set; }
     public DbSet<BillingParty> BillingParties { get; set; }
     public DbSet<JobItemDocument> JobItemDocuments { get; set; }
@@ -403,6 +404,20 @@ public class AppDbContext : DbContext
             entity.Property(r => r.Kind).HasMaxLength(80).IsRequired();
             entity.Property(r => r.TargetEntityType).HasMaxLength(80).IsRequired();
             entity.HasIndex(r => new { r.Kind, r.TargetEntityType, r.TargetEntityId }).IsUnique();
+        });
+
+        modelBuilder.Entity<ApprovalActionToken>(entity =>
+        {
+            entity.HasKey(t => t.ApprovalActionTokenId);
+            entity.Property(t => t.TokenHash).HasMaxLength(128).IsRequired();
+            entity.Property(t => t.AssigneeEmail).HasMaxLength(256);
+            entity.Property(t => t.AssigneeName).HasMaxLength(200);
+            entity.HasIndex(t => t.TokenHash).IsUnique();
+            entity.HasIndex(t => t.WorkflowStepInstanceId);
+            entity.HasOne(t => t.WorkflowStepInstance)
+                .WithMany()
+                .HasForeignKey(t => t.WorkflowStepInstanceId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<AppNotification>(entity =>

@@ -15,8 +15,13 @@ namespace LGBApp.Backend.Controllers;
 public class WorkflowInstancesController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly WorkflowNotifier _notifier;
 
-    public WorkflowInstancesController(AppDbContext context) => _context = context;
+    public WorkflowInstancesController(AppDbContext context, WorkflowNotifier notifier)
+    {
+        _context = context;
+        _notifier = notifier;
+    }
 
     [HttpGet("moa/{moaFormId}")]
     public async Task<ActionResult<WorkflowInstanceDto>> GetForMoa(int moaFormId)
@@ -58,6 +63,12 @@ public class WorkflowInstancesController : ControllerBase
             form.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             await JobHandoffService.OnMoaWorkflowCompletedAsync(_context, moaFormId);
+        }
+        else if (form != null)
+        {
+            var next = instance.Steps.FirstOrDefault(s => s.Status == "Active");
+            if (next != null)
+                await _notifier.NotifyMoaStepActivatedAsync(form, next, customer);
         }
 
         return await WorkflowService.GetWorkflowForMoaAsync(_context, moaFormId)

@@ -12,17 +12,20 @@ public class WorkflowNotifier
     private readonly IEmailSender _email;
     private readonly IConfiguration _config;
     private readonly ILogger<WorkflowNotifier> _logger;
+    private readonly ApprovalActionTokenService? _tokens;
 
     public WorkflowNotifier(
         AppDbContext context,
         IEmailSender email,
         IConfiguration config,
-        ILogger<WorkflowNotifier> logger)
+        ILogger<WorkflowNotifier> logger,
+        ApprovalActionTokenService? tokens = null)
     {
         _context = context;
         _email = email;
         _config = config;
         _logger = logger;
+        _tokens = tokens;
     }
 
     public async Task NotifyMoiPendingSignOffAsync(JobRequest job, Customer customer, MOIForm form)
@@ -199,34 +202,8 @@ public class WorkflowNotifier
 
     public async Task NotifyMoaStepReminderAsync(JobRequest job, Customer customer, MOAForm form, WorkflowStepInstance step)
     {
-        var title = DisplayTitle(job, null);
-        var message = $"{job.Customer} — MOA step “{step.DisplayName}” ({step.AssigneeName}) is still awaiting action.";
-        var userIds = new List<int>();
-        if (step.AssigneeUserId.HasValue)
-            userIds.Add(step.AssigneeUserId.Value);
-        else if (!string.IsNullOrWhiteSpace(step.AssigneeName))
-        {
-            var names = step.AssigneeName.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            var holders = customer.AccountHolders
-                .Where(h => names.Any(n => h.Name.Equals(n, StringComparison.OrdinalIgnoreCase)))
-                .ToList();
-            userIds.AddRange(await ResolveUserIdsAsync(holders, customer.CustomerId));
-            // Also match internal users by name
-            var byName = await _context.Users.AsNoTracking()
-                .Where(u => names.Contains(u.Name))
-                .Select(u => u.UserId)
-                .ToListAsync();
-            userIds.AddRange(byName);
-        }
-
-        await WorkflowNotificationService.NotifyUsersAsync(
-            _context, userIds.Distinct().ToList(), "moa_step_reminder", "MOA step awaiting action", message,
-            job.JobRequestId, customer.CustomerId);
-
-        await EmailUsersAsync(
-            userIds,
-            "Reminder: MOA approval — " + job.Customer,
-            BuildActionBody(job, title, "MOA", $"Step “{step.DisplayName}” still needs your action."));
+        // Re-issue fresh single-use links on each reminder tick when email is enabled
+        await NotifyMoaStepActivatedAsync(form, step, customer);
     }
 
     public async Task NotifyMoaCosecStalledAsync(JobRequest job, MOAForm form, WorkflowStepInstance step)
@@ -247,6 +224,92 @@ public class WorkflowNotifier
             "Alert: MOA stage stalled — " + job.Customer,
             BuildActionBody(job, title, "MOA",
                 $"Step “{step.DisplayName}” ({step.AssigneeName}) has had no approval for 144+ hours. Please follow up."));
+    }
+
+    public async Task NotifyMoaStepActivatedAsync(MOAForm form, WorkflowStepInstance step, Customer? customer)
+    {
+        JobRequest? job = null;
+        if (form.JobRequestId.HasValue)
+            job = await _context.JobRequests.FindAsync(form.JobRequestId.Value);
+
+        var tokenService = _tokens;
+        if (tokenService == null)
+        {
+            _logger.LogWarning("ApprovalActionTokenService unavailable — MOA step email without action links.");
+            return;
+        }
+
+        var links = await tokenService.IssueLinksForActiveStepAsync(step, form, customer);
+        var title = job != null
+            ? (string.IsNullOrWhiteSpace(job.Service) ? job.TaskType : job.Service)
+            : form.Company;
+        var company = form.Company;
+
+        foreach (var link in links)
+        {
+            if (string.IsNullOrWhiteSpace(link.Email))
+                continue;
+
+            var subject = $"Action required: approve MOA — {company}";
+            var text =
+                $"Company: {company}\n" +
+                $"Document: {title}\n" +
+                $"Step: {step.DisplayName}\n" +
+                $"Assignee: {link.Name}\n\n" +
+                $"Approve (no login): {link.ApproveUrl}\n" +
+                $"Reject: {link.RejectUrl}\n\n" +
+                "This link is single-use and expires in 72 hours.\n";
+            var html =
+                $"<p><strong>{System.Net.WebUtility.HtmlEncode(company)}</strong></p>" +
+                $"<p>MOA step <em>{System.Net.WebUtility.HtmlEncode(step.DisplayName)}</em> needs your approval.</p>" +
+                $"<p><a href=\"{link.ApproveUrl}\" style=\"display:inline-block;padding:10px 16px;background:#0f766e;color:#fff;text-decoration:none;border-radius:6px\">Approve</a></p>" +
+                $"<p style=\"font-size:0.9rem\"><a href=\"{link.RejectUrl}\">Reject instead</a></p>" +
+                "<p style=\"font-size:0.85rem;color:#666\">Single-use link · expires in 72 hours · does not sign you into the app.</p>";
+
+            try
+            {
+                await _email.SendAsync(link.Email, subject, text, html);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send MOA email-action to {Email}", link.Email);
+            }
+        }
+
+        if (job != null && customer != null)
+        {
+            var userIds = links
+                .Where(l => !string.IsNullOrWhiteSpace(l.Email))
+                .Select(l => l.Email)
+                .Distinct()
+                .ToList();
+            // In-app notify for matched users
+            var ids = await _context.Users.AsNoTracking()
+                .Where(u => userIds.Contains(u.Email))
+                .Select(u => u.UserId)
+                .ToListAsync();
+            await WorkflowNotificationService.NotifyUsersAsync(
+                _context, ids, "moa_step_action", "MOA step awaiting approval",
+                $"{company} — {step.DisplayName} needs approval.",
+                job.JobRequestId, customer.CustomerId);
+        }
+    }
+
+    public async Task NotifyMoaEmailRejectionAsync(JobRequest job, MOAForm form, WorkflowStepInstance step, string reason)
+    {
+        var cosecIds = await _context.Users.AsNoTracking()
+            .Where(u => u.Role == UserRoles.Admin || u.Role == UserRoles.User)
+            .Select(u => u.UserId)
+            .ToListAsync();
+        var message = $"{job.Customer} — MOA step “{step.DisplayName}” rejected via email: {reason}";
+        await WorkflowNotificationService.NotifyUsersAsync(
+            _context, cosecIds, "moa_email_reject", "MOA step rejected (email)", message,
+            job.JobRequestId, job.CustomerId);
+        await EmailUsersAsync(
+            cosecIds,
+            "MOA rejection via email — " + job.Customer,
+            BuildActionBody(job, step.DisplayName, "MOA",
+                $"Assignee rejected this step.\nReason: {reason}\nThe chain was not advanced."));
     }
 
     public async Task EmailUserIdsAsync(IEnumerable<int> userIds, string subject, string textBody) =>

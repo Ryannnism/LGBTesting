@@ -462,6 +462,33 @@ public static class SqliteSchemaMigrator
         EnsureColumn(context, "WorkflowStepInstances", "ActivatedAt", "TEXT NULL");
         EnsureMoiApprovalMatrixTable(context);
         EnsureReminderLogsTable(context);
+        EnsureApprovalActionTokensTable(context);
+    }
+
+    private static void EnsureApprovalActionTokensTable(AppDbContext context)
+    {
+        if (TableExists(context, "ApprovalActionTokens"))
+            return;
+        context.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS "ApprovalActionTokens" (
+                "ApprovalActionTokenId" INTEGER NOT NULL CONSTRAINT "PK_ApprovalActionTokens" PRIMARY KEY AUTOINCREMENT,
+                "TokenHash" TEXT NOT NULL,
+                "WorkflowStepInstanceId" INTEGER NOT NULL,
+                "MoaFormId" INTEGER NOT NULL,
+                "AssigneeUserId" INTEGER NULL,
+                "AssigneeEmail" TEXT NOT NULL DEFAULT '',
+                "AssigneeName" TEXT NOT NULL DEFAULT '',
+                "ExpiresAt" TEXT NOT NULL,
+                "ConsumedAt" TEXT NULL,
+                "CreatedAt" TEXT NOT NULL,
+                CONSTRAINT "FK_ApprovalActionTokens_WorkflowStepInstances_WorkflowStepInstanceId"
+                    FOREIGN KEY ("WorkflowStepInstanceId") REFERENCES "WorkflowStepInstances" ("WorkflowStepInstanceId") ON DELETE CASCADE
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_ApprovalActionTokens_TokenHash"
+                ON "ApprovalActionTokens" ("TokenHash");
+            CREATE INDEX IF NOT EXISTS "IX_ApprovalActionTokens_WorkflowStepInstanceId"
+                ON "ApprovalActionTokens" ("WorkflowStepInstanceId");
+            """);
     }
 
     private static void EnsureReminderLogsTable(AppDbContext context)

@@ -366,7 +366,16 @@ public class MOAFormsController : ControllerBase
         var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
         await WorkflowService.InitializeMoaWorkflowAsync(_context, form, customer);
         await JobHandoffService.OnMoaWorkflowStartedAsync(_context, form);
+
         var workflow = await WorkflowService.GetWorkflowForMoaAsync(_context, id);
+        var active = await _context.WorkflowStepInstances
+            .Include(s => s.WorkflowInstance)
+            .FirstOrDefaultAsync(s => s.WorkflowInstance != null
+                && s.WorkflowInstance.MoaFormId == id
+                && s.Status == "Active");
+        if (active != null)
+            await _notifier.NotifyMoaStepActivatedAsync(form, active, customer);
+
         return FormMapper.ToMoaResponse(form, workflow);
     }
 
