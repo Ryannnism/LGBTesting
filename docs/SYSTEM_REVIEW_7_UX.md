@@ -716,6 +716,8 @@ Method: re-traced §10 claims to current code after MS5 + CubeV ops landed. Suit
 
 ### Next (ordered)
 
+**Ops handover (pushes, env names, user guide, email directory, close-out):** [`HANDOVER.md`](./HANDOVER.md).
+
 1. ~~Optional: pass `WorkflowNotifier` into package-complete~~ **Done**
 2. ~~**W1 scheduler**~~ **Shipped foundation** — `ReminderWorker` + `ReminderLog` + caps; **log-only by default** (`Reminders:SendEmail=false`). Wall-clock UTC. Set `Reminders__SendEmail=true` on Railway only after verifying logs.
 3. ~~W4 no-login tokens~~ **Shipped for MOA steps** (not MOI; not stage-1 broadcast). Requires `App:PublicApiUrl`.
