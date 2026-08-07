@@ -54,8 +54,20 @@ public class WorkflowInstancesController : ControllerBase
         if (!await WorkflowService.CanUserApproveStepAsync(_context, user, step, customer, isAdmin))
             return Forbid();
 
+        // M5: a comment on approval is a bounce, not a sign-off — the chain holds here.
+        var comment = (request.Comments ?? "").Trim();
+        if (comment.Length > 0)
+        {
+            step.Comments = $"Returned by {user.Name}: {comment}";
+            await _context.SaveChangesAsync();
+            await NotifyBounceAsync(form, step, comment, MoaBounceKind.ApprovalComment);
+
+            return await WorkflowService.GetWorkflowForMoaAsync(_context, moaFormId)
+                ?? throw new InvalidOperationException("Workflow missing after bounce.");
+        }
+
         step.ApprovedByUserId = user.UserId;
-        step.Comments = request.Comments;
+        step.Comments = $"Approved by {user.Name}";
         await WorkflowService.AdvanceWorkflowAsync(_context, instance, step);
 
         if (instance.Status == "Completed" && form != null)
@@ -73,6 +85,52 @@ public class WorkflowInstancesController : ControllerBase
 
         return await WorkflowService.GetWorkflowForMoaAsync(_context, moaFormId)
             ?? throw new InvalidOperationException("Workflow missing after approve.");
+    }
+
+    [HttpPost("moa/{moaFormId}/reject-step")]
+    public async Task<ActionResult<WorkflowInstanceDto>> RejectMoaStep(int moaFormId, ApproveWorkflowStepRequest request)
+    {
+        var user = await GetCurrentUserAsync();
+        if (user == null) return Unauthorized();
+
+        var reason = (request.Comments ?? "").Trim();
+        if (reason.Length < 3)
+            return BadRequest(new { message = "Enter a reason for rejecting this step." });
+
+        var instance = await _context.WorkflowInstances
+            .Include(i => i.Steps)
+            .FirstOrDefaultAsync(i => i.MoaFormId == moaFormId && i.Status == "Active");
+        if (instance == null) return NotFound("No active workflow.");
+
+        var step = await WorkflowService.GetCurrentStepAsync(_context, instance);
+        if (step == null) return BadRequest(new { message = "No active step." });
+
+        var form = await _context.MOAForms.FindAsync(moaFormId);
+        var customer = form != null
+            ? await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company)
+            : null;
+
+        if (!await WorkflowService.CanUserApproveStepAsync(_context, user, step, customer, AuthHelper.IsAdmin(User)))
+            return Forbid();
+
+        step.Comments = $"Rejected by {user.Name}: {reason}";
+        await _context.SaveChangesAsync();
+        await NotifyBounceAsync(form, step, reason, MoaBounceKind.Rejected);
+
+        return await WorkflowService.GetWorkflowForMoaAsync(_context, moaFormId)
+            ?? throw new InvalidOperationException("Workflow missing after reject.");
+    }
+
+    private async Task NotifyBounceAsync(MOAForm? form, WorkflowStepInstance step, string reason, MoaBounceKind kind)
+    {
+        if (form == null)
+            return;
+
+        JobRequest? job = null;
+        if (form.JobRequestId is int jobId)
+            job = await _context.JobRequests.FindAsync(jobId);
+
+        await _notifier.NotifyMoaBounceAsync(job, form, step, reason, kind);
     }
 
     [HttpPost("moa/{moaFormId}/admin-override")]

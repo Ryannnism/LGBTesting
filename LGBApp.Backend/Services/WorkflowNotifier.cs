@@ -5,6 +5,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LGBApp.Backend.Services;
 
+/// <summary>Why a MOA step bounced back to cosec (flowchart M5).</summary>
+public enum MoaBounceKind
+{
+    Rejected,
+    ApprovalComment,
+}
+
 /// <summary>In-app notifications + email for MOI/MOA client signature actions.</summary>
 public class WorkflowNotifier
 {
@@ -343,22 +350,44 @@ public class WorkflowNotifier
             .Select(u => u.UserId)
             .ToListAsync();
 
-    public async Task NotifyMoaEmailRejectionAsync(JobRequest job, MOAForm form, WorkflowStepInstance step, string reason)
+    /// <summary>
+    /// Flowchart M5 — an approver's comment or rejection bounces the ticket back to the whole
+    /// cosec team, and the chain does not advance past the commented step.
+    /// </summary>
+    public async Task NotifyMoaBounceAsync(
+        JobRequest? job,
+        MOAForm form,
+        WorkflowStepInstance step,
+        string reason,
+        MoaBounceKind kind)
     {
-        var cosecIds = await _context.Users.AsNoTracking()
-            .Where(u => u.Role == UserRoles.Admin || u.Role == UserRoles.User)
-            .Select(u => u.UserId)
-            .ToListAsync();
-        var message = $"{job.Customer} — MOA step “{step.DisplayName}” rejected via email: {reason}";
+        var cosecIds = await GetCosecAndLegalUserIdsAsync();
+        if (cosecIds.Count == 0)
+            return;
+
+        var company = job?.Customer ?? form.Company;
+        var what = kind == MoaBounceKind.Rejected ? "rejected" : "returned with comments";
+        var title = kind == MoaBounceKind.Rejected ? "MOA step rejected" : "MOA step returned with comments";
+
         await WorkflowNotificationService.NotifyUsersAsync(
-            _context, cosecIds, "moa_email_reject", "MOA step rejected (email)", message,
-            job.JobRequestId, job.CustomerId);
-        await EmailUsersAsync(
-            cosecIds,
-            "MOA rejection via email — " + job.Customer,
-            BuildActionBody(job, step.DisplayName, "MOA",
-                $"Assignee rejected this step.\nReason: {reason}\nThe chain was not advanced."));
+            _context, cosecIds, "moa_bounce", title,
+            $"{company} — MOA step “{step.DisplayName}” {what}: {reason}",
+            job?.JobRequestId, job?.CustomerId);
+
+        var frontend = (_config["App:PublicFrontendUrl"] ?? "").TrimEnd('/');
+        var body =
+            $"Company: {company}\n" +
+            $"Step: {step.DisplayName} ({step.AssigneeName})\n" +
+            $"Outcome: {what}\n" +
+            $"Comments: {reason}\n\n" +
+            "The approval chain was not advanced — the step is back with cosec.\n\n" +
+            (string.IsNullOrWhiteSpace(frontend) ? "Sign in to LGB Services to take action.\n" : $"Open: {frontend}\n");
+
+        await EmailUsersAsync(cosecIds, $"MOA {what} — {company}", body);
     }
+
+    public async Task NotifyMoaEmailRejectionAsync(JobRequest job, MOAForm form, WorkflowStepInstance step, string reason) =>
+        await NotifyMoaBounceAsync(job, form, step, reason, MoaBounceKind.Rejected);
 
     public async Task EmailUserIdsAsync(IEnumerable<int> userIds, string subject, string textBody) =>
         await EmailUsersAsync(userIds, subject, textBody);

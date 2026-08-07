@@ -80,11 +80,33 @@ public class EmailActionsController : ControllerBase
 
         await _tokens.ConsumeAsync(row);
 
+        var form = await _context.MOAForms.FindAsync(row.MoaFormId);
+
+        // M5: comments on approval bounce the ticket to cosec instead of advancing.
+        var comment = (request.Comments ?? "").Trim();
+        if (comment.Length > 0)
+        {
+            step.Comments = $"Returned via email by {row.AssigneeName}: {comment}";
+            await _context.SaveChangesAsync();
+
+            if (form != null)
+            {
+                JobRequest? commentJob = null;
+                if (form.JobRequestId is int commentJobId)
+                    commentJob = await _context.JobRequests.FindAsync(commentJobId);
+                await _notifier.NotifyMoaBounceAsync(commentJob, form, step, comment, MoaBounceKind.ApprovalComment);
+            }
+
+            return Content(HtmlPage(
+                "Comments recorded",
+                $"Thank you. Your comments on “{step.DisplayName}” have been sent back to the secretarial team, "
+                + "so the approval chain has not moved on. You can close this window."), "text/html");
+        }
+
         step.ApprovedByUserId = row.AssigneeUserId;
-        step.Comments = request.Comments ?? $"Approved via email by {row.AssigneeName}".Trim();
+        step.Comments = $"Approved via email by {row.AssigneeName}".Trim();
         await WorkflowService.AdvanceWorkflowAsync(_context, instance, step);
 
-        var form = await _context.MOAForms.FindAsync(row.MoaFormId);
         if (instance.Status == "Completed" && form != null)
         {
             form.UpdatedAt = DateTime.UtcNow;
@@ -151,10 +173,12 @@ public class EmailActionsController : ControllerBase
             + "button{background:#0f766e;color:#fff}</style></head><body>"
             + "<h1>Approve MOA step</h1>"
             + $"<p><strong>{c}</strong><br/>Step: {s}<br/>Assignee: {a}</p>"
+            + "<p>Leave the box empty to approve and move the chain on. Anything you write is treated as a "
+            + "query and sends the document back to the secretarial team instead.</p>"
             + $"<form method=\"post\" action=\"/api/email-actions/{t}/approve\">"
-            + "<label>Optional comments</label>"
-            + "<textarea name=\"Comments\" placeholder=\"Comments (optional)\"></textarea>"
-            + "<button type=\"submit\">Approve</button></form>"
+            + "<label>Comments (sends it back to cosec)</label>"
+            + "<textarea name=\"Comments\" placeholder=\"Leave empty to approve\"></textarea>"
+            + "<button type=\"submit\">Submit</button></form>"
             + $"<p style=\"margin-top:1.5rem;font-size:.9rem\"><a href=\"/api/email-actions/{t}?intent=reject\">Reject instead</a></p>"
             + "</body></html>";
     }

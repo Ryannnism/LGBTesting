@@ -10,6 +10,7 @@ import {
   approveMoaWorkflowStep,
   downloadMoaExportPack,
   getInternalDirectoryUsers,
+  rejectMoaWorkflowStep,
   resolveFormTemplate,
   saveBlobAsFile,
   type ClientApprovalDto,
@@ -159,6 +160,7 @@ export function MOAFormModal({
   const [submitError, setSubmitError] = useState('');
   const packErrorsRef = useRef<HTMLDivElement | null>(null);
   const [stepComments, setStepComments] = useState('');
+  const [stepActionError, setStepActionError] = useState('');
   const [clientSignComments, setClientSignComments] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [sharonRejectReason, setSharonRejectReason] = useState('');
@@ -442,9 +444,26 @@ export function MOAFormModal({
 
   const handleApproveStep = async () => {
     if (!workflow || !moaFormId) return;
-    const updated = await approveMoaWorkflowStep(moaFormId, stepComments);
-    setWorkflow(updated);
-    setStepComments('');
+    setStepActionError('');
+    try {
+      const updated = await approveMoaWorkflowStep(moaFormId, stepComments);
+      setWorkflow(updated);
+      setStepComments('');
+    } catch (err) {
+      setStepActionError(err instanceof ApiError ? err.message : 'Failed to record your decision.');
+    }
+  };
+
+  const handleRejectStep = async () => {
+    if (!workflow || !moaFormId) return;
+    setStepActionError('');
+    try {
+      const updated = await rejectMoaWorkflowStep(moaFormId, stepComments);
+      setWorkflow(updated);
+      setStepComments('');
+    } catch (err) {
+      setStepActionError(err instanceof ApiError ? err.message : 'Failed to reject this step.');
+    }
   };
 
   const handleAdminOverrideStep = async (stepId: number) => {
@@ -900,20 +919,34 @@ export function MOAFormModal({
                   </div>
                 ))}
                 {currentStep && viewMode && (
-                  <div className="flex gap-2 items-center">
-                    <input
-                      className="flex-1 px-3 py-2 border border-border rounded-lg text-sm"
-                      placeholder="Approval comments"
-                      value={stepComments}
-                      onChange={(e) => setStepComments(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleApproveStep()}
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
-                    >
-                      Approve step
-                    </button>
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Leave comments empty to approve and move the chain on. Anything you write sends the
+                      document back to the secretarial team instead.
+                    </p>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        className="flex-1 px-3 py-2 border border-border rounded-lg text-sm"
+                        placeholder="Comments (sends it back to cosec)"
+                        value={stepComments}
+                        onChange={(e) => setStepComments(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleApproveStep()}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
+                      >
+                        {stepComments.trim() ? 'Send back to cosec' : 'Approve step'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleRejectStep()}
+                        className="px-4 py-2 border border-destructive text-destructive rounded-lg text-sm"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                    {stepActionError && <p className="text-xs text-destructive">{stepActionError}</p>}
                   </div>
                 )}
               </div>

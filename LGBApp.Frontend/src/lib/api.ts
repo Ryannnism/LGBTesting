@@ -1338,6 +1338,13 @@ export async function approveMoaWorkflowStep(moaFormId: number, comments: string
   });
 }
 
+export async function rejectMoaWorkflowStep(moaFormId: number, comments: string): Promise<WorkflowInstanceDto> {
+  return request<WorkflowInstanceDto>(`/api/workflowinstances/moa/${moaFormId}/reject-step`, {
+    method: 'POST',
+    body: JSON.stringify({ comments }),
+  });
+}
+
 export async function adminOverrideMoaStep(
   moaFormId: number,
   stepInstanceId: number,
