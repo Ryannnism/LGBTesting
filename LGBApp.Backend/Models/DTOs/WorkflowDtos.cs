@@ -83,6 +83,14 @@ public class FormFieldDefinitionDto
     public string Section { get; set; } = "main";
 }
 
+/// <summary>MS6 / C3 — cosec adds approvers to a chain that is already running.</summary>
+public class InsertCosecApproverRequest
+{
+    public List<string> ApproverNames { get; set; } = new();
+    /// <summary>Insert after this step order. Defaults to immediately after the active step.</summary>
+    public int? AfterStepOrder { get; set; }
+}
+
 public class DivisionGroupDto
 {
     public int Id { get; set; }

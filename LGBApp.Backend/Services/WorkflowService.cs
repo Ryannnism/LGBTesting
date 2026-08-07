@@ -151,7 +151,8 @@ public static class WorkflowService
             "Applicable" => true,
             "LoaHolders" => customer?.HasLoa == true || HasLoaHolders(customer),
             "BoardApproval" => customer?.HasLoa != true,
-            // Review #7 W5 MS6: Cosec-added steps are inserted at runtime (C3) — skip until then.
+            // MS6 never starts as part of the chain: cosec inserts it mid-flight via
+            // InsertCosecStepAsync (C3), which creates the step instance directly.
             "CosecAdded" => false,
             _ => true,
         };
@@ -470,6 +471,81 @@ public static class WorkflowService
         var t = jobTitle.ToLowerInvariant();
         return t.Contains("manager") || t.Contains("director") || t.Contains("head")
             || t.Contains("cfo") || t.Contains("ceo") || t.Contains("coo") || t.Contains("gm");
+    }
+
+    /// <summary>MS6 / C3 — the step key cosec-inserted approvers are created under.</summary>
+    public const string CosecAddedStepKey = "CosecAdded";
+
+    /// <summary>
+    /// Flowchart C3 / T2b — cosec adds approvers to a running chain. The new step lands
+    /// immediately after <paramref name="afterStepOrder"/> (default: after the active step) and
+    /// every later step shifts down one, so the linear scan in
+    /// <see cref="AdvanceWorkflowAsync"/> still reaches them in order.
+    /// </summary>
+    public static async Task<WorkflowStepInstance> InsertCosecStepAsync(
+        AppDbContext context,
+        WorkflowInstance instance,
+        IEnumerable<string> approverNames,
+        int? afterStepOrder = null)
+    {
+        var names = approverNames
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (names.Count == 0)
+            throw new InvalidOperationException("At least one approver name is required.");
+
+        if (instance.Status != "Active")
+            throw new InvalidOperationException("Cannot add approvers to a workflow that is not active.");
+
+        var steps = instance.Steps.OrderBy(s => s.StepOrder).ToList();
+        var active = steps.FirstOrDefault(s => s.Status == "Active");
+        var anchor = afterStepOrder ?? active?.StepOrder ?? steps.LastOrDefault()?.StepOrder ?? 0;
+
+        // Inserting before or at a step that already happened would silently skip the new approver.
+        var lastSettled = steps
+            .Where(s => s.Status is "Approved" or "AdminOverridden")
+            .Select(s => s.StepOrder)
+            .DefaultIfEmpty(0)
+            .Max();
+        if (anchor < lastSettled)
+            throw new InvalidOperationException("Cannot insert an approver before a step that is already approved.");
+        if (active != null && anchor < active.StepOrder)
+            throw new InvalidOperationException("Cannot insert an approver before the step in progress.");
+
+        var insertAt = anchor + 1;
+        foreach (var later in steps.Where(s => s.StepOrder >= insertAt))
+            later.StepOrder++;
+
+        var inserted = new WorkflowStepInstance
+        {
+            WorkflowInstanceId = instance.WorkflowInstanceId,
+            StepOrder = insertAt,
+            StepKey = CosecAddedStepKey,
+            DisplayName = "Additional approvers (Cosec)",
+            ConditionType = "CosecAdded",
+            AssigneeType = "NamedUser",
+            AssigneeName = string.Join(", ", names),
+            Status = "Pending",
+        };
+        instance.Steps.Add(inserted);
+
+        // Only relevant when nothing is active yet — otherwise the active step keeps the pointer.
+        if (active == null)
+        {
+            inserted.Status = "Active";
+            inserted.ActivatedAt = DateTime.UtcNow;
+            instance.CurrentStepOrder = inserted.StepOrder;
+        }
+        else
+        {
+            instance.CurrentStepOrder = active.StepOrder;
+        }
+
+        instance.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+        return inserted;
     }
 
     public static async Task AdvanceWorkflowAsync(AppDbContext context, WorkflowInstance instance, WorkflowStepInstance step)

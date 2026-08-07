@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DateInput } from './DateInput';
 import { JobItemDocumentsSection } from './JobItemDocumentsSection';
 import {
+  addMoaCosecApprover,
   adminOverrideMoaStep,
   ApiError,
   approveMoaWorkflowStep,
@@ -161,6 +162,7 @@ export function MOAFormModal({
   const packErrorsRef = useRef<HTMLDivElement | null>(null);
   const [stepComments, setStepComments] = useState('');
   const [stepActionError, setStepActionError] = useState('');
+  const [cosecApproverNames, setCosecApproverNames] = useState('');
   const [clientSignComments, setClientSignComments] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [sharonRejectReason, setSharonRejectReason] = useState('');
@@ -463,6 +465,26 @@ export function MOAFormModal({
       setStepComments('');
     } catch (err) {
       setStepActionError(err instanceof ApiError ? err.message : 'Failed to reject this step.');
+    }
+  };
+
+  const handleAddCosecApprover = async () => {
+    if (!workflow || !moaFormId) return;
+    const names = cosecApproverNames
+      .split(',')
+      .map((n) => n.trim())
+      .filter(Boolean);
+    if (names.length === 0) {
+      setStepActionError('Enter at least one approver name.');
+      return;
+    }
+    setStepActionError('');
+    try {
+      const updated = await addMoaCosecApprover(moaFormId, names);
+      setWorkflow(updated);
+      setCosecApproverNames('');
+    } catch (err) {
+      setStepActionError(err instanceof ApiError ? err.message : 'Failed to add approvers.');
     }
   };
 
@@ -947,6 +969,30 @@ export function MOAFormModal({
                       </button>
                     </div>
                     {stepActionError && <p className="text-xs text-destructive">{stepActionError}</p>}
+                  </div>
+                )}
+
+                {!isClientUser && workflow.status === 'Active' && (
+                  <div className="space-y-2 border-t border-border pt-4">
+                    <p className="text-xs text-muted-foreground">
+                      Add approvers to this chain (MS6). They are inserted straight after the step in
+                      progress and are emailed when their turn comes.
+                    </p>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        className="flex-1 px-3 py-2 border border-border rounded-lg text-sm"
+                        placeholder="Approver names, comma-separated"
+                        value={cosecApproverNames}
+                        onChange={(e) => setCosecApproverNames(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleAddCosecApprover()}
+                        className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-muted"
+                      >
+                        Add approvers
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

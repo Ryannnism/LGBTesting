@@ -87,6 +87,43 @@ public class WorkflowInstancesController : ControllerBase
             ?? throw new InvalidOperationException("Workflow missing after approve.");
     }
 
+    [HttpPost("moa/{moaFormId}/add-approver")]
+    public async Task<ActionResult<WorkflowInstanceDto>> AddCosecApprover(int moaFormId, InsertCosecApproverRequest request)
+    {
+        if (!AuthHelper.IsInternalStaff(User))
+            return Forbid();
+
+        var instance = await _context.WorkflowInstances
+            .Include(i => i.Steps)
+            .FirstOrDefaultAsync(i => i.MoaFormId == moaFormId && i.Status == "Active");
+        if (instance == null) return NotFound("No active workflow.");
+
+        WorkflowStepInstance inserted;
+        try
+        {
+            inserted = await WorkflowService.InsertCosecStepAsync(
+                _context, instance, request.ApproverNames, request.AfterStepOrder);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+
+        // Only email when the new step is the one now waiting — otherwise it waits its turn.
+        if (inserted.Status == "Active")
+        {
+            var form = await _context.MOAForms.FindAsync(moaFormId);
+            if (form != null)
+            {
+                var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+                await _notifier.NotifyMoaStepActivatedAsync(form, inserted, customer);
+            }
+        }
+
+        return await WorkflowService.GetWorkflowForMoaAsync(_context, moaFormId)
+            ?? throw new InvalidOperationException("Workflow missing after insert.");
+    }
+
     [HttpPost("moa/{moaFormId}/reject-step")]
     public async Task<ActionResult<WorkflowInstanceDto>> RejectMoaStep(int moaFormId, ApproveWorkflowStepRequest request)
     {
