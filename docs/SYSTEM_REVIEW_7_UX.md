@@ -724,3 +724,50 @@ Method: re-traced §10 claims to current code after MS5 + CubeV ops landed. Suit
 4. MS6/C3 → B5 quarterly. ~~B6 PDF~~ **Done (QuestPDF).**
 
 **Do not regress:** W3, MS1–MS7, MS5 Group fallback, matrix bind, Print Pack, §5 UX.
+
+---
+
+## 14. Close-out build (2026-08-08, HEAD `2aac242`)
+
+Method: built the §13 remainder in dependency order, then verified the live Postgres schema and migration history directly. Suite **143** green. Both remotes level on `2aac242`.
+
+### 14.1 The deploy blocker nobody saw
+
+Every deploy from 17 July to 8 August **failed**, so §13's "shipped" items were in `main` but never ran in production. The 17 July SQLite → Postgres import used pgloader's `drop indexes`, which strips all keys before copying and restores them afterwards — and that restore never completed. `Pg_Baseline` was then *stamped* over the result, so production ran for three weeks with **no primary keys, no foreign keys and 7 of 76 indexes**, and identity sequences still at 1.
+
+Two symptoms, one cause:
+
+- `Pg_EmailActionTokens` could not add its foreign key to `WorkflowStepInstances` ("no unique constraint matching given keys"), which aborted startup and therefore every deploy.
+- EF handed out ids that live rows already held. `WorkflowStepTemplates` accumulated three colliding rows when W5 reseeded the MOA chains.
+
+Fixed by `Migrations/Postgres/20260717095000_Pg_RepairPgloaderSchema.cs`: renumber the collided rows, restore 26 primary keys, 32 foreign keys and 42 indexes, and roll each identity sequence forward to `MAX(id)`. Every statement is guarded, so it is a no-op on a database built correctly from `Pg_Baseline`. Verified against production after deploy: **0 tables without a primary key, 33 foreign keys, 76 indexes**, and all four previously-stuck migrations applied.
+
+`DatabaseBootstrap` now prints a `[Startup] WARNING: these Postgres tables have no primary key` line, and `POSTGRES_MIGRATION_GUIDE.md` §8 gained a key-verification acceptance check, because `StampBaselineIfLegacyDatabase` trusts that an existing database matches the migration it stamps.
+
+### 14.2 Scorecard delta against §13
+
+| Item | §13 | Now | Notes |
+|---|---|---|---|
+| MOA chain actually starts | ❌ | ✅ | `SHOW_MOA_SEQUENTIAL_WORKFLOW` was `false`, so no instance was ever created; MS1 also issued tokens with empty emails because job titles were matched against `Users.Name` |
+| MS6 Cosec-added (C3) | ❌ | ✅ | `InsertCosecStepAsync` renumbers later steps and refuses inserts before an approved step; `StepApplies("CosecAdded") => false` stays, since the step is runtime-only |
+| B5 quarterly report | ❌ | ✅ | `GET /api/reports/billing/quarterly` — PDF (QuestPDF) + CSV + JSON, Admin-only; invoices now stamp `IssuedAt` when they leave Draft |
+| M1 stage-1 broadcast | ❌ | ✅ | Legal + secretarial, scoped to LGB / Bellworth / SWM; notification-only, no approve links |
+| T3 last point of approval | ❌ | ✅ | Persisted on `MOIForm`, required when `withLOA`, and preferred by MS7 over the seeded Dato' Lim |
+| M5 bounce-on-comment | ⚠️ | ✅ | Any approver comment bounces to the whole cosec set and holds the step Active, in-app and by email; in-app reject endpoint added |
+| MS5 mandatory list editable | ❌ | ✅ | Was seed-only — the PUT rewrote recommenders but never `MandatoryMoaApproversJson` |
+| Matrix fail-open | ⚠️ | ✅ | Unrouted forms park in a needs-approver state and submit returns an actionable 400; Admin queue clears them. The company-approver fallback is untouched, since the matrix names 34 requesters against ~169 companies |
+| W4 MOI no-login approve | ⚠️ | ✅ by spec | **Not built.** Clause R5 requires MOI approvers to log in, so login-only is the conformant behaviour, not a gap |
+| W1 reminder **emails** | ❌ | ⚠️ | Engine verified: `ReminderLogs` holds real R3/R4 rows and the worker ticks every 15 min. Still `SendEmail=false` — see 14.3 |
+
+### 14.3 What is left, and why it is not code
+
+Only ops actions remain, and all of them need the client's Resend account or DNS:
+
+1. `Email__From` is still `onboarding@resend.dev`, Resend's sandbox sender, which only delivers to the Resend account owner. A real sending domain must be verified in Resend first.
+2. `Reminders__SendEmail=true` should follow (1), not precede it — flipping it while the sender is the sandbox address means executive reminders reach nobody.
+3. Rotate `Email__ResendApiKey` (Resend dashboard) and `Jwt__Key` (signs everyone out, so pick the moment). `SEED_STAFF=false` is already set and 19 of 21 staff accounts still carry `MustChangePassword`.
+
+### 14.4 Engine vs automation
+
+- **Decision engine ~100%** of the flowchart as written: MS1–MS7 run, including the runtime insert and the bounce semantics.
+- **Unattended layer** is built and verified in log-only mode; it becomes real the moment a verified sending domain exists.

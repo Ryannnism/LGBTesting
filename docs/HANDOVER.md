@@ -74,7 +74,25 @@ Postgres cutover: [`POSTGRES_MIGRATION_GUIDE.md`](./POSTGRES_MIGRATION_GUIDE.md)
 
 ## 3. Enhancements shipped (recent, high-signal)
 
-HEAD at handover writing: **`1c84dc5`**.
+HEAD: **`2aac242`**.
+
+### 3.1 Close-out build (8 Aug 2026)
+
+Built the §7 remainder in dependency order. Trail in [`SYSTEM_REVIEW_7_UX.md`](./SYSTEM_REVIEW_7_UX.md) §14.
+
+| Commit | What it does |
+|---|---|
+| `6b3d7dc` | MOA chain actually starts — the sequential UI was flag-gated off, and MS1 matched job titles against `Users.Name`, so it issued tokens with empty emails |
+| `681b93a` | Admins can edit the MS5 mandatory approver list (the PUT previously dropped it) |
+| `857db76` | **M1** stage-1 broadcast to legal + secretarial, scoped to LGB / Bellworth / SWM |
+| `c0119a9` | **T3** MOI last point of approval persisted, required with LOA, and preferred by MS7 |
+| `bcb6a4d` | **M5** any approver comment bounces to all cosec and holds the step; in-app reject added |
+| `15b79d3` | **MS6/C3** cosec inserts approvers into a running chain, with step renumbering |
+| `c99ab34` | Unroutable MOIs park for Admin assignment instead of skipping client approval |
+| `9f008ed` | **B5** quarterly billing report — PDF + CSV + JSON, Admin-only; `IssuedAt` now stamped |
+| `2aac242` | Restored the primary keys, foreign keys and indexes a pgloader import silently dropped — this is what had been failing every deploy since 17 July |
+
+### 3.2 Earlier waves
 
 | Commit / area | What it does |
 |---|---|
@@ -87,7 +105,7 @@ HEAD at handover writing: **`1c84dc5`**.
 | `1c84dc5` | **B6** real PDF invoices (QuestPDF), not `.txt` |
 | Earlier waves | Review #2–#5 Postgres/resilience; Print Pack; multi-qty sessions; UX label/count fixes; MOA chain MS1–MS7 |
 
-**Tests:** backend suite ~106 passing at last full run. Always re-run before push.
+**Tests:** 143 passing at last full run. Always re-run before push.
 
 ---
 
@@ -117,7 +135,7 @@ Secrets live in **Railway → LGBTesting service → Variables**. Do not put the
 
 | Variable | Default | When to set |
 |---|---|---|
-| `Reminders__SendEmail` | `false` (appsettings) | Set `true` **only after** Railway logs show correct ReminderLog rows |
+| `Reminders__SendEmail` | `false` (appsettings) | Logs are verified — `ReminderLogs` holds real R3/R4 rows. Set `true` **only after** a sending domain is verified (§4.4), otherwise the mail reaches nobody |
 | `Reminders__IntervalMinutes` | worker default | Tune poll cadence if needed |
 | `LGB_UPLOAD_ROOT` | `/data/uploads` | Volume mount for file storage |
 
@@ -174,8 +192,9 @@ Secrets live in **Railway → LGBTesting service → Variables**. Do not put the
 
 | Task | How |
 |---|---|
-| MOI approve / reject | **Login required** — open link to frontend, sign in, act on form |
+| MOI approve / reject | **Login required** — open link to frontend, sign in, act on form. This is per clause R5, not a missing feature |
 | MOA approve / reject | Login **or** one-time email link (72h, single use) if W4 email was sent |
+| **Leaving a comment on a MOA step** | A comment **bounces the form back to cosec** and the step stays open, whether you approve or reject (clause M5). Approve with the comment box empty if you simply mean yes |
 | Reminders | Engine evaluates every interval; emails only if `Reminders__SendEmail=true` |
 
 ### 5.5 Admin (Sharon / Poh Li / Ryan Admin)
@@ -186,6 +205,9 @@ Secrets live in **Railway → LGBTesting service → Variables**. Do not put the
 | Recommend / approve MOI | Per capabilities on user record |
 | MOA company list / Start-MOA override | Admin MOA tools |
 | Set company `MoaApproversJson` / Group mandatory | Company / division group admin — **required for LGB Group MS5** |
+| **MOIs waiting for an approver** | Admin dashboard queue. A form lands here when the requester matches no Approval Matrix row and the company has no MOI approver. Enter the approver's name and email to release it — it will not proceed on its own, by design |
+| **Add approvers to a running MOA** | Open the MOA, use the add-approver control in the chain section (MS6/C3). They are inserted after the current step and everyone later shifts down one |
+| **Quarterly billing report (B5)** | Admin → Reports. Pick year and quarter, download PDF or CSV. Covers invoices in the quarter, package value and quota used. There is no Finance role — the Finance Head signs in with an Admin account |
 | Invoices | List + download **PDF** (`{id}/pdf`) |
 | Staff / seed | Prefer UI user management; avoid re-running `SEED_STAFF=true` on live |
 
@@ -215,6 +237,20 @@ dotnet run --project LGBApp.Backend -- seed-full
 
 # Tests
 dotnet test LGBApp.Backend.Tests/LGBApp.Backend.Tests.csproj
+
+# Quarterly billing report (B5) — Admin token required
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://lgbtesting-production-4d6b.up.railway.app/api/reports/billing/quarterly?year=2026&quarter=3&format=csv"
+```
+
+**Schema health check** — run this against Postgres after any restore or re-import. It must return no rows; see §7.3.
+
+```sql
+SELECT rel.relname AS table_without_primary_key
+FROM pg_class rel
+JOIN pg_namespace ns ON ns.oid = rel.relnamespace
+WHERE ns.nspname = 'public' AND rel.relkind = 'r'
+  AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conrelid = rel.oid AND c.contype = 'p');
 ```
 
 ---
@@ -332,20 +368,24 @@ Built seed: `LGBApp.Backend/Data/Seed/cubev-init.json`
 
 The product should be treated as **complete after the close-out list below**. These are not “nice to haves”; they are remaining CubeV / Review #7 obligations. Do them in order, then stop enhancing unless the client changes the flowchart.
 
-### 7.1 Close-out checklist (required)
+**As of 8 Aug 2026 the code side is finished.** What remains is three operational actions that need the client's Resend account and a chosen handover moment — nothing further to build.
 
-| # | Gap | Why it matters | Exact fix |
+### 7.1 Close-out checklist
+
+Items 3–9 are **built and deployed** as of `2aac242` (8 Aug 2026); see [`SYSTEM_REVIEW_7_UX.md`](./SYSTEM_REVIEW_7_UX.md) §14 for the per-item trail. Only 1, 2 and 10 remain, and all three need the client's Resend account or DNS rather than code.
+
+| # | Gap | Status | What is left |
 |---|---|---|---|
-| 1 | Reminder **emails** off | R3/R4/M3/M4 only log today | Verify Railway logs for `ReminderLog` / worker ticks → set `Reminders__SendEmail=true` → watch one live reminder → leave on |
-| 2 | Resend **from-domain** | Pilot may only reach owner inbox | Verify domain in Resend; set `Email__From` to that domain; retest one WorkflowNotifier send |
-| 3 | **MS6 / C3** Cosec mid-flight insert | `CosecAdded => false` — step never applies | Implement runtime Cosec-added approver insert; flip `StepApplies` / condition; dual-provider migration if new columns; tests for insert mid-chain |
-| 4 | **B5** quarterly billing report | Finance Head has no 3-monthly report | New report endpoint + UI or scheduled email (reuse `ReminderWorker` / hosted service); define date window and recipient |
-| 5 | **M1** stage-1 broadcast | LGB / Bellworth / SWM stage-1 not broadcast | Wire notify-all for stage-1 per flowchart; do not invent recipients — use CubeV tabs |
-| 6 | **T3 / M5** last-point-of-approval + bounce-on-comment | Incomplete conformance | Add last-point field; on comment/reject bounce notify all Cosec per spec |
-| 7 | Matrix **fail-open** | Unmatched requester can proceed without HOD | After logging is trusted: **fail-closed** (block submit) or force Admin assign; never silent pass in production |
-| 8 | LGB Group **MS5 empty** | Mandatory list blank until configured | Admin sets `MandatoryMoaApproversJson` / per-company `MoaApproversJson` from CubeV before LGB live MOA |
-| 9 | MOI still **login-only** | W4 covers MOA only | If client requires MOI email approve: extend token issuer to MOI with same 72h single-use rules; else document as accepted |
-| 10 | Secret rotation | Keys may have appeared in agent tooling | Rotate Resend + JWT + staff passwords (see §4.5) |
+| 1 | Reminder **emails** off | ⚠️ engine verified | `ReminderLogs` holds real R3/R4 rows and the worker ticks every 15 min, so the pipeline is proven. Set `Reminders__SendEmail=true` **after** item 2, then watch one live reminder. Flipping it first sends executive mail from a sandbox address that reaches nobody |
+| 2 | Resend **from-domain** | ❌ blocked on DNS | Verify a real domain in Resend, point `Email__From` at it, retest one WorkflowNotifier send. Until then delivery is limited to the Resend account owner (§4.4) |
+| 3 | **MS6 / C3** Cosec mid-flight insert | ✅ | — `WorkflowService.InsertCosecStepAsync` + chain UI control |
+| 4 | **B5** quarterly billing report | ✅ | — `GET /api/reports/billing/quarterly?year=&quarter=&format=pdf\|csv`, Admin tab UI. No Finance role exists; the Finance Head uses an Admin account |
+| 5 | **M1** stage-1 broadcast | ✅ | — legal + secretarial, scoped to LGB / Bellworth / SWM, notification-only |
+| 6 | **T3 / M5** last-point-of-approval + bounce-on-comment | ✅ | — persisted on `MOIForm` and preferred by MS7; any approver comment bounces to all cosec and holds the step |
+| 7 | Matrix **fail-open** | ✅ | — unrouted forms park and submit returns an actionable 400; clear them from the Admin queue. The company-approver fallback is deliberately kept |
+| 8 | LGB Group **MS5 empty** | ✅ code, ops data pending | The list is now editable in Admin → Workflow config. **Enter the LGB names from CubeV before the first live LGB MOA** — do not invent them |
+| 9 | MOI still **login-only** | ✅ conformant by spec | **Nothing to build.** Clause R5 requires MOI approvers to log in, so login-only is correct. Earlier entries treating this as a gap were wrong |
+| 10 | Secret rotation | ❌ handover-day action | Rotate `Email__ResendApiKey` (Resend dashboard) and `Jwt__Key` (signs everyone out — pick the moment). `SEED_STAFF=false` is already set; 19 of 21 staff still carry `MustChangePassword`. See §4.5 |
 
 ### 7.2 Explicitly out of scope (do not build)
 
@@ -358,16 +398,18 @@ The product should be treated as **complete after the close-out list below**. Th
 
 The product is **done** when all of the following are true:
 
-1. `Reminders__SendEmail=true` and at least one R3 and one M3 email observed in production.  
-2. Resend sends from a verified org domain.  
-3. MS6/C3 works in a live dry-run (Cosec inserts mid-flight; step applies).  
-4. Finance can download or receive a **3-monthly** billing report (B5).  
-5. Stage-1 broadcast (M1) matches flowchart for LGB / Bellworth / SWM.  
-6. T3/M5 last-point + bounce-on-comment behave per flowchart.  
-7. Matrix unmatched requesters cannot silently skip HOD (fail-closed or Admin path).  
-8. LGB MS5 mandatory list populated for companies that go live.  
-9. Secrets rotated; `SEED_STAFF=false`; `dotnet test` green; both remotes on same `main` SHA.  
-10. This handover + SR7 §13 are updated to mark each item ✅.
+1. `Reminders__SendEmail=true` and at least one R3 and one M3 email observed in production. — **outstanding** (do after 2)
+2. Resend sends from a verified org domain. — **outstanding**
+3. ✅ MS6/C3 works in a live dry-run (Cosec inserts mid-flight; step applies).
+4. ✅ Finance can download or receive a **3-monthly** billing report (B5).
+5. ✅ Stage-1 broadcast (M1) matches flowchart for LGB / Bellworth / SWM.
+6. ✅ T3/M5 last-point + bounce-on-comment behave per flowchart.
+7. ✅ Matrix unmatched requesters cannot silently skip HOD (fail-closed or Admin path).
+8. LGB MS5 mandatory list populated for companies that go live. — **data entry, editable in Admin**
+9. Secrets rotated; `SEED_STAFF=false`; `dotnet test` green; both remotes on same `main` SHA. — `SEED_STAFF=false`, 143 tests green and both remotes on `2aac242`; **rotation outstanding**
+10. ✅ This handover + SR7 (now §14) updated to mark each item.
+
+**Also verify the schema after any Postgres restore or re-import.** A `drop indexes` load in July left production with no primary keys for three weeks, which surfaced only as an unrelated migration failure that blocked every deploy. `Pg_RepairPgloaderSchema` fixed it and the backend now warns on boot, but run the key-verification query in [`POSTGRES_MIGRATION_GUIDE.md`](./POSTGRES_MIGRATION_GUIDE.md) §8 acceptance if the database is ever reloaded.
 
 After that: **operations and data only** (new companies, matrix row edits, password resets) — not feature work.
 
@@ -385,8 +427,13 @@ After that: **operations and data only** (new companies, matrix row edits, passw
 | Reminders | `Services/ReminderWorker.cs`, `ReminderEvaluationService.cs` |
 | Email actions (W4) | `Services/ApprovalActionTokenService.cs`, email-actions controller |
 | Invoice PDF (B6) | Invoice PDF generation (QuestPDF) |
+| Quarterly report (B5) | `Controllers/ReportsController.cs`, `Services/BillingReportService.cs`, `BillingReportPdfService.cs` |
+| MOI last point of approval (T3) | `Services/LastPointOfApprovalService.cs` |
+| MOA chain runtime (MS6/C3, MS7) | `Services/WorkflowService.cs` |
+| MOI routing / fail-closed | `Services/JobHandoffService.cs` |
 | Notifier | `Services/WorkflowNotifier.cs` |
 | Dual DB migrations | Postgres EF + `SqliteSchemaMigrator` — **always update both** for schema changes |
+| Postgres schema repair | `Migrations/Postgres/20260717095000_Pg_RepairPgloaderSchema.cs` — read its header before touching an imported database |
 | Review / UX debt log | `docs/SYSTEM_REVIEW_7_UX.md` |
 
 ---
