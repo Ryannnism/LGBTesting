@@ -8,6 +8,10 @@ namespace LGBApp.Backend.Services;
 /// <summary>In-app notifications + email for MOI/MOA client signature actions.</summary>
 public class WorkflowNotifier
 {
+    /// <summary>Flowchart M1 restricts the stage-1 broadcast to these groups.</summary>
+    public static readonly HashSet<string> Stage1BroadcastGroups =
+        new(["LGB", "BELLWORTH", "SWM"], StringComparer.OrdinalIgnoreCase);
+
     private readonly AppDbContext _context;
     private readonly IEmailSender _email;
     private readonly IConfiguration _config;
@@ -294,6 +298,50 @@ public class WorkflowNotifier
                 job.JobRequestId, customer.CustomerId);
         }
     }
+
+    /// <summary>
+    /// Flowchart M1 — at MOA stage 1, notify the whole legal and secretarial team, but only
+    /// for the groups the client listed. Informational: no approval links, so no login is implied.
+    /// </summary>
+    public async Task NotifyStage1BroadcastAsync(MOAForm form, WorkflowStepInstance step, Customer? customer)
+    {
+        var groupCode = (customer?.DivisionGroupCode ?? "").Trim();
+        if (!Stage1BroadcastGroups.Contains(groupCode))
+            return;
+
+        var recipientIds = await GetCosecAndLegalUserIdsAsync();
+        if (recipientIds.Count == 0)
+        {
+            _logger.LogWarning("Stage-1 broadcast for {Company} matched no internal staff.", form.Company);
+            return;
+        }
+
+        JobRequest? job = null;
+        if (form.JobRequestId.HasValue)
+            job = await _context.JobRequests.FindAsync(form.JobRequestId.Value);
+
+        var message = $"{form.Company} — MOA routing started ({groupCode}). Stage 1: {step.DisplayName}.";
+        await WorkflowNotificationService.NotifyUsersAsync(
+            _context, recipientIds, "moa_stage1_broadcast", "MOA started", message,
+            job?.JobRequestId, customer?.CustomerId);
+
+        var frontend = (_config["App:PublicFrontendUrl"] ?? "").TrimEnd('/');
+        var body =
+            $"Company: {form.Company}\n" +
+            $"Group: {groupCode}\n" +
+            $"Stage 1: {step.DisplayName} ({step.AssigneeName})\n\n" +
+            "MOA internal routing has started. No action is required from you unless you are named on a stage.\n\n" +
+            (string.IsNullOrWhiteSpace(frontend) ? "" : $"Open: {frontend}\n");
+
+        await EmailUsersAsync(recipientIds, $"MOA started — {form.Company}", body);
+    }
+
+    /// <summary>Internal legal + secretarial team, from the committed staff seed.</summary>
+    private async Task<List<int>> GetCosecAndLegalUserIdsAsync() =>
+        await _context.Users.AsNoTracking()
+            .Where(u => u.CustomerId == null && (u.Role == UserRoles.Admin || u.Role == UserRoles.User))
+            .Select(u => u.UserId)
+            .ToListAsync();
 
     public async Task NotifyMoaEmailRejectionAsync(JobRequest job, MOAForm form, WorkflowStepInstance step, string reason)
     {

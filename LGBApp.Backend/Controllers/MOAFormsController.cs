@@ -374,7 +374,10 @@ public class MOAFormsController : ControllerBase
                 && s.WorkflowInstance.MoaFormId == id
                 && s.Status == "Active");
         if (active != null)
+        {
             await _notifier.NotifyMoaStepActivatedAsync(form, active, customer);
+            await _notifier.NotifyStage1BroadcastAsync(form, active, customer);
+        }
 
         return FormMapper.ToMoaResponse(form, workflow);
     }
