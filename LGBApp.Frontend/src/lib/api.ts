@@ -367,6 +367,8 @@ export interface DivisionGroupDto {
   defaultMoaFormTemplateCode?: string;
   isActive: boolean;
   recommenders: { id: number; userId?: number; displayName: string }[];
+  /** Flowchart MS5 — names that must approve every MOA for this group. */
+  mandatoryMoaApprovers: string[];
 }
 
 export interface ClientApprovalDto {

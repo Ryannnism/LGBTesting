@@ -50,6 +50,7 @@ public class DivisionGroupsController : ControllerBase
             DefaultMoiFormTemplateCode = dto.DefaultMoiFormTemplateCode,
             DefaultMoaFormTemplateCode = dto.DefaultMoaFormTemplateCode,
             IsActive = dto.IsActive,
+            MandatoryMoaApproversJson = SerializeMandatory(dto.MandatoryMoaApprovers),
             Recommenders = dto.Recommenders.Select(r => new DivisionGroupRecommender
             {
                 UserId = r.UserId,
@@ -76,6 +77,7 @@ public class DivisionGroupsController : ControllerBase
         group.DefaultMoiFormTemplateCode = dto.DefaultMoiFormTemplateCode;
         group.DefaultMoaFormTemplateCode = dto.DefaultMoaFormTemplateCode;
         group.IsActive = dto.IsActive;
+        group.MandatoryMoaApproversJson = SerializeMandatory(dto.MandatoryMoaApprovers);
 
         _context.DivisionGroupRecommenders.RemoveRange(group.Recommenders);
         group.Recommenders = dto.Recommenders.Select(r => new DivisionGroupRecommender
@@ -88,6 +90,13 @@ public class DivisionGroupsController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
+
+    private static string SerializeMandatory(List<string>? names) =>
+        JsonHelper.Serialize((names ?? [])
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList());
 
     [HttpPost("import")]
     [Authorize(Roles = "Admin")]

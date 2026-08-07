@@ -93,6 +93,8 @@ public class DivisionGroupDto
     public string? DefaultMoaFormTemplateCode { get; set; }
     public bool IsActive { get; set; }
     public List<DivisionGroupRecommenderDto> Recommenders { get; set; } = new();
+    /// <summary>Flowchart MS5 — names that must approve every MOA for this group.</summary>
+    public List<string> MandatoryMoaApprovers { get; set; } = new();
 }
 
 public class DivisionGroupRecommenderDto

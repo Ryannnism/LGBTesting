@@ -95,6 +95,30 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
     patchGroup(groupId, { recommenders: group.recommenders.filter((_, i) => i !== index) });
   };
 
+  const mandatoryOf = (group: DivisionGroupDto) => group.mandatoryMoaApprovers ?? [];
+
+  const addMandatory = (groupId: number) => {
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+    patchGroup(groupId, { mandatoryMoaApprovers: [...mandatoryOf(group), ''] });
+  };
+
+  const updateMandatory = (groupId: number, index: number, name: string) => {
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+    patchGroup(groupId, {
+      mandatoryMoaApprovers: mandatoryOf(group).map((n, i) => (i === index ? name : n)),
+    });
+  };
+
+  const removeMandatory = (groupId: number, index: number) => {
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+    patchGroup(groupId, {
+      mandatoryMoaApprovers: mandatoryOf(group).filter((_, i) => i !== index),
+    });
+  };
+
   const saveGroup = async (group: DivisionGroupDto) => {
     const payload: DivisionGroupDto = {
       ...group,
@@ -104,6 +128,9 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
           displayName: r.displayName.trim(),
         }))
         .filter((r) => r.displayName.length > 0),
+      mandatoryMoaApprovers: mandatoryOf(group)
+        .map((n) => n.trim())
+        .filter((n) => n.length > 0),
     };
     setSaving(true);
     setMessage('');
@@ -286,6 +313,8 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
         <p className="text-sm text-muted-foreground mb-3">
           Recommenders approve MOI/MOA steps when a workflow step uses assignee type &quot;Division recommender&quot;.
           Link to an internal user account when possible, or enter a display name only.
+          Mandatory MOA approvers are the flowchart MS5 list — a per-company list or a Start-MOA override takes
+          precedence over the group list.
         </p>
         <div className="space-y-4 max-h-[32rem] overflow-y-auto">
           {groups.map((group) => (
@@ -373,6 +402,65 @@ export function AdminWorkflowConfig({ refreshKey = 0 }: AdminWorkflowConfigProps
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-2 border-t border-border pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Mandatory MOA approvers (MS5)</span>
+                  <button
+                    type="button"
+                    onClick={() => addMandatory(group.id)}
+                    className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-muted"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add
+                  </button>
+                </div>
+
+                {mandatoryOf(group).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    None set — MOA stage 5 will show &quot;MOA approvers (none set)&quot; and nobody is emailed.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {mandatoryOf(group).map((name, idx) => {
+                      const matched = internalUsers.find(
+                        (u) => u.name.toLowerCase() === name.trim().toLowerCase(),
+                      );
+                      return (
+                        <div key={`${group.id}-mandatory-${idx}`} className="flex flex-wrap gap-2 items-center">
+                          <input
+                            list={`internal-user-names-${group.id}`}
+                            className="flex-1 min-w-[12rem] text-sm px-2 py-1 border border-border rounded bg-input-background"
+                            placeholder="Approver name (must match a staff account)"
+                            value={name}
+                            onChange={(e) => updateMandatory(group.id, idx, e.target.value)}
+                          />
+                          <span className="text-xs text-muted-foreground min-w-[10rem]">
+                            {name.trim().length === 0
+                              ? ''
+                              : matched
+                                ? matched.email
+                                : 'No matching staff account — will not be emailed'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeMandatory(group.id, idx)}
+                            className="p-1.5 text-destructive hover:bg-destructive/10 rounded"
+                            title="Remove approver"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <datalist id={`internal-user-names-${group.id}`}>
+                  {internalUsers.map((u) => (
+                    <option key={u.userId} value={u.name} />
+                  ))}
+                </datalist>
               </div>
             </div>
           ))}

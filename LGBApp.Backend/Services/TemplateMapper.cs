@@ -61,7 +61,14 @@ public static class TemplateMapper
             UserId = r.UserId,
             DisplayName = r.DisplayName,
         }).ToList(),
+        MandatoryMoaApprovers = ReadMandatoryMoaApprovers(g),
     };
+
+    public static List<string> ReadMandatoryMoaApprovers(DivisionGroup g) =>
+        JsonHelper.Deserialize<List<string>>(g.MandatoryMoaApproversJson ?? "[]")
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n.Trim())
+            .ToList();
 
     public static void ApplyFormTemplate(FormTemplate entity, FormTemplateDto dto)
     {
