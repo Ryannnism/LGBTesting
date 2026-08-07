@@ -16,11 +16,16 @@ public class MOIFormsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly WorkflowNotifier _notifier;
+    private readonly ILogger<MOIFormsController> _logger;
 
-    public MOIFormsController(AppDbContext context, WorkflowNotifier notifier)
+    public MOIFormsController(
+        AppDbContext context,
+        WorkflowNotifier notifier,
+        ILogger<MOIFormsController> logger)
     {
         _context = context;
         _notifier = notifier;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -346,7 +351,75 @@ public class MOIFormsController : ControllerBase
         if (customer == null) return BadRequest(new { message = "Customer not found." });
 
         var submitter = await GetCurrentUserAsync();
-        await JobHandoffService.OnMoiSubmittedForApprovalAsync(_context, job, form, customer, _notifier, submitter);
+        var outcome = await JobHandoffService.OnMoiSubmittedForApprovalAsync(
+            _context, job, form, customer, _notifier, submitter, _logger);
+
+        if (outcome == MoiSubmitOutcome.NeedsApprover)
+        {
+            return BadRequest(new
+            {
+                message = "No MOI approver is set for this company, and your account is not on the Approval Matrix. "
+                    + "The MOI has been kept as a draft and sent to an Administrator to assign an approver.",
+                needsApprover = true,
+            });
+        }
+
+        return FormMapper.ToMoiResponse(form, customer: customer);
+    }
+
+    /// <summary>MOIs parked because submit could not find anyone to route them to.</summary>
+    [HttpGet("needs-approver")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<IEnumerable<FormResponse>>> GetNeedingApprover()
+    {
+        var forms = await _context.MOIForms
+            .Where(f => f.ApproverAssignmentRequestedAt != null)
+            .OrderBy(f => f.ApproverAssignmentRequestedAt)
+            .ToListAsync();
+        return forms.Select(f => FormMapper.ToMoiResponse(f)).ToList();
+    }
+
+    public class AssignMoiApproverRequest
+    {
+        public string ApproverName { get; set; } = string.Empty;
+        public string ApproverEmail { get; set; } = string.Empty;
+    }
+
+    [HttpPost("{id}/assign-approver")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<FormResponse>> AssignApprover(int id, AssignMoiApproverRequest request)
+    {
+        var name = (request.ApproverName ?? "").Trim();
+        var email = (request.ApproverEmail ?? "").Trim();
+        if (name.Length == 0 && email.Length == 0)
+            return BadRequest(new { message = "Enter an approver name or email." });
+
+        var form = await _context.MOIForms.FindAsync(id);
+        if (form == null) return NotFound();
+
+        form.RequiredApproverName = name;
+        form.RequiredApproverEmail = email;
+        form.ApproverAssignmentRequestedAt = null;
+        form.WorkflowState = MoiWorkflowStates.PendingClientMoiApproval;
+        form.ClientApprovalRequestedAt ??= DateTime.UtcNow;
+        form.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        var customer = await WorkflowService.ResolveCustomerForCompanyAsync(_context, form.Company);
+        if (form.JobRequestId is int jobId && customer != null)
+        {
+            var job = await _context.JobRequests.FindAsync(jobId);
+            if (job != null)
+            {
+                job.Status = "In Progress";
+                await _context.SaveChangesAsync();
+                await _notifier.NotifyMoiPendingSignOffAsync(job, customer, form);
+            }
+        }
+
+        _logger.LogInformation(
+            "Admin assigned MOI approver {Approver} to form {MoiFormId} ({Company}).", name, id, form.Company);
+
         return FormMapper.ToMoiResponse(form, customer: customer);
     }
 

@@ -345,6 +345,9 @@ export function MOIFormModal({
     setDocumentSubmitError('');
     setActionPending(true);
     void Promise.resolve(onSubmitForApproval(initialData?.id ?? 0, buildFormPayload()))
+      // Routing failures (no approver on the matrix or the company record) belong next to the
+      // button, not in a toast that disappears while the user is still reading the form.
+      .catch((err) => setFooterError(err instanceof Error ? err.message : 'Failed to submit for approval.'))
       .finally(() => setActionPending(false));
   };
 

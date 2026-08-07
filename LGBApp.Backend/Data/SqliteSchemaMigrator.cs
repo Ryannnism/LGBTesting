@@ -460,6 +460,7 @@ public static class SqliteSchemaMigrator
         EnsureColumn(context, "CustomerPackages", "CompletionNotifiedAt", "TEXT NULL");
         EnsureColumn(context, "MOIForms", "ClientApprovalRequestedAt", "TEXT NULL");
         EnsureColumn(context, "MOIForms", "LastPointOfApprovalJson", "TEXT NOT NULL DEFAULT '[]'");
+        EnsureColumn(context, "MOIForms", "ApproverAssignmentRequestedAt", "TEXT NULL");
         EnsureColumn(context, "WorkflowStepInstances", "ActivatedAt", "TEXT NULL");
         EnsureMoiApprovalMatrixTable(context);
         EnsureReminderLogsTable(context);

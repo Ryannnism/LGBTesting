@@ -31,6 +31,11 @@ public class MOIForm
     /// <summary>CubeV 1:1 matrix — set on submit from requester email.</summary>
     public string RequiredApproverName { get; set; } = string.Empty;
     public string RequiredApproverEmail { get; set; } = string.Empty;
+    /// <summary>
+    /// Set when submit found neither an Approval Matrix row nor a company MOI approver.
+    /// The form is parked until an Admin assigns one, rather than skipping client approval.
+    /// </summary>
+    public DateTime? ApproverAssignmentRequestedAt { get; set; }
     /// <summary>When MOI entered PendingClientMoiApproval (anchor for R3/R4 reminders).</summary>
     public DateTime? ClientApprovalRequestedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

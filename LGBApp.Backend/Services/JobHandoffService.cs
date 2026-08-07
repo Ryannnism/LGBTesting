@@ -39,6 +39,17 @@ public static class MoiWorkflowStates
     public const string MoiRejected = "MoiRejected";
 }
 
+/// <summary>What happened to an MOI when it was submitted for client approval.</summary>
+public enum MoiSubmitOutcome
+{
+    /// <summary>Routed to a named client approver.</summary>
+    Routed,
+    /// <summary>Client approval was already satisfied, so the MOI moved on to intake.</summary>
+    ClientPhaseComplete,
+    /// <summary>Nobody could be routed to — parked for an Admin to assign an approver.</summary>
+    NeedsApprover,
+}
+
 public static class JobHandoffService
 {
     public static void SetHandoff(JobRequest job, string status) =>
@@ -61,13 +72,14 @@ public static class JobHandoffService
         await context.SaveChangesAsync();
     }
 
-    public static async Task OnMoiSubmittedForApprovalAsync(
+    public static async Task<MoiSubmitOutcome> OnMoiSubmittedForApprovalAsync(
         AppDbContext context,
         JobRequest job,
         MOIForm form,
         Customer customer,
         WorkflowNotifier? notifier = null,
-        User? submitter = null)
+        User? submitter = null,
+        ILogger? logger = null)
     {
         await ClientApprovalService.TryBindMatrixApproverAsync(
             context,
@@ -78,26 +90,37 @@ public static class JobHandoffService
         if (string.IsNullOrWhiteSpace(form.RequiredApproverEmail)
             && string.IsNullOrWhiteSpace(form.RequiredApproverName))
         {
-            Console.WriteLine(
-                $"[MOI matrix] No Approval Matrix row for submitter={submitter?.Email ?? "(null)"} " +
-                $"company={form.Company} moiFormId={form.MOIFormId} — falling back to company MOI approvers.");
+            logger?.LogWarning(
+                "No Approval Matrix row for submitter={Submitter} company={Company} moiFormId={MoiFormId} — "
+                + "falling back to company MOI approvers.",
+                submitter?.Email ?? "(null)", form.Company, form.MOIFormId);
+        }
+
+        // Checked before the phase-complete test below, which treats "nobody is required" as
+        // "everybody has signed" and would otherwise skip client approval entirely.
+        var required = ClientApprovalService.GetRequiredMoiApproverNames(form, customer);
+        if (required.Count == 0 && string.IsNullOrWhiteSpace(form.RequiredApproverName))
+        {
+            logger?.LogWarning(
+                "MOI {MoiFormId} for {Company} has no approver from the matrix or the company record — "
+                + "parked for Admin assignment.",
+                form.MOIFormId, form.Company);
+
+            form.ApproverAssignmentRequestedAt ??= DateTime.UtcNow;
+            form.UpdatedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+            return MoiSubmitOutcome.NeedsApprover;
         }
 
         var records = ClientApprovalService.ParseMoi(form);
         if (ClientApprovalService.MoiClientPhaseComplete(customer, form, records))
         {
+            form.ApproverAssignmentRequestedAt = null;
             await OnClientMoiPhaseCompleteAsync(context, job, form);
-            return;
+            return MoiSubmitOutcome.ClientPhaseComplete;
         }
 
-        var required = ClientApprovalService.GetRequiredMoiApproverNames(form, customer);
-        if (required.Count == 0 && string.IsNullOrWhiteSpace(form.RequiredApproverName))
-        {
-            // No matrix row and no company approvers — advance (Admin will see unbound forms)
-            await OnClientMoiPhaseCompleteAsync(context, job, form);
-            return;
-        }
-
+        form.ApproverAssignmentRequestedAt = null;
         form.WorkflowState = MoiWorkflowStates.PendingClientMoiApproval;
         form.ClientApprovalRequestedAt ??= DateTime.UtcNow;
         form.UpdatedAt = DateTime.UtcNow;
@@ -106,6 +129,7 @@ public static class JobHandoffService
         await context.SaveChangesAsync();
         if (notifier != null)
             await notifier.NotifyMoiPendingSignOffAsync(job, customer, form);
+        return MoiSubmitOutcome.Routed;
     }
 
     public static async Task OnClientMoiApprovalRecordedAsync(

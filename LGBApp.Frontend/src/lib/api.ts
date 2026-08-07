@@ -1327,6 +1327,21 @@ export async function createMOAForm(data: {
   });
 }
 
+export async function getMoiFormsNeedingApprover(): Promise<FormResponse[]> {
+  return request<FormResponse[]>('/api/moiforms/needs-approver');
+}
+
+export async function assignMoiApprover(
+  formId: number,
+  approverName: string,
+  approverEmail: string,
+): Promise<FormResponse> {
+  return request<FormResponse>(`/api/moiforms/${formId}/assign-approver`, {
+    method: 'POST',
+    body: JSON.stringify({ approverName, approverEmail }),
+  });
+}
+
 export async function getMoaWorkflow(moaFormId: number): Promise<WorkflowInstanceDto> {
   return request<WorkflowInstanceDto>(`/api/workflowinstances/moa/${moaFormId}`);
 }

@@ -12,6 +12,7 @@ import { CreateCustomerModal } from './components/CreateCustomerModal';
 import { CreateProductModal } from './components/CreateProductModal';
 import { UserManagement } from './components/UserManagement';
 import { AdminSignatoryDedup } from './components/AdminSignatoryDedup';
+import { AdminUnroutedMoiQueue } from './components/AdminUnroutedMoiQueue';
 import { AdminWorkflowConfig } from './components/AdminWorkflowConfig';
 import { BillingPartiesAdmin } from './components/BillingPartiesAdmin';
 import { AdminFormTemplates } from './components/AdminFormTemplates';
@@ -1111,6 +1112,8 @@ export default function App() {
       setSelectedJobRequest(null);
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Failed to submit MOI for approval.');
+      // Rethrow so the modal can keep the reason visible in its footer.
+      throw err;
     }
   };
 
@@ -1890,6 +1893,7 @@ export default function App() {
             />
             <BillingPartiesAdmin />
             <AdminSignatoryDedup refreshKey={refreshKey} />
+            <AdminUnroutedMoiQueue refreshKey={refreshKey} onAssigned={bumpRefresh} />
             <AdminWorkflowConfig refreshKey={refreshKey} />
             <AdminFormTemplates refreshKey={refreshKey} />
           </div>
