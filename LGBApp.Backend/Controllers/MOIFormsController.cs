@@ -180,6 +180,7 @@ public class MOIFormsController : ControllerBase
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
+        LastPointOfApprovalService.Sync(form, formData);
 
         _context.MOIForms.Add(form);
         await _context.SaveChangesAsync();
@@ -260,6 +261,7 @@ public class MOIFormsController : ControllerBase
         form.FormDataJson = JsonHelper.Serialize(formData);
         form.FinanceRelated = request.FinanceRelated;
         form.BankSignatoryMatter = request.BankSignatoryMatter;
+        LastPointOfApprovalService.Sync(form, formData);
         if (!string.IsNullOrWhiteSpace(request.FormTemplateCode))
             form.FormTemplateCode = request.FormTemplateCode;
 
@@ -313,6 +315,18 @@ public class MOIFormsController : ControllerBase
             return Forbid();
 
         var formData = JsonHelper.Deserialize<Dictionary<string, object?>>(form.FormDataJson);
+
+        // T3: with LOA, the last point of approval is mandatory — MS7 reads it as the final approver.
+        LastPointOfApprovalService.Sync(form, formData);
+        if (LastPointOfApprovalService.IsWithLoa(formData)
+            && LastPointOfApprovalService.Read(form).All(e => string.IsNullOrWhiteSpace(e.Name)))
+        {
+            return BadRequest(new
+            {
+                message = "Enter the last point of approval (name and position) before submitting — required when LOA applies.",
+            });
+        }
+
         if (FormDataHelper.IsTruthy(formData.GetValueOrDefault("supportingDocument")))
         {
             var docQuery = _context.JobItemDocuments

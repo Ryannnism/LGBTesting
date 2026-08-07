@@ -23,6 +23,11 @@ public class MOIForm
     public string RecommendationComments { get; set; } = string.Empty;
     public string ClientApprovalsJson { get; set; } = "[]";
     public string RejectionsJson { get; set; } = "[]";
+    /// <summary>
+    /// Flowchart T3 — mandatory when the company has LOA. Feeds MS7, which reads
+    /// "Dato' Lim OR the MOI's last point of approval". Mirrors formData.approvalPersons.
+    /// </summary>
+    public string LastPointOfApprovalJson { get; set; } = "[]";
     /// <summary>CubeV 1:1 matrix — set on submit from requester email.</summary>
     public string RequiredApproverName { get; set; } = string.Empty;
     public string RequiredApproverEmail { get; set; } = string.Empty;

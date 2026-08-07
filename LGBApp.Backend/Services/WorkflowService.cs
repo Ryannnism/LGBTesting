@@ -187,12 +187,28 @@ public static class WorkflowService
         if (form.MOIFormId.HasValue)
             linkedMoi = await context.MOIForms.FindAsync(form.MOIFormId.Value);
 
-        // Stamp matrix MOI approver onto MOA formData for sync ResolveAssigneeName.
-        if (linkedMoi != null && !string.IsNullOrWhiteSpace(linkedMoi.RequiredApproverName))
+        // Stamp MOI-derived assignees onto MOA formData for sync ResolveAssigneeName.
+        if (linkedMoi != null)
         {
             var map = JsonHelper.Deserialize<Dictionary<string, object?>>(form.FormDataJson);
-            map["requiredMoiApprover"] = linkedMoi.RequiredApproverName.Trim();
-            form.FormDataJson = JsonHelper.Serialize(map);
+            var stamped = false;
+
+            if (!string.IsNullOrWhiteSpace(linkedMoi.RequiredApproverName))
+            {
+                map["requiredMoiApprover"] = linkedMoi.RequiredApproverName.Trim();
+                stamped = true;
+            }
+
+            // T3 feeds MS7: "Dato' Lim OR the MOI's last point of approval".
+            var lastPoint = LastPointOfApprovalService.ResolveFinalApproverName(linkedMoi);
+            if (!string.IsNullOrWhiteSpace(lastPoint))
+            {
+                map["moiLastPointOfApproval"] = lastPoint;
+                stamped = true;
+            }
+
+            if (stamped)
+                form.FormDataJson = JsonHelper.Serialize(map);
         }
 
         var instance = new WorkflowInstance
@@ -296,6 +312,14 @@ public static class WorkflowService
                 return string.Join(", ", fromGroup);
 
             return "MOA approvers (none set)";
+        }
+
+        // MS7 (T3): the MOI's last point of approval replaces the seeded final approver when captured.
+        if (step.StepKey == "FinalApprover")
+        {
+            var lastPoint = ReadFormDataString(form?.FormDataJson, "moiLastPointOfApproval");
+            if (!string.IsNullOrWhiteSpace(lastPoint))
+                return lastPoint.Trim();
         }
 
         if (!string.IsNullOrWhiteSpace(step.AssigneeDisplayName))
