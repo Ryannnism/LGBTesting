@@ -141,6 +141,11 @@ public class ApprovalActionTokenService
             return list;
         }
 
+        // JobTitle steps (MS1) carry a title, not a person — and titles contain commas,
+        // so they must resolve before the comma split below.
+        if (step.AssigneeType == "JobTitle")
+            return await ResolveByJobTitleAsync(step.AssigneeName);
+
         var names = (step.AssigneeName ?? "")
             .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .ToList();
@@ -165,6 +170,36 @@ public class ApprovalActionTokenService
         }
 
         return list
+            .GroupBy(r => r.Email.ToLowerInvariant())
+            .Select(g => g.First())
+            .ToList();
+    }
+
+    /// <summary>
+    /// Internal staff whose job title matches the step's title, using the same two-way
+    /// contains match as <see cref="WorkflowService.CanUserApproveStepAsync"/> so everyone
+    /// who may approve the step also receives the link.
+    /// </summary>
+    private async Task<List<(int? UserId, string Email, string Name)>> ResolveByJobTitleAsync(string assigneeName)
+    {
+        var title = (assigneeName ?? "").Trim();
+        if (title.Length == 0)
+            return [];
+
+        var staff = await _context.Users.AsNoTracking()
+            .Where(u => u.CustomerId == null && u.JobTitle != "" && u.Email != "")
+            .ToListAsync();
+
+        var matches = staff
+            .Where(u => u.JobTitle.Contains(title, StringComparison.OrdinalIgnoreCase)
+                || title.Contains(u.JobTitle, StringComparison.OrdinalIgnoreCase))
+            .Select(u => ((int?)u.UserId, u.Email, u.Name))
+            .ToList();
+
+        if (matches.Count == 0)
+            _logger.LogWarning("No internal staff match job-title step assignee '{Title}'.", title);
+
+        return matches
             .GroupBy(r => r.Email.ToLowerInvariant())
             .Select(g => g.First())
             .ToList();

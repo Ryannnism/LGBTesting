@@ -1,7 +1,7 @@
 import type { FormResponse } from '@/lib/api';
 
 /** Set true to show DB-backed sequential MOA workflow UI; false uses legacy Approved By blocks only. */
-export const SHOW_MOA_SEQUENTIAL_WORKFLOW = false;
+export const SHOW_MOA_SEQUENTIAL_WORKFLOW = true;
 
 export interface MoaPersonApproval {
   name: string;
