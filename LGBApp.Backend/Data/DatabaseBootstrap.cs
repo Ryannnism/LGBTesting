@@ -54,6 +54,64 @@ public static class DatabaseBootstrap
         // Coexistence: keep hand migrator until the next release after EF history is live.
         if (runSqliteHandMigrator && context.Database.IsSqlite())
             SqliteSchemaMigrator.Apply(context);
+
+        WarnIfPostgresTablesLackPrimaryKeys(context);
+    }
+
+    /// <summary>
+    /// The pgloader import behind Pg_Baseline silently produced a schema with no primary keys
+    /// (see Pg_RepairPgloaderSchema), which only surfaced weeks later as an unrelated foreign
+    /// key failure. Say so at startup instead, since <see cref="StampBaselineIfLegacyDatabase"/>
+    /// trusts that an existing database already matches the migration it stamps.
+    /// </summary>
+    private static void WarnIfPostgresTablesLackPrimaryKeys(AppDbContext context)
+    {
+        if (context.Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) != true)
+            return;
+
+        var keyless = new List<string>();
+        var connection = context.Database.GetDbConnection();
+        var wasOpen = connection.State == System.Data.ConnectionState.Open;
+        if (!wasOpen)
+            connection.Open();
+
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                SELECT rel.relname
+                FROM pg_class rel
+                JOIN pg_namespace ns ON ns.oid = rel.relnamespace
+                WHERE ns.nspname = 'public'
+                  AND rel.relkind = 'r'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM pg_constraint c
+                      WHERE c.conrelid = rel.oid AND c.contype = 'p')
+                ORDER BY rel.relname;
+                """;
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+                keyless.Add(reader.GetString(0));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Startup] Could not verify Postgres primary keys: {ex.Message}");
+            return;
+        }
+        finally
+        {
+            if (!wasOpen)
+                connection.Close();
+        }
+
+        if (keyless.Count == 0)
+            return;
+
+        Console.WriteLine(
+            "[Startup] WARNING: these Postgres tables have no primary key, so EF updates and any "
+            + "future foreign key to them will fail — " + string.Join(", ", keyless));
     }
 
     private static bool IsAlreadyExistsError(Exception ex)

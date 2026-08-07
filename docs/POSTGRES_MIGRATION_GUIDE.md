@@ -202,7 +202,7 @@ load database
     from sqlite:///absolute/path/to/lgbapp.db
     into postgresql://postgres:lgb@localhost:5432/lgbapp
 
- with data only, drop indexes, reset sequences, quote identifiers
+ with data only, reset sequences, quote identifiers
  set work_mem to '128MB', maintenance_work_mem to '512MB'
  before load do $$ set session_replication_role = replica; $$   -- defer FK checks during copy
  after  load do $$ set session_replication_role = default; $$;
@@ -211,6 +211,7 @@ load database
    - `quote identifiers` — the tables are PascalCase (`"Users"`, `"JobRequests"`); Postgres folds unquoted names to lowercase, so quoting is required to match EF's expectations.
    - `reset sequences` — fixes identity counters (also do the explicit check in step 4).
    - `session_replication_role = replica` — lets rows load in any order without tripping FK constraints mid-copy; restored to `default` after.
+   - **No `drop indexes`.** It drops every primary key, foreign key and index before the copy and recreates them afterwards — and if that recreate does not complete, you are left with a schema that looks fine, accepts writes, and has no keys at all. That is exactly what happened on the July 2026 import: `Pg_Baseline` was stamped over a keyless database, EF handed out duplicate ids from sequences stuck at 1, and the next migration to add a foreign key blocked deploys for three weeks (see `Pg_RepairPgloaderSchema`). This dataset is a few thousand rows; the load-speed gain is not worth the risk.
 3. Run: `pgloader migrate.load`. Read the summary — row counts per table must be > 0 for the tables that had data.
 
 > **Pre-load gotcha (schema newer than data):** if the SQLite file predates columns like `WorkflowMode` / `ConcurrencyStamp` / `AdminBypassNote`, those source columns are absent and Postgres copies `NULL` into `NOT NULL` columns → `COPY` fails. Before loading:
@@ -256,6 +257,23 @@ SELECT setval(pg_get_serial_sequence('"JobRequests"','JobRequestId'), COALESCE((
 ```
 
 **Acceptance (do all of these)**:
+- **The schema still has its keys.** Run this before anything else — a load that silently dropped constraints looks healthy until weeks later:
+  ```sql
+  -- must return zero rows
+  SELECT rel.relname AS table_without_primary_key
+  FROM pg_class rel
+  JOIN pg_namespace ns ON ns.oid = rel.relnamespace
+  WHERE ns.nspname = 'public' AND rel.relkind = 'r'
+    AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conrelid = rel.oid AND c.contype = 'p');
+
+  -- foreign keys and indexes must match the model, not be near zero
+  SELECT count(*) FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+   WHERE n.nspname = 'public' AND c.contype = 'f';   -- 33 as of Pg_EmailActionTokens
+  SELECT count(*) FROM pg_indexes WHERE schemaname = 'public';  -- 76 as of Pg_EmailActionTokens
+  ```
+  The backend also prints a `[Startup] WARNING: these Postgres tables have no primary key` line on boot, so check the deploy log too.
 - Row counts match between SQLite and Postgres for every table:
   ```bash
   for t in Users Customers JobRequests JobRequestUnits MOIForms MOAForms AccountHolders CustomerPackages; do

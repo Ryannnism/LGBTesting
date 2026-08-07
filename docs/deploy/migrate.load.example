@@ -8,12 +8,18 @@
 -- Requires the Postgres schema to already exist via EF Migrate (Pg_Baseline).
 -- If source SQLite is older than WorkflowMode/ConcurrencyStamp columns, see §8
 -- "Pre-load gotcha" — DROP NOT NULL before load, backfill after.
+--
+-- Never add "drop indexes" here. It strips every primary key, foreign key and index
+-- before the copy and only restores them if the post-load step completes. When that
+-- silently failed in July 2026 it left production keyless for three weeks — see
+-- Migrations/Postgres/20260717095000_Pg_RepairPgloaderSchema.cs. Always run the
+-- key-verification query in §8 "Acceptance" after loading.
 
 load database
     from sqlite:///data/lgbapp.db
     into postgresql://postgres:lgb@127.0.0.1:5432/lgbapp
 
- with data only, drop indexes, reset sequences, quote identifiers
+ with data only, reset sequences, quote identifiers
  set work_mem to '128MB', maintenance_work_mem to '512MB'
  before load do $$ set session_replication_role = replica; $$
  after  load do $$ set session_replication_role = default; $$;
