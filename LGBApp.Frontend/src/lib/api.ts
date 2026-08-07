@@ -1559,6 +1559,16 @@ export async function downloadMoaExportPack(formId: number): Promise<Blob> {
   return fetchAuthenticatedBlob(`/api/moaforms/${formId}/export-pack`);
 }
 
+export async function downloadQuarterlyBillingReport(
+  year: number,
+  quarter: number,
+  format: 'pdf' | 'csv',
+): Promise<Blob> {
+  return fetchAuthenticatedBlob(
+    `/api/reports/billing/quarterly?year=${year}&quarter=${quarter}&format=${format}`,
+  );
+}
+
 export function saveBlobAsFile(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');

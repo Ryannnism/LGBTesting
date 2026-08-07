@@ -122,6 +122,43 @@ public class InvoicesController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Moves an invoice out of Draft and stamps IssuedAt, which the quarterly billing report
+    /// uses to place an invoice in a period.
+    /// </summary>
+    [HttpPost("{id}/issue")]
+    public async Task<ActionResult<InvoiceResponse>> Issue(int id)
+    {
+        if (!AuthHelper.IsAdmin(User))
+            return Forbid();
+
+        var invoice = await _context.Invoices.FindAsync(id);
+        if (invoice == null) return NotFound();
+
+        if (!string.Equals(invoice.Status, "Draft", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = $"Invoice is already {invoice.Status}." });
+
+        invoice.Status = "Issued";
+        invoice.IssuedAt ??= DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        var customer = await _context.Customers.FindAsync(invoice.CustomerId);
+        return Ok(new InvoiceResponse
+        {
+            Id = invoice.InvoiceId,
+            CustomerId = invoice.CustomerId,
+            CustomerName = customer?.Company ?? "",
+            JobRequestId = invoice.JobRequestId,
+            InvoiceNumber = invoice.InvoiceNumber,
+            Amount = invoice.Amount,
+            Currency = invoice.Currency,
+            Status = invoice.Status,
+            Notes = invoice.Notes,
+            CreatedAt = invoice.CreatedAt,
+            IssuedAt = invoice.IssuedAt,
+        });
+    }
+
     /// <summary>C5: next INV-yyyyMMdd-#### for today based on max existing suffix.</summary>
     private async Task<string> NextInvoiceNumberAsync()
     {

@@ -12,6 +12,7 @@ import { CreateCustomerModal } from './components/CreateCustomerModal';
 import { CreateProductModal } from './components/CreateProductModal';
 import { UserManagement } from './components/UserManagement';
 import { AdminSignatoryDedup } from './components/AdminSignatoryDedup';
+import { AdminBillingReports } from './components/AdminBillingReports';
 import { AdminUnroutedMoiQueue } from './components/AdminUnroutedMoiQueue';
 import { AdminWorkflowConfig } from './components/AdminWorkflowConfig';
 import { BillingPartiesAdmin } from './components/BillingPartiesAdmin';
@@ -1892,6 +1893,7 @@ export default function App() {
               onCreateUser={() => setIsCreateUserModalOpen(true)}
             />
             <BillingPartiesAdmin />
+            <AdminBillingReports />
             <AdminSignatoryDedup refreshKey={refreshKey} />
             <AdminUnroutedMoiQueue refreshKey={refreshKey} onAssigned={bumpRefresh} />
             <AdminWorkflowConfig refreshKey={refreshKey} />
