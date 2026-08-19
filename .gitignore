@@ -36,6 +36,7 @@ appsettings.*.local.json
 
 ## Local tooling
 .tools/
+.claude/
 
 ## Frontend (Node)
 LGBApp.Frontend/node_modules/
