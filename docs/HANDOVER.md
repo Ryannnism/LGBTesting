@@ -1,8 +1,8 @@
 # LGB Services — Product Handover
 
-**Date:** 2026-08-19 (refreshed from live check)  
+**Date:** 2026-08-19 (refreshed after §7.1 close-out)  
 **Product:** LGB Services (MOI / MOA company-secretarial workflow)  
-**Status:** **Pilot is up.** Vercel UI + Railway API + Postgres. Redeployed 19 Aug 2026 21:38 UTC (`0e55cc5`). Git `main` is ahead at `a8e6ca2` (docs / login copy / seeder fix — not yet on the API replica).  
+**Status:** **Pilot is up.** Vercel UI + Railway API + Postgres. Live SHA `ef860ba` (Admin password reset, test-data purge, `Jwt__Key` rotated).  
 **Handover reproduction path:** Terraform UAT (Lightsail + RDS SQL Server) in [`infra/terraform/uat/`](../infra/terraform/uat/README.md)  
 **Canonical review trail:** [`SYSTEM_REVIEW_7_UX.md`](./SYSTEM_REVIEW_7_UX.md)  
 **Audience:** next engineer, ops owner, or client admin taking ownership
@@ -16,7 +16,7 @@ This document is the single place for **what shipped**, **how to operate it**, *
 | `https://lgb-testing.vercel.app` | 200 — login UI |
 | Wrong-password sign-in | API 401 `Invalid email or password.` shown in the form (CORS preflight 204 from Vercel origin) |
 | `GET /api/health` | 200 `{ status: ok }` |
-| Railway `LGBTesting` | SUCCESS, 1 replica, commit `0e55cc5` |
+| Railway `LGBTesting` | SUCCESS, 1 replica, commit `ef860ba` |
 | Postgres | Data survived the outage: 169 customers, 779 MOIs, 1079 jobs, 281 users, 0 keyless tables |
 | Schema | All 9 Postgres migrations applied including `Pg_RepairPgloaderSchema` (30 PK, 33 FK, 76 indexes) |
 | `SEED_STAFF` | `false` |
@@ -192,11 +192,15 @@ Secrets live in **Railway → LGBTesting service → Variables**. Do not put the
 
 ### 4.5 Security hygiene (do this on handover day)
 
-1. Rotate `Email__ResendApiKey` in Resend + Railway.  
-2. Rotate `Jwt__Key` (forces re-login for everyone).  
-3. Confirm `SEED_STAFF=false`.  
-4. Change seeded shared password / force password resets for Sharon, Poh Li, and test admins.  
+1. Rotate `Email__ResendApiKey` in Resend + Railway. **Still outstanding — AWS backend team.**
+2. Rotate `Jwt__Key` (forces re-login for everyone). **Done 19 Aug 2026.**
+3. Confirm `SEED_STAFF=false`. **Already false.**
+4. Change seeded shared password / force password resets for Sharon, Poh Li, and test admins. **Done 19 Aug 2026** via `POST /api/users/{id}/reset-password`. The OTP forgot-password path still needs a verified sender; the Admin key icon in Settings → Users is the supported reset path until then. The one-time temp password was written to `~/lgb-handover-temp-password.txt` (outside the repo) — distribute out of band and delete the file afterwards.
 5. Confirm no secrets in git history for this branch.
+
+### 4.6 Test-data purge (live acceptance only)
+
+There is no staging server, so the §11 walkthrough runs against the live database. `POST /api/admin/test-data/purge` (Admin only) removes that data. Dry run unless `?apply=true`. The prefix `ZZ TEST` is hard-coded rather than caller-supplied, so a request cannot widen the blast radius. It refuses if more than five companies match, and it never deletes the two seeded live-test logins (`ryannnism@gmail.com`, `ryannnism@berkeley.edu`). Shared config (division groups, matrix rows, workflow templates, billing parties) is left alone — revert those by hand if you changed them during a pass.
 
 ---
 
@@ -250,6 +254,8 @@ Secrets live in **Railway → LGBTesting service → Variables**. Do not put the
 | **Quarterly billing report (B5)** | Admin → Reports. Pick year and quarter, download PDF or CSV. Covers invoices in the quarter, package value and quota used. There is no Finance role — the Finance Head signs in with an Admin account |
 | Invoices | List + download **PDF** (`{id}/pdf`) |
 | Staff / seed | Prefer UI user management; avoid re-running `SEED_STAFF=true` on live |
+| **Reset a user's password** | Settings → Users → key icon. Returns a temporary password once. Or `POST /api/users/{id}/reset-password`. Cannot reset your own account this way — use Change password. |
+| **Purge §11 test data** | `POST /api/admin/test-data/purge` (dry run) then `?apply=true`. Only `ZZ TEST` companies. |
 
 ### 5.6 Typical happy path (MOI → MOA)
 
@@ -408,25 +414,27 @@ Built seed: `LGBApp.Backend/Data/Seed/cubev-init.json`
 
 The product should be treated as **complete after the close-out list below**. These are not “nice to haves”; they are remaining CubeV / Review #7 obligations. Do them in order, then stop enhancing unless the client changes the flowchart.
 
-**As of 8 Aug 2026 the code side of CubeV close-out is finished.** As of 19 Aug 2026 the **live API replica is gone** — restore Railway before treating the pilot as usable. Ops items 1, 2, 10 remain, plus item 11.
+**As of 8 Aug 2026 the code side of CubeV close-out is finished.** As of 19 Aug 2026 Railway is restored and serving `ef860ba`, matching both git remotes. Item 10 is closed apart from the Resend API key. Items 1 and 2 belong to the AWS backend team with the Resend account.
 
 ### 7.1 Close-out checklist
 
-Items 3–9 are **built and deployed** as of `2aac242` (8 Aug 2026); see [`SYSTEM_REVIEW_7_UX.md`](./SYSTEM_REVIEW_7_UX.md) §14 for the per-item trail. Only 1, 2 and 10 remain, and all three need the client's Resend account or DNS rather than code.
+Items 3–9 are **built and deployed** as of `2aac242` (8 Aug 2026); see [`SYSTEM_REVIEW_7_UX.md`](./SYSTEM_REVIEW_7_UX.md) §14 for the per-item trail. Items 1 and 2 are handed to the AWS backend team with the Resend account. Item 10 is done except for the Resend API key.
 
 | # | Gap | Status | What is left |
 |---|---|---|---|
-| 1 | Reminder **emails** off | ⚠️ engine verified | `ReminderLogs` holds real R3/R4 rows and the worker ticks every 15 min, so the pipeline is proven. Set `Reminders__SendEmail=true` **after** item 2, then watch one live reminder. Flipping it first sends executive mail from a sandbox address that reaches nobody |
-| 2 | Resend **from-domain** | ❌ blocked on DNS | Verify a real domain in Resend, point `Email__From` at it, retest one WorkflowNotifier send. Until then delivery is limited to the Resend account owner (§4.4) |
+| 1 | Reminder **emails** off | ⚠️ engine verified | `ReminderLogs` holds real R3/R4 rows and the worker ticks every 15 min, so the pipeline is proven. Set `Reminders__SendEmail=true` **after** item 2, then watch one live reminder. Flipping it first sends executive mail from a sandbox address that reaches nobody. **Owner: AWS backend team** — see the runbook below the table. |
+| 2 | Resend **from-domain** | ❌ blocked on DNS | Verify a real domain in Resend, point `Email__From` at it, retest one WorkflowNotifier send. Until then delivery is limited to the Resend account owner (§4.4). **Owner: AWS backend team** (they hold the Resend account and DNS). |
 | 3 | **MS6 / C3** Cosec mid-flight insert | ✅ | — `WorkflowService.InsertCosecStepAsync` + chain UI control |
 | 4 | **B5** quarterly billing report | ✅ | — `GET /api/reports/billing/quarterly?year=&quarter=&format=pdf\|csv`, Admin tab UI. No Finance role exists; the Finance Head uses an Admin account |
 | 5 | **M1** stage-1 broadcast | ✅ | — legal + secretarial, scoped to LGB / Bellworth / SWM, notification-only |
 | 6 | **T3 / M5** last-point-of-approval + bounce-on-comment | ✅ | — persisted on `MOIForm` and preferred by MS7; any approver comment bounces to all cosec and holds the step |
 | 7 | Matrix **fail-open** | ✅ | — unrouted forms park and submit returns an actionable 400; clear them from the Admin queue. The company-approver fallback is deliberately kept |
-| 8 | LGB Group **MS5 empty** | ✅ code, ops data pending | The list is now editable in Admin → Workflow config. **Enter the LGB names from CubeV before the first live LGB MOA** — do not invent them |
+| 8 | LGB Group **MS5 empty** | ⚠️ blocked on client data | CubeV's Approval Matrix leaves the mandatory-approver column **blank for LGB GROUP**, so there is nothing to copy. With an empty list `WorkflowService.ResolveAssigneeName` returns the literal `"MOA approvers (none set)"`, no user matches it in `CanUserApproveStepAsync`, and `ApprovalActionTokenService` issues only a generic Admin-forward link — an LGB MOA would stall at MS5. Interim path: supply approvers per form via the Start-MOA override, or enter them in Admin → Workflow config once the client confirms the names. Do not invent them. |
 | 9 | MOI still **login-only** | ✅ conformant by spec | **Nothing to build.** Clause R5 requires MOI approvers to log in, so login-only is correct. Earlier entries treating this as a gap were wrong |
-| 10 | Secret rotation | ❌ handover-day action | Rotate `Email__ResendApiKey` (Resend dashboard) and `Jwt__Key` (signs everyone out — pick the moment). `SEED_STAFF=false` is already set; 19 of 21 staff still carry `MustChangePassword`. See §4.5 |
-| 11 | Live API replica | ✅ revived 19 Aug 2026 | Railway `LGBTesting` SUCCESS. Redeploy `a8e6ca2` when convenient so API matches git `main`. Take a Postgres dump before AWS. |
+| 10 | Secret rotation | ⚠️ Resend key only | `Jwt__Key` rotated 19 Aug 2026 (everyone must sign in again). Accounts still on the seeded password were reset to a fresh temp value; `SEED_STAFF=false` and `SEED_STAFF_PASSWORD` updated. Admin-side reset: `POST /api/users/{id}/reset-password` plus the key icon in Settings → Users, so future resets need no email. **Leave `Email__ResendApiKey` rotation to the AWS backend team.** See §4.5 |
+| 11 | Live API replica | ✅ revived 19 Aug 2026 | Railway `LGBTesting` SUCCESS on `ef860ba`, matching both remotes. Take a Postgres dump before AWS. |
+
+**Reminder email runbook (item 1) — AWS backend team.** Do not flip this until item 2 is done. 1) Verify an org domain in Resend. 2) Set `Email__From` to an address on it. 3) Set `Reminders__SendEmail=true`. 4) Within 15 minutes (worker interval) confirm one R3 (`MoiHodReminder`) and one M3 (`MoaApproverReminder`) arrive, and that a matching `ReminderLogs` row shows the send flag true. The worker was confirmed still ticking after the 19 Aug revival (`ReminderWorker started`, `SELECT` against `ReminderLogs`).
 
 ### 7.2 Explicitly out of scope (do not build)
 
@@ -439,20 +447,20 @@ Items 3–9 are **built and deployed** as of `2aac242` (8 Aug 2026); see [`SYSTE
 
 The product is **done** when all of the following are true:
 
-1. `Reminders__SendEmail=true` and at least one R3 and one M3 email observed in production. — **outstanding** (do after 2)
-2. Resend sends from a verified org domain. — **outstanding**
+1. `Reminders__SendEmail=true` and at least one R3 and one M3 email observed in production. — **outstanding, AWS backend team** (do after 2)
+2. Resend sends from a verified org domain. — **outstanding, AWS backend team**
 3. ✅ MS6/C3 works in a live dry-run (Cosec inserts mid-flight; step applies).
 4. ✅ Finance can download or receive a **3-monthly** billing report (B5).
 5. ✅ Stage-1 broadcast (M1) matches flowchart for LGB / Bellworth / SWM.
 6. ✅ T3/M5 last-point + bounce-on-comment behave per flowchart.
 7. ✅ Matrix unmatched requesters cannot silently skip HOD (fail-closed or Admin path).
-8. LGB MS5 mandatory list populated for companies that go live. — **data entry, editable in Admin**
-9. Secrets rotated; `SEED_STAFF=false`; `dotnet test` green; both remotes on same `main` SHA. — `SEED_STAFF=false`, 143 tests green and both remotes on `2aac242`; **rotation outstanding**
+8. LGB MS5 mandatory list populated for companies that go live. — **blocked on client data.** CubeV has no LGB names; an empty list stalls MS5. Editable in Admin once the client supplies them.
+9. Secrets rotated; `SEED_STAFF=false`; `dotnet test` green; both remotes on same `main` SHA. — `Jwt__Key` and staff seed password rotated 19 Aug 2026; Resend API key left to the AWS backend team. `SEED_STAFF=false`, 152 tests green, both remotes on `ef860ba`.
 10. ✅ This handover + SR7 (now §14) updated to mark each item.
 
 **Also verify the schema after any Postgres restore or re-import.** A `drop indexes` load in July left production with no primary keys for three weeks, which surfaced only as an unrelated migration failure that blocked every deploy. `Pg_RepairPgloaderSchema` fixed it and the backend now warns on boot, but run the key-verification query in [`POSTGRES_MIGRATION_GUIDE.md`](./POSTGRES_MIGRATION_GUIDE.md) §8 acceptance if the database is ever reloaded.
 
-After that: **operations and data only** (new companies, matrix row edits, password resets) — not feature work.
+After that: **operations and data only** (new companies, matrix row edits, password resets) — not feature work. Before declaring the pilot accepted, run §11 end to end and attach the results file.
 
 ---
 
@@ -472,6 +480,8 @@ After that: **operations and data only** (new companies, matrix row edits, passw
 | MOI last point of approval (T3) | `Services/LastPointOfApprovalService.cs` |
 | MOA chain runtime (MS6/C3, MS7) | `Services/WorkflowService.cs` |
 | MOI routing / fail-closed | `Services/JobHandoffService.cs` |
+| Admin password reset | `Services/AdminPasswordResetService.cs`, `POST /api/users/{id}/reset-password` |
+| Test-data purge | `Services/TestDataPurgeService.cs`, `Controllers/AdminTestDataController.cs` (`POST /api/admin/test-data/purge`) |
 | Notifier | `Services/WorkflowNotifier.cs` |
 | Dual DB migrations | Postgres EF + `SqliteSchemaMigrator` — **always update both** for schema changes |
 | Postgres schema repair | `Migrations/Postgres/20260717095000_Pg_RepairPgloaderSchema.cs` — read its header before touching an imported database |
@@ -501,6 +511,224 @@ After that: **operations and data only** (new companies, matrix row edits, passw
 | Cosec lead (Sharon / Poh Li) | | |
 | Engineering owner | | |
 | Resend / Railway / Vercel billing owner | | |
+
+---
+
+## 11. Live acceptance walkthrough (run after the §7.1 close-out)
+
+Run this once the §7.1 build is deployed, then again after any AWS cut-over. It is a scripted
+pretend-to-be-a-real-user pass over the live stack. Work through it in a browser, not with curl —
+the point is to catch what a person hits, not what the API returns.
+
+Record results in `docs/UAT_LIVE_WALKTHROUGH_RESULTS.md` (create it from the format in §11.5) and
+commit it. A scenario is not "passed" until someone has actually seen the expected screen.
+
+### 11.1 Environment and accounts
+
+- Frontend: `https://lgb-testing.vercel.app` — API: `https://lgbtesting-production-4d6b.up.railway.app`
+- Admin: `ryannnism@gmail.com` (seeded Admin, full capability flags)
+- Client: `ryannnism@berkeley.edu` (seeded live-test client)
+- Staff without oversight rights: any `UserRoles.User` row from `InternalStaffSeeder` (for example a
+  Resolution preparation account) — use one to prove least privilege
+
+### 11.2 Ground rules
+
+1. **Create only prefixed test data.** Every company, product, package, and user you create must start
+   with `ZZ TEST`. This is not cosmetic: the §11.4 purge finds test data by that prefix and by the
+   graph hanging off it, so anything named otherwise will be left behind in the live database. Never
+   edit, approve, or delete a real customer, invoice, or workflow. Keep a running list as you go.
+2. **Email delivery is sandboxed.** `Email__From` is still `onboarding@resend.dev`, so Resend only
+   delivers to the account owner's inbox. A notification that does not arrive for `@lgb.com.my` or
+   `@swmsb.com` is expected, not a bug. Verify those cases from the Railway logs instead: the
+   notifier and `ApprovalActionTokenService` log the recipient and the issued link.
+3. **Reminders are off on purpose** (`Reminders__SendEmail=false`). Absent reminder mail is not a bug.
+4. Do not rotate secrets, change environment variables, or run migrations during the walkthrough.
+5. The `auth` endpoints are rate limited. On a failed sign-in, wait rather than retrying in a loop.
+6. Take a screenshot at each expected-result checkpoint and reference it in the findings file.
+
+### 11.3 Scenarios
+
+**A. Sign-in and first run**
+1. Sign in as an account that was just reset — expect a forced "change password" screen before any
+   app content. Set a new password and land on the dashboard.
+2. Sign in with a wrong password — expect "Invalid email or password", no hint about which was wrong.
+3. Sign in with an unknown email — expect the same generic message (no account enumeration).
+4. Use "Forgot password" for the owner inbox — the code should arrive; complete the reset and sign in.
+5. Leave a tab open, sign out in another, then act in the first — expect a clean redirect to sign-in,
+   not a blank screen or a raw 401.
+
+Bug if: a temporary password gets you into the app without a change prompt; any error names the field
+that was wrong; the app white-screens on an expired session.
+
+**B. Role boundaries**
+1. As the client (`ryannnism@berkeley.edu`) confirm you only see Portal, My Packages, Team.
+2. As a `User`-role staff account confirm Settings, Customers, and Products are not reachable, and that
+   the Admin panels (Users, Billing reports, Unrouted MOI queue, Workflow config) are absent.
+3. Try to reach an admin surface directly by URL as each of those two accounts.
+
+Bug if: any client or non-oversight staff account can open an admin panel, see another company's data,
+or load a customer list.
+
+**C. Admin setup — build a company you can drive end to end**
+
+The point of this scenario is that **every** MOA step resolves to an account you control, so scenario F
+can walk MS1 to MS7 without ever signing in as a real LGB person.
+
+1. Create `ZZ TEST HOLDINGS SDN BHD`. Set the division group to Bellworth or SWM (they have real MS5
+   mandatory approvers, so the step is exercised rather than stalled — see §11.6 for LGB).
+2. Create these accounts, all prefixed, and note which chain step each one covers:
+   - `ZZ TEST Client Admin` (ClientAdmin on the test company) — covers MS2 as the MOI requester
+   - `ZZ TEST Client Signatory` (ClientSignatory) — the client-visibility checks in D
+   - `ZZ TEST MOI Approver` — covers MS3; set it as the company's MOI approval holder
+   - `ZZ TEST MOA Approver` — covers MS5; put this name in the company's MOA approvers so it takes
+     priority over the group list (`Customer.MoaApproversJson` beats the division group)
+   - `ZZ TEST Cosec` — covers MS6, the mid-flight insert
+   Give the internal ones the MOA approval capability so they can act on a step.
+3. Set the company's account holders, LOA holders and MOI/MOA approver flags to those test accounts.
+   Create a `ZZ TEST` product (the field is the package name) and attach a package.
+4. Confirm each new account lands with `MustChangePassword` set.
+5. In Settings → Users, use the key icon to reset a `ZZ TEST` user: the temporary password shows once,
+   dismisses, and works for one sign-in that then forces a change. Try resetting your own account —
+   expect a clear "use Change password" message, not a silent failure.
+
+Only MS1, MS4 and MS7 cannot be bound to a test account by configuration: MS1 resolves by job title
+across internal staff (the Admin you are signed in as already matches "Senior Manager, Company
+Secretarial"), and MS4 / MS7 are `NamedUser` steps fixed to "Teh SW" and "Dato' Lim". Scenario F says
+how to cover those without creating look-alike accounts.
+
+Bug if: the temporary password panel persists after navigation, the password does not work, the reset
+succeeds on your own account, or a capability flag you set does not survive a reload.
+
+**D. Client journey**
+1. As the `ZZ TEST` client admin, request a service from My Packages and add a team member.
+2. As the client signatory, confirm you see only your own documents.
+
+Bug if: a signatory sees another holder's documents, or a submitted request never appears for staff.
+
+**E. MOI, including the fail-closed path (item 7)**
+1. Submit an MOI for a company that has a matrix row — it should route to the mapped approver.
+   Confirm MOI approval requires signing in (clause R5): there must be no approve-by-email link.
+2. Submit an MOI for a `ZZ TEST` company with no matrix row and no company approver — expect a
+   readable error in the modal footer explaining nobody can be routed to, and the form parked.
+3. Clear it from Settings → Unrouted MOI queue by assigning an approver, then confirm it proceeds.
+4. With LOA set, capture the last point of approval (T3) and confirm it is required before submit.
+
+Bug if: an unroutable MOI silently advances past client approval, the error is a bare "400" or
+"something went wrong", or the parked form never appears in the Admin queue.
+
+**F. MOA chain MS1-MS7 — full coverage, twice**
+
+Run the chain **two** times so both the conditional step and the bounce get a clean pass.
+
+*Run 1 — no bank signatory, straight through:*
+1. Start the MOA workflow and confirm the stage-1 broadcast (M1) reaches legal plus secretarial for
+   that division group only, and nobody outside it.
+2. Confirm MS4 (Teh SW) does **not** appear, because the company is not flagged bank signatory.
+3. Approve in order, signing in as each holder: MS1 as the Admin (its job title matches the step),
+   MS2 as `ZZ TEST Client Admin`, MS3 as `ZZ TEST MOI Approver`, MS5 as `ZZ TEST MOA Approver`.
+4. Before MS7, insert `ZZ TEST Cosec` mid-flight (MS6 / C3). Confirm it lands directly after the active
+   step, that later steps renumber rather than duplicating an order, and then approve it as that user.
+5. MS7 is a `NamedUser` step fixed to "Dato' Lim". Cover it the honest way: capture a last point of
+   approval on the MOI (T3) naming one of your test accounts, and confirm MS7 now shows that name
+   instead of Dato' Lim and can be approved by that account. If no last point was captured, advance it
+   with `POST /api/workflow-instances/moa/{moaFormId}/admin-override` as Admin instead.
+6. Confirm the workflow reaches a completed state and the form reflects it.
+
+*Run 2 — bank signatory, comment bounce and rejection:*
+7. Flag the company as bank signatory, start a fresh MOA, and confirm MS4 now **does** appear.
+8. Advance MS4 with the Admin override endpoint — "Teh SW" is a real person and must not be
+   impersonated with a look-alike account. Note in your findings that MS4's own approval path is
+   covered by unit tests rather than live.
+9. At the next step, approve **with a comment** — expect the M5 bounce: all cosec notified, the step
+   held rather than advanced.
+10. Then reject a step and confirm the same bounce path with a rejection state, and that the chain can
+    be resumed afterwards.
+11. Try to approve a step while signed in as an account that is not its assignee — expect a refusal.
+
+Bug if: a step advances despite a comment, the inserted step lands out of order, MS4 appears for the
+non-bank-signatory run or is missing for the bank-signatory run, the captured last point does not
+override Dato' Lim at MS7, a non-assignee can advance a step, or the override endpoint is reachable by
+a non-Admin.
+
+**G. Email action links (W4)**
+1. Find a step whose recipient resolves to the owner inbox and open the approve link from the email.
+2. Click the same link again — expect a used-token message.
+3. Tamper with a character in the token — expect a friendly invalid-link page.
+4. Open a link for a step that has already moved on — expect a clear "no longer required" message.
+
+Bug if: any of these returns a stack trace, a raw JSON error, or double-applies the approval.
+
+**H. Billing**
+1. Create an invoice for the `ZZ TEST` company, issue it, and confirm the issued timestamp appears and
+   the PDF downloads and opens.
+2. Settings → Billing reports: download the current quarter as PDF and as CSV. Check the figures match
+   the invoices you just created, including package value and quota used.
+3. Request a quarter with no data — expect an empty but valid report, not an error.
+
+Bug if: a report 500s, the PDF is corrupt, CSV columns are misaligned, or issuing an invoice twice
+changes the timestamp.
+
+**I. Things a real person does by accident**
+1. Double-click every submit button — no duplicate records.
+2. Refresh and use the browser back button mid-form — no lost session, no half-saved record.
+3. Paste an apostrophe and a very long string into names (for example `Dato' Lim` and 300 characters).
+4. Enter zero, a negative number, and a past date where quantities and dates are accepted.
+5. Upload an oversized file and a wrong file type.
+6. Approve the same step from two tabs at once — expect one success and one clear conflict message.
+7. Resize to a phone width and confirm the main screens remain usable.
+
+Bug if: a duplicate is created, an unhandled exception surfaces, a validation message is missing or
+unreadable, or the layout traps a control off-screen.
+
+**J. API is reachable but the browser is not signed in**
+Open the app in a private window and hit a deep link — expect the sign-in screen, then a return to the
+requested view after signing in.
+
+### 11.4 Clean up — leave no trace
+
+The walkthrough runs on the live database, so cleanup is mandatory, not optional. Use the purge tool
+rather than deleting by hand: the ordinary delete endpoints cannot remove invoices, notifications,
+reminder logs or action tokens, and an invoice will block the customer delete outright.
+
+1. Dry run first, as Admin:
+   `POST /api/admin/test-data/purge` — returns the companies matched and a count per table, and
+   changes nothing.
+2. Read the counts. They should match what you created. If a company you do not recognise appears,
+   **stop** and investigate before applying.
+3. Apply: `POST /api/admin/test-data/purge?apply=true`. It deletes invoices, notifications and reminder
+   logs first, then the forms (cascading workflow instances, steps and action tokens), then jobs
+   (cascading units, assignees, service job forms and documents), then test users and products, then
+   the customer (cascading holders, packages, completed services and signatory access), and finally the
+   uploaded files from the volume.
+4. Dry run again — every count must be zero.
+5. Revert by hand the things the purge deliberately does not touch, because they are shared config:
+   any division group mandatory-approver edit, MOI approval matrix row, workflow template change, or
+   billing party you added during the pass.
+6. Walk the UI once more as Admin — Customers, Operations, Settings, Billing reports — and confirm no
+   `ZZ TEST` row is visible anywhere and no real record was modified.
+
+The two seeded live-test logins (`ryannnism@gmail.com`, `ryannnism@berkeley.edu`) are protected from
+the purge on purpose. If you attached one of them to the test company, re-point it afterwards.
+
+### 11.5 Findings format
+
+Create `docs/UAT_LIVE_WALKTHROUGH_RESULTS.md` with the date, the SHA under test, who ran it, and one
+entry per finding:
+
+- **Scenario** (for example F4) and severity: blocker / major / minor / cosmetic
+- **Steps to reproduce** as clicks, not API calls
+- **Expected** vs **Actual**
+- **Evidence**: screenshot path or the Railway log line
+- **Verdict line at the end**: accepted, or accepted with the listed defects
+
+### 11.6 Known non-bugs (do not raise these)
+
+- Mail not arriving for anyone except the Resend account owner — sandbox sender, §7.1 item 2.
+- No reminder emails — `Reminders__SendEmail=false`, §7.1 item 1.
+- LGB Group MOA stalling at MS5 — CubeV never supplied LGB mandatory approvers, §7.1 item 8. Use the
+  Start-MOA override to get past it during testing.
+- MOI approval requiring sign-in — clause R5, by design, §7.1 item 9.
+- Everyone signed out after the handover-day `Jwt__Key` rotation.
 
 ---
 

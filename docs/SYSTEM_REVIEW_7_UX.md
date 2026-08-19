@@ -765,9 +765,17 @@ Only ops actions remain, and all of them need the client's Resend account or DNS
 
 1. `Email__From` is still `onboarding@resend.dev`, Resend's sandbox sender, which only delivers to the Resend account owner. A real sending domain must be verified in Resend first.
 2. `Reminders__SendEmail=true` should follow (1), not precede it — flipping it while the sender is the sandbox address means executive reminders reach nobody.
-3. Rotate `Email__ResendApiKey` (Resend dashboard) and `Jwt__Key` (signs everyone out, so pick the moment). `SEED_STAFF=false` is already set and 19 of 21 staff accounts still carry `MustChangePassword`.
+3. Rotate `Email__ResendApiKey` (Resend dashboard). **`Jwt__Key` and the seeded staff password were rotated 19 Aug 2026.** `SEED_STAFF=false` is already set. Remaining Resend work is owned by the AWS backend team.
 
 ### 14.4 Engine vs automation
 
 - **Decision engine ~100%** of the flowchart as written: MS1–MS7 run, including the runtime insert and the bounce semantics.
 - **Unattended layer** is built and verified in log-only mode; it becomes real the moment a verified sending domain exists.
+
+### 14.5 Handover-day close-out (19 Aug 2026, HEAD `ef860ba`)
+
+- Admin-side password reset: `POST /api/users/{id}/reset-password` plus the key icon in Settings → Users. OTP forgot-password still needs a verified sender.
+- Test-data purge: `POST /api/admin/test-data/purge` (Admin, dry-run default, hard-coded `ZZ TEST` prefix) so the live acceptance walkthrough can be wiped off the production database. There is no staging server.
+- `Jwt__Key` rotated; accounts still on the seeded password reset to a fresh temp value; `SEED_STAFF_PASSWORD` updated. Everyone must sign in again.
+- CubeV has **no** LGB Group mandatory MOA approver. An empty MS5 list stalls the step. The client must supply the names; do not invent them.
+- Items 1 and 2 (Resend domain + reminder-email flip) and the Resend API key rotation are handed to the AWS backend team. See HANDOVER §7.1 and the live walkthrough in §11.
