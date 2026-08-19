@@ -37,7 +37,7 @@ export function Login({ onSuccess }: LoginProps) {
       if (err instanceof ApiError) {
         setError(err.message || 'Invalid email or password.');
       } else {
-        setError('Unable to reach the server. Is the backend running on port 5003?');
+        setError('Unable to reach the API. The backend may be down.');
       }
     } finally {
       setLoading(false);

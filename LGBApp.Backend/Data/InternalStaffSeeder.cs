@@ -56,6 +56,7 @@ public static class InternalStaffSeeder
             throw new InvalidOperationException(
                 $"Initial staff password must be at least {PasswordPolicy.MinLength} characters.");
 
+        var renamed = false;
         foreach (var (from, to) in EmailAliases)
         {
             var old = context.Users.FirstOrDefault(u => u.Email == from);
@@ -63,7 +64,13 @@ public static class InternalStaffSeeder
             if (context.Users.Any(u => u.Email == to))
                 continue; // real account already exists — leave alias row alone
             old.Email = to;
+            renamed = true;
         }
+
+        // Persist before the staff loop: its lookups hit the database, so an unsaved rename
+        // reads as "no such account" and the loop inserts a second row on the same email.
+        if (renamed)
+            context.SaveChanges();
 
         foreach (var (email, name, role, jobTitle, canApproveIntake, canRecommend, canApproveMoi, canApproveMoa, isInternalSignatory) in Staff)
         {

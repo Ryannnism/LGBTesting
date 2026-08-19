@@ -1,12 +1,26 @@
 # LGB Services — Product Handover
 
-**Date:** 2026-07-17  
+**Date:** 2026-08-19 (refreshed from live check)  
 **Product:** LGB Services (MOI / MOA company-secretarial workflow)  
-**Status:** Live demo / pilot on Vercel + Railway  
+**Status:** **Pilot frontend is up; live API is down.** Vercel serves https://lgb-testing.vercel.app; Railway `LGBTesting` has **zero active deployments** (service status FAILED). Postgres plugin is still attached.  
+**Handover reproduction path:** Terraform UAT (Lightsail + RDS SQL Server) in [`infra/terraform/uat/`](../infra/terraform/uat/README.md)  
 **Canonical review trail:** [`SYSTEM_REVIEW_7_UX.md`](./SYSTEM_REVIEW_7_UX.md)  
 **Audience:** next engineer, ops owner, or client admin taking ownership
 
 This document is the single place for **what shipped**, **how to operate it**, **who gets which emails**, **where secrets live**, and **what must still be closed** so the product does not need open-ended future enhancement.
+
+### Live check (2026-08-19)
+
+| Check | Result |
+|---|---|
+| `https://lgb-testing.vercel.app` | 200 — login UI loads |
+| Sign-in against Railway API | Fails: Railway returns platform `Application not found` (no replica). The UI previously showed a local-dev “port 5003” message; that copy is corrected in this refresh |
+| `https://lgbtesting-production-4d6b.up.railway.app/api/health` | 404 platform JSON, not the app |
+| Railway `LGBTesting` | FAILED, 0 active deployments. Last successful image (`0e55cc5`, 8 Aug) was later **REMOVED** |
+| Railway Postgres | Plugin still present — data should still be on the volume. **Do not recreate the Postgres service** |
+| Restore live | Redeploy `LGBTesting` from `testing` `main` (HEAD of this refresh). Do not run `SEED_STAFF=true` |
+
+To reproduce a standalone UAT (not Railway): apply Terraform, then ship the GitHub Actions zip — see §2.4.
 
 ---
 
@@ -69,6 +83,30 @@ Split deploy: set Vercel env `VITE_API_BASE` to the Railway public API URL (see 
 Full CubeV procedure: [`CUBEV_SEED_RUNBOOK.md`](./CUBEV_SEED_RUNBOOK.md).  
 Go-live checklist: [`deploy/GO_LIVE.md`](./deploy/GO_LIVE.md).  
 Postgres cutover: [`POSTGRES_MIGRATION_GUIDE.md`](./POSTGRES_MIGRATION_GUIDE.md).
+
+### 2.4 Reproduce UAT without Railway (Terraform artifact)
+
+This is the handover reproduction path. It does **not** clone the live Railway Postgres — it stands up a fresh Lightsail VM + RDS SQL Server in `ap-southeast-1`.
+
+```bash
+cd infra/terraform/uat
+cp terraform.tfvars.example terraform.tfvars   # set admin_ssh_cidrs to YOUR_IP/32
+terraform init
+terraform apply
+terraform output -raw lightsail_static_ip
+terraform output -raw connection_string        # → /etc/lgbapp/lgbapp.env
+```
+
+Then:
+
+1. One-time VM setup: [`deploy/aws-lightsail-uat.md`](./deploy/aws-lightsail-uat.md) (nginx, .NET 8, systemd `EnvironmentFile`).
+2. `CREATE DATABASE LGBApp;` on RDS (SQL Server Express does not create a named DB).
+3. Push branch `uat` or run **UAT Build & Deploy** — the zip artifact is `lgbapp-uat-release` (30-day GitHub retention).
+4. GitHub secrets: `UAT_SSH_HOST`, `UAT_SSH_USER=ubuntu`, `UAT_SSH_PRIVATE_KEY` from Terraform outputs.
+
+Never commit `terraform.tfvars`, `*.tfstate`, or RDS passwords.
+
+---
 
 ---
 
@@ -368,7 +406,7 @@ Built seed: `LGBApp.Backend/Data/Seed/cubev-init.json`
 
 The product should be treated as **complete after the close-out list below**. These are not “nice to haves”; they are remaining CubeV / Review #7 obligations. Do them in order, then stop enhancing unless the client changes the flowchart.
 
-**As of 8 Aug 2026 the code side is finished.** What remains is three operational actions that need the client's Resend account and a chosen handover moment — nothing further to build.
+**As of 8 Aug 2026 the code side of CubeV close-out is finished.** As of 19 Aug 2026 the **live API replica is gone** — restore Railway before treating the pilot as usable. Ops items 1, 2, 10 remain, plus item 11.
 
 ### 7.1 Close-out checklist
 
@@ -386,6 +424,7 @@ Items 3–9 are **built and deployed** as of `2aac242` (8 Aug 2026); see [`SYSTE
 | 8 | LGB Group **MS5 empty** | ✅ code, ops data pending | The list is now editable in Admin → Workflow config. **Enter the LGB names from CubeV before the first live LGB MOA** — do not invent them |
 | 9 | MOI still **login-only** | ✅ conformant by spec | **Nothing to build.** Clause R5 requires MOI approvers to log in, so login-only is correct. Earlier entries treating this as a gap were wrong |
 | 10 | Secret rotation | ❌ handover-day action | Rotate `Email__ResendApiKey` (Resend dashboard) and `Jwt__Key` (signs everyone out — pick the moment). `SEED_STAFF=false` is already set; 19 of 21 staff still carry `MustChangePassword`. See §4.5 |
+| 11 | Live API replica | ❌ **blocking** | Railway `LGBTesting` has 0 deployments (FAILED). Redeploy from `testing` `main`; Postgres is still there — do not recreate it |
 
 ### 7.2 Explicitly out of scope (do not build)
 
@@ -445,6 +484,8 @@ After that: **operations and data only** (new companies, matrix row edits, passw
 | [`SYSTEM_REVIEW_7_UX.md`](./SYSTEM_REVIEW_7_UX.md) | Full Review #7 + CubeV conformance trail |
 | [`CUBEV_SEED_RUNBOOK.md`](./CUBEV_SEED_RUNBOOK.md) | One-shot customer seed |
 | [`deploy/GO_LIVE.md`](./deploy/GO_LIVE.md) | Railway / Vercel first bring-up |
+| [`deploy/aws-lightsail-uat.md`](./deploy/aws-lightsail-uat.md) | Handover UAT: Terraform + Lightsail + RDS |
+| [`../infra/terraform/uat/README.md`](../infra/terraform/uat/README.md) | Terraform apply / outputs / destroy |
 | [`POSTGRES_MIGRATION_GUIDE.md`](./POSTGRES_MIGRATION_GUIDE.md) | SQLite → Postgres |
 | CubeV xlsx under `docs/source/` | Authoritative routing / billing / SOURCE |
 

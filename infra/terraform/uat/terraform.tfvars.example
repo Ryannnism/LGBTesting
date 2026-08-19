@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and adjust before: terraform apply
+#
+#   cp terraform.tfvars.example terraform.tfvars
+
+aws_region = "ap-southeast-1"
+
+# Restrict SSH to your office/home IP (find via https://ifconfig.me)
+admin_ssh_cidrs = ["203.0.113.10/32"]
+
+lightsail_bundle_id = "small_3_0"
+
+# UAT cost control
+db_allocated_storage_gb = 20
+db_backup_retention_days = 3
+deletion_protection      = false

@@ -555,8 +555,8 @@ function formatApiError(text: string, status: number): string {
   const trimmed = text.trim();
   if (!trimmed) {
     if (status === 403) return 'You do not have permission to perform this action.';
-    if (status >= 500) {
-      return 'Cannot reach the API. Start the backend on port 5003 (dotnet run in LGBApp.Backend).';
+    if (status === 0 || status >= 500) {
+      return 'Cannot reach the API. If you are developing locally, start the backend on port 5003.';
     }
     return `Request failed (${status})`;
   }
@@ -591,10 +591,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      'Cannot reach the API. The backend is down or blocked (CORS / network).',
+      0,
+    );
+  }
 
   if (response.status === 401) {
     const text = await response.text();

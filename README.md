@@ -103,7 +103,11 @@ python3 build-user-roles-pdf.py
 
 ## Production / go-live
 
-Local dev uses SQLite and seeded demo accounts. For a real deployment (SQL Server, HTTPS, many users, persistent uploads), follow **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+Local dev uses SQLite and seeded demo accounts.
+
+- **Pilot (current):** Vercel frontend + Railway API/Postgres — [`docs/HANDOVER.md`](docs/HANDOVER.md), [`docs/deploy/GO_LIVE.md`](docs/deploy/GO_LIVE.md)
+- **Handover UAT (reproducible):** Terraform Lightsail + RDS SQL Server — [`infra/terraform/uat/README.md`](infra/terraform/uat/README.md) and [`docs/deploy/aws-lightsail-uat.md`](docs/deploy/aws-lightsail-uat.md)
+- **Generic production:** [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
 
 For **Vercel (frontend) + Supabase (client SDK)**, see **[docs/deploy/vercel-supabase.md](docs/deploy/vercel-supabase.md)**.
 
@@ -117,4 +121,6 @@ Quick pointers:
 ## Further reading
 
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment runbook
+- [docs/HANDOVER.md](docs/HANDOVER.md) — live ops, emails, close-out
+- [infra/terraform/uat/README.md](infra/terraform/uat/README.md) — Lightsail + RDS UAT
 - [docs/USER_ROLES.md](docs/USER_ROLES.md) — role hierarchy and MOI/MOA pipeline
