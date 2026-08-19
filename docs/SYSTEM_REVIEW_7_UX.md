@@ -778,4 +778,5 @@ Only ops actions remain, and all of them need the client's Resend account or DNS
 - Test-data purge: `POST /api/admin/test-data/purge` (Admin, dry-run default, hard-coded `ZZ TEST` prefix) so the live acceptance walkthrough can be wiped off the production database. There is no staging server.
 - `Jwt__Key` rotated; accounts still on the seeded password reset to a fresh temp value; `SEED_STAFF_PASSWORD` updated. Everyone must sign in again.
 - CubeV has **no** LGB Group mandatory MOA approver. An empty MS5 list stalls the step. The client must supply the names; do not invent them.
-- Items 1 and 2 (Resend domain + reminder-email flip) and the Resend API key rotation are handed to the AWS backend team. See HANDOVER §7.1 and the live walkthrough in §11.
+- Items 1 and 2 (Resend domain + reminder-email flip) and the Resend API key rotation are handed to the AWS backend team. See HANDOVER §7.1.
+- First live §11 walkthrough (19 Aug 2026): accepted with incomplete coverage. Results: [`UAT_LIVE_WALKTHROUGH_RESULTS.md`](./UAT_LIVE_WALKTHROUGH_RESULTS.md). Live DB purged to a zero-row dry run. Re-run F / E2 / G after Resend.

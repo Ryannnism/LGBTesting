@@ -1,15 +1,30 @@
 # LGB Services — Product Handover
 
-**Date:** 2026-08-19 (refreshed after §7.1 close-out)  
+**Date:** 2026-08-19 (ready to send)  
 **Product:** LGB Services (MOI / MOA company-secretarial workflow)  
-**Status:** **Pilot is up.** Vercel UI + Railway API + Postgres. Live SHA `ef860ba` (Admin password reset, test-data purge, `Jwt__Key` rotated).  
+**Status:** **Pilot is up and ready to hand over.** Vercel UI + Railway API + Postgres. Live API image `ef860ba` (Admin password reset, test-data purge, `Jwt__Key` rotated). Git `main` on both remotes also has the §11 walkthrough results.  
 **Handover reproduction path:** Terraform UAT (Lightsail + RDS SQL Server) in [`infra/terraform/uat/`](../infra/terraform/uat/README.md)  
 **Canonical review trail:** [`SYSTEM_REVIEW_7_UX.md`](./SYSTEM_REVIEW_7_UX.md)  
+**Walkthrough results:** [`UAT_LIVE_WALKTHROUGH_RESULTS.md`](./UAT_LIVE_WALKTHROUGH_RESULTS.md)  
 **Audience:** next engineer, ops owner, or client admin taking ownership
 
 This document is the single place for **what shipped**, **how to operate it**, **who gets which emails**, **where secrets live**, and **what must still be closed** so the product does not need open-ended future enhancement.
 
-### Live check (2026-08-19, after Railway revival)
+### Send-off in one page
+
+The product is complete on our side except two owned leftovers. Do these on the day you take it:
+
+1. **Everyone must sign in again.** `Jwt__Key` was rotated 19 Aug 2026.
+2. **Distribute the staff temp password** from `~/lgb-handover-temp-password.txt` (outside the repo), then delete that file. Nadia already changed hers during the walkthrough. Live staff emails are still the `@lgb.test` aliases (`SEED_STAFF=false`, so CubeV addresses were never renamed in this database).
+3. **Acme Client Admin** (`clientadmin@acme.test`) was reset during UAT and is not `ZZ TEST`-prefixed, so purge did not restore it. Reset it from Settings → Users if you still need that login.
+4. **AWS backend team (Resend account + DNS):** verify an org sending domain, point `Email__From` at it, rotate `Email__ResendApiKey`, then set `Reminders__SendEmail=true` and watch one R3 and one M3. Do not flip reminders first.
+5. **Client:** supply LGB Group’s mandatory MOA approver names (MS5). CubeV left that column blank. Until then an LGB MOA stalls at MS5 unless Admin uses the Start-MOA override. Do not invent names.
+
+The live database is clean of walkthrough data. Re-run §11 F (MOA chain), E2 (fail-closed MOI), and G (inbox approve-links) after Resend is on a real domain.
+
+**What to send:** this file. Point the recipient at [`UAT_LIVE_WALKTHROUGH_RESULTS.md`](./UAT_LIVE_WALKTHROUGH_RESULTS.md) in the same repo (do not paste passwords into the email). Send the staff temp password out of band from `~/lgb-handover-temp-password.txt`, then delete that file. Do not attach Railway variables, `.env`, or git history dumps.
+
+### Live check (2026-08-19, after §7.1 close-out and walkthrough)
 
 | Check | Result |
 |---|---|
@@ -17,10 +32,13 @@ This document is the single place for **what shipped**, **how to operate it**, *
 | Wrong-password sign-in | API 401 `Invalid email or password.` shown in the form (CORS preflight 204 from Vercel origin) |
 | `GET /api/health` | 200 `{ status: ok }` |
 | Railway `LGBTesting` | SUCCESS, 1 replica, commit `ef860ba` |
+| Git `main` | Both remotes include the walkthrough results (`8476bc1`) plus this send-off refresh |
 | Postgres | Data survived the outage: 169 customers, 779 MOIs, 1079 jobs, 281 users, 0 keyless tables |
 | Schema | All 9 Postgres migrations applied including `Pg_RepairPgloaderSchema` (30 PK, 33 FK, 76 indexes) |
 | `SEED_STAFF` | `false` |
 | Reminders / From | Worker ticks every 15 min, log-only; `Email__From` is still the Resend sandbox sender |
+| §11 walkthrough | **Accepted with incomplete coverage** — no blockers on the screens that were driven. MS1–MS7 twice, fail-closed unrouted MOI, and inbox approve-links were not executed. See [`UAT_LIVE_WALKTHROUGH_RESULTS.md`](./UAT_LIVE_WALKTHROUGH_RESULTS.md) |
+| Test-data purge | Final dry run all zeros. Customers UI has no `ZZ TEST`. Protected logins left in place |
 
 To reproduce a standalone UAT (not Railway): apply Terraform, then ship the GitHub Actions zip — see §2.4.
 
@@ -114,7 +132,7 @@ Never commit `terraform.tfvars`, `*.tfstate`, or RDS passwords.
 
 ## 3. Enhancements shipped (recent, high-signal)
 
-HEAD: **`2aac242`**.
+HEAD: **`ef860ba`** on the live API (Admin reset + purge). Git `main` also has the §11 results and this send-off refresh. Tests: **152** passing at last full run.
 
 ### 3.1 Close-out build (8 Aug 2026)
 
@@ -145,7 +163,16 @@ Built the §7 remainder in dependency order. Trail in [`SYSTEM_REVIEW_7_UX.md`](
 | `1c84dc5` | **B6** real PDF invoices (QuestPDF), not `.txt` |
 | Earlier waves | Review #2–#5 Postgres/resilience; Print Pack; multi-qty sessions; UX label/count fixes; MOA chain MS1–MS7 |
 
-**Tests:** 143 passing at last full run. Always re-run before push.
+### 3.3 Handover-day close-out (19 Aug 2026)
+
+| Commit | What it does |
+|---|---|
+| `ef860ba` | Admin-side password reset (`POST /api/users/{id}/reset-password` + Settings key icon) and Admin-only `ZZ TEST` purge. Live API image. `Jwt__Key` and staff seed password rotated on Railway after this deploy |
+| `32c2fba` | HANDOVER §7.1/§11, SR7 §14.5, reminder-email runbook for the AWS team |
+| `8476bc1` | Live §11 walkthrough results and screenshots |
+| (send-off tip) | This HANDOVER send-off refresh: live Cosec aliases, what to send, walkthrough coverage |
+
+**Tests:** 152 passing at last full run (`AdminPasswordResetTests` + `TestDataPurgeTests` included). Always re-run before push.
 
 ---
 
@@ -202,6 +229,8 @@ Secrets live in **Railway → LGBTesting service → Variables**. Do not put the
 
 There is no staging server, so the §11 walkthrough runs against the live database. `POST /api/admin/test-data/purge` (Admin only) removes that data. Dry run unless `?apply=true`. The prefix `ZZ TEST` is hard-coded rather than caller-supplied, so a request cannot widen the blast radius. It refuses if more than five companies match, and it never deletes the two seeded live-test logins (`ryannnism@gmail.com`, `ryannnism@berkeley.edu`). Shared config (division groups, matrix rows, workflow templates, billing parties) is left alone — revert those by hand if you changed them during a pass.
 
+**19 Aug 2026 pass:** dry run matched `ZZ TEST HOLDINGS SDN BHD` only, apply succeeded, second dry run was all zeros, Customers UI had no `ZZ TEST`. No shared config was edited. Acme Client Admin is not prefixed, so it was not restored — reset it from Settings → Users if needed.
+
 ---
 
 ## 5. User guide (by role)
@@ -209,8 +238,9 @@ There is no staging server, so the §11 walkthrough runs against the live databa
 ### 5.1 Sign-in
 
 1. Open https://lgb-testing.vercel.app  
-2. Sign in with the assigned email + password.  
-3. First login after staff seed: change password when prompted (`MustChangePassword`).
+2. Sign in with the assigned email + password. After the 19 Aug `Jwt__Key` rotation, any old session is invalid — use the login form again.  
+3. Cosec staff on this live database use `@lgb.test` aliases (§6.2), not the CubeV addresses. Shared temp password is in `~/lgb-handover-temp-password.txt` until they change it (`MustChangePassword`). Nadia already changed hers during the walkthrough.  
+4. If a user is locked out and mail is still sandboxed, Admin resets them from Settings → Users (key icon). Do not use forgot-password for production staff until Resend is on a real domain.
 
 ### 5.2 Client (ClientAdmin / company user)
 
@@ -313,21 +343,21 @@ WHERE ns.nspname = 'public' AND rel.relkind = 'r'
 
 ### 6.2 Internal Cosec / Legal (seeded staff)
 
-| Name | Email | Role | Job |
-|---|---|---|---|
-| Sharon | `sharon@lgb.com.my` | Admin | Senior Manager, Company Secretarial |
-| Ng Poh Li | `pohli.ng@taliworks.com.my` | Admin | Senior Manager, Company Secretarial |
-| Nita | `dzatin.zaharuddin@taliworks.com.my` | User | Resolution preparation |
-| Siti | `zalila.zainal@lgb.com.my` | User | Resolution preparation |
-| Nadia | `nadia.rahman@taliworks.com.my` | User | Resolution preparation |
-| Datin Raj | `raj@taliworks.com.my` | User | Group Legal (MOA approve + signatory) |
-| Seet Mei | `seetmei.lee@taliworks.com.my` | User | Group Legal |
-| Dee Nee | `deenee.ooi@taliworks.com.my` | User | Group Legal |
-| Sutina | `sutina.sujeno@taliworks.com.my` | User | Group Legal |
+| Name | CubeV email (intended) | Live login today | Role | Job |
+|---|---|---|---|---|
+| Sharon | `sharon@lgb.com.my` | `sharon@lgb.test` | Admin | Senior Manager, Company Secretarial |
+| Ng Poh Li | `pohli.ng@taliworks.com.my` | `ngpohli@lgb.test` | Admin | Senior Manager, Company Secretarial |
+| Nita | `dzatin.zaharuddin@taliworks.com.my` | `nita@lgb.test` | User | Resolution preparation |
+| Siti | `zalila.zainal@lgb.com.my` | `siti@lgb.test` | User | Resolution preparation |
+| Nadia | `nadia.rahman@taliworks.com.my` | `nadia@lgb.test` | User | Resolution preparation |
+| Datin Raj | `raj@taliworks.com.my` | CubeV email | User | Group Legal (MOA approve + signatory) |
+| Seet Mei | `seetmei.lee@taliworks.com.my` | CubeV email | User | Group Legal |
+| Dee Nee | `deenee.ooi@taliworks.com.my` | CubeV email | User | Group Legal |
+| Sutina | `sutina.sujeno@taliworks.com.my` | CubeV email | User | Group Legal |
 
 Source: `LGBApp.Backend/Data/InternalStaffSeeder.cs`.
 
-Legacy aliases (migrated on seed): `sharon@lgb.test` → Sharon, `ngpohli@lgb.test` → Poh Li, etc.
+`SEED_STAFF=false` on Railway, so the alias→CubeV rename never ran for Cosec. Sign those five in with `@lgb.test`. Group Legal was seeded on CubeV addresses (no alias row). Rename Cosec in Settings → Users when you want production inboxes, or boot once with `SEED_STAFF=true` (that also resets passwords from `SEED_STAFF_PASSWORD` — do not do this casually).
 
 ### 6.3 MOI Approval Matrix — HOD approvers (unique)
 
@@ -414,7 +444,7 @@ Built seed: `LGBApp.Backend/Data/Seed/cubev-init.json`
 
 The product should be treated as **complete after the close-out list below**. These are not “nice to haves”; they are remaining CubeV / Review #7 obligations. Do them in order, then stop enhancing unless the client changes the flowchart.
 
-**As of 8 Aug 2026 the code side of CubeV close-out is finished.** As of 19 Aug 2026 Railway is restored and serving `ef860ba`, matching both git remotes. Item 10 is closed apart from the Resend API key. Items 1 and 2 belong to the AWS backend team with the Resend account.
+**As of 8 Aug 2026 the code side of CubeV close-out is finished.** As of 19 Aug 2026 Railway is restored and serving `ef860ba`. Item 10 is closed apart from the Resend API key. Items 1 and 2 belong to the AWS backend team with the Resend account. The first live §11 walkthrough is recorded; coverage gaps are listed there, not as product defects.
 
 ### 7.1 Close-out checklist
 
@@ -432,7 +462,7 @@ Items 3–9 are **built and deployed** as of `2aac242` (8 Aug 2026); see [`SYSTE
 | 8 | LGB Group **MS5 empty** | ⚠️ blocked on client data | CubeV's Approval Matrix leaves the mandatory-approver column **blank for LGB GROUP**, so there is nothing to copy. With an empty list `WorkflowService.ResolveAssigneeName` returns the literal `"MOA approvers (none set)"`, no user matches it in `CanUserApproveStepAsync`, and `ApprovalActionTokenService` issues only a generic Admin-forward link — an LGB MOA would stall at MS5. Interim path: supply approvers per form via the Start-MOA override, or enter them in Admin → Workflow config once the client confirms the names. Do not invent them. |
 | 9 | MOI still **login-only** | ✅ conformant by spec | **Nothing to build.** Clause R5 requires MOI approvers to log in, so login-only is correct. Earlier entries treating this as a gap were wrong |
 | 10 | Secret rotation | ⚠️ Resend key only | `Jwt__Key` rotated 19 Aug 2026 (everyone must sign in again). Accounts still on the seeded password were reset to a fresh temp value; `SEED_STAFF=false` and `SEED_STAFF_PASSWORD` updated. Admin-side reset: `POST /api/users/{id}/reset-password` plus the key icon in Settings → Users, so future resets need no email. **Leave `Email__ResendApiKey` rotation to the AWS backend team.** See §4.5 |
-| 11 | Live API replica | ✅ revived 19 Aug 2026 | Railway `LGBTesting` SUCCESS on `ef860ba`, matching both remotes. Take a Postgres dump before AWS. |
+| 11 | Live API replica | ✅ revived 19 Aug 2026 | Railway `LGBTesting` SUCCESS on `ef860ba`. Git `main` also has walkthrough results. Take a Postgres dump before AWS. |
 
 **Reminder email runbook (item 1) — AWS backend team.** Do not flip this until item 2 is done. 1) Verify an org domain in Resend. 2) Set `Email__From` to an address on it. 3) Set `Reminders__SendEmail=true`. 4) Within 15 minutes (worker interval) confirm one R3 (`MoiHodReminder`) and one M3 (`MoaApproverReminder`) arrive, and that a matching `ReminderLogs` row shows the send flag true. The worker was confirmed still ticking after the 19 Aug revival (`ReminderWorker started`, `SELECT` against `ReminderLogs`).
 
@@ -455,12 +485,12 @@ The product is **done** when all of the following are true:
 6. ✅ T3/M5 last-point + bounce-on-comment behave per flowchart.
 7. ✅ Matrix unmatched requesters cannot silently skip HOD (fail-closed or Admin path).
 8. LGB MS5 mandatory list populated for companies that go live. — **blocked on client data.** CubeV has no LGB names; an empty list stalls MS5. Editable in Admin once the client supplies them.
-9. Secrets rotated; `SEED_STAFF=false`; `dotnet test` green; both remotes on same `main` SHA. — `Jwt__Key` and staff seed password rotated 19 Aug 2026; Resend API key left to the AWS backend team. `SEED_STAFF=false`, 152 tests green, both remotes on `ef860ba`.
-10. ✅ This handover + SR7 (now §14) updated to mark each item.
+9. Secrets rotated; `SEED_STAFF=false`; `dotnet test` green; both remotes on same `main` SHA. — `Jwt__Key` and staff seed password rotated 19 Aug 2026; Resend API key left to the AWS backend team. `SEED_STAFF=false`, 152 tests green. Live API `ef860ba`; git `main` includes the walkthrough results.
+10. ✅ This handover + SR7 (now §14) updated to mark each item. First §11 pass recorded in [`UAT_LIVE_WALKTHROUGH_RESULTS.md`](./UAT_LIVE_WALKTHROUGH_RESULTS.md) — accepted with incomplete coverage (MOA chain, fail-closed MOI, inbox links). Re-run those after Resend.
 
 **Also verify the schema after any Postgres restore or re-import.** A `drop indexes` load in July left production with no primary keys for three weeks, which surfaced only as an unrelated migration failure that blocked every deploy. `Pg_RepairPgloaderSchema` fixed it and the backend now warns on boot, but run the key-verification query in [`POSTGRES_MIGRATION_GUIDE.md`](./POSTGRES_MIGRATION_GUIDE.md) §8 acceptance if the database is ever reloaded.
 
-After that: **operations and data only** (new companies, matrix row edits, password resets) — not feature work. Before declaring the pilot accepted, run §11 end to end and attach the results file.
+After that: **operations and data only** (new companies, matrix row edits, password resets) — not feature work. The first §11 pass is attached; re-run F / E2 / G after the AWS Resend cut-over before calling the remaining items done.
 
 ---
 
@@ -494,6 +524,8 @@ After that: **operations and data only** (new companies, matrix row edits, passw
 | Doc | Use |
 |---|---|
 | [`SYSTEM_REVIEW_7_UX.md`](./SYSTEM_REVIEW_7_UX.md) | Full Review #7 + CubeV conformance trail |
+| [`UAT_LIVE_WALKTHROUGH_RESULTS.md`](./UAT_LIVE_WALKTHROUGH_RESULTS.md) | 19 Aug 2026 live §11 pass — verdict and coverage gaps |
+| [`uat-screenshots/`](./uat-screenshots/) | Screenshots from that pass (A5, B1, B2, C5) |
 | [`CUBEV_SEED_RUNBOOK.md`](./CUBEV_SEED_RUNBOOK.md) | One-shot customer seed |
 | [`deploy/GO_LIVE.md`](./deploy/GO_LIVE.md) | Railway / Vercel first bring-up |
 | [`deploy/aws-lightsail-uat.md`](./deploy/aws-lightsail-uat.md) | Handover UAT: Terraform + Lightsail + RDS |
@@ -516,11 +548,13 @@ After that: **operations and data only** (new companies, matrix row edits, passw
 
 ## 11. Live acceptance walkthrough (run after the §7.1 close-out)
 
-Run this once the §7.1 build is deployed, then again after any AWS cut-over. It is a scripted
+**First pass (19 Aug 2026):** recorded in [`UAT_LIVE_WALKTHROUGH_RESULTS.md`](./UAT_LIVE_WALKTHROUGH_RESULTS.md). Verdict: accepted with incomplete coverage. No product blockers on the screens that were driven. Not executed: F (MS1–MS7 twice), E2/E3 (fail-closed unrouted MOI), G1/G2/G4 (inbox approve-links), D2, I4–I6. MS4/MS7 Admin override was unused because no MOA was started. Live DB purged to a zero-row dry run afterwards.
+
+Run this again after any AWS cut-over (especially after Resend is on a real domain). It is a scripted
 pretend-to-be-a-real-user pass over the live stack. Work through it in a browser, not with curl —
 the point is to catch what a person hits, not what the API returns.
 
-Record results in `docs/UAT_LIVE_WALKTHROUGH_RESULTS.md` (create it from the format in §11.5) and
+Record results in `docs/UAT_LIVE_WALKTHROUGH_RESULTS.md` (format in §11.5) and
 commit it. A scenario is not "passed" until someone has actually seen the expected screen.
 
 ### 11.1 Environment and accounts
@@ -528,8 +562,8 @@ commit it. A scenario is not "passed" until someone has actually seen the expect
 - Frontend: `https://lgb-testing.vercel.app` — API: `https://lgbtesting-production-4d6b.up.railway.app`
 - Admin: `ryannnism@gmail.com` (seeded Admin, full capability flags)
 - Client: `ryannnism@berkeley.edu` (seeded live-test client)
-- Staff without oversight rights: any `UserRoles.User` row from `InternalStaffSeeder` (for example a
-  Resolution preparation account) — use one to prove least privilege
+- Staff without oversight rights: a live Cosec `User` row such as `nadia@lgb.test` (aliases, not CubeV
+  addresses — §6.2). Use one to prove least privilege.
 
 ### 11.2 Ground rules
 
@@ -712,7 +746,7 @@ the purge on purpose. If you attached one of them to the test company, re-point 
 
 ### 11.5 Findings format
 
-Create `docs/UAT_LIVE_WALKTHROUGH_RESULTS.md` with the date, the SHA under test, who ran it, and one
+The 19 Aug 2026 file already exists. For a later pass, update it (or append a dated section) with the SHA under test, who ran it, and one
 entry per finding:
 
 - **Scenario** (for example F4) and severity: blocker / major / minor / cosmetic
