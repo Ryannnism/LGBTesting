@@ -15,8 +15,13 @@ namespace LGBApp.Backend.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ILogger<UsersController> _logger;
 
-    public UsersController(AppDbContext context) => _context = context;
+    public UsersController(AppDbContext context, ILogger<UsersController> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<UserResponse>>> GetUsers()
@@ -219,6 +224,41 @@ public class UsersController : ControllerBase
         await _context.SaveChangesAsync();
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Admin-side reset. Returns the temporary password once so it can be handed over
+    /// out of band — the OTP path needs mail, which the sandbox sender cannot deliver.
+    /// </summary>
+    [HttpPost("{id:int}/reset-password")]
+    public async Task<ActionResult<AdminResetPasswordResponse>> ResetUserPassword(
+        int id,
+        AdminResetPasswordRequest request)
+    {
+        if (!AuthHelper.CanManageUsers(User))
+            return Forbid();
+
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            return NotFound();
+
+        if (!AuthHelper.CanManageUser(User, user))
+            return Forbid();
+
+        var actorId = GetCurrentUserId();
+        if (actorId == user.UserId)
+            return BadRequest(new { message = "Use Change password for your own account." });
+
+        var password = await AdminPasswordResetService.ResetAsync(_context, user, request.NewPassword);
+        _logger.LogWarning(
+            "User {ActorId} reset the password for user {TargetId} ({TargetEmail}).",
+            actorId, user.UserId, user.Email);
+
+        return Ok(new AdminResetPasswordResponse
+        {
+            TemporaryPassword = password,
+            MustChangePassword = true,
+        });
     }
 
     private int? GetCurrentUserId()

@@ -1,4 +1,4 @@
-import { Users, Plus, Edit, Trash2, X, ChevronDown } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, X, ChevronDown, KeyRound } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ApiError,
@@ -6,6 +6,7 @@ import {
   deleteUser,
   getCustomers,
   getUsers,
+  resetUserPassword,
   updateUser,
   type CustomerResponse,
   type UserResponse,
@@ -71,6 +72,7 @@ export function UserManagement({
   const [viewFilter, setViewFilter] = useState<UserViewFilter>('all');
   const [customerFilter, setCustomerFilter] = useState<number | 'all'>('all');
   const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ name: string; password: string } | null>(null);
   const [editForm, setEditForm] = useState<EditFormState>({
     name: '',
     email: '',
@@ -250,6 +252,19 @@ export function UserManagement({
     }
   };
 
+  const handleResetPassword = async (user: UserResponse) => {
+    if (!window.confirm(`Reset the password for ${user.name}? They will be asked to set a new one at next sign-in.`))
+      return;
+    try {
+      const res = await resetUserPassword(user.userId);
+      setError('');
+      setTempPassword({ name: user.name, password: res.temporaryPassword });
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to reset password.');
+    }
+  };
+
   const customerName = (customerId?: number) =>
     customers.find((c) => c.id === customerId)?.company ?? (customerId ? `Customer #${customerId}` : '—');
 
@@ -269,6 +284,14 @@ export function UserManagement({
           </button>
           <button
             type="button"
+            title="Reset password"
+            onClick={() => void handleResetPassword(user)}
+            className="p-1 hover:bg-muted rounded transition-colors"
+          >
+            <KeyRound className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
             onClick={() => void handleDelete(user)}
             className="p-1 hover:bg-destructive/10 text-destructive rounded transition-colors"
           >
@@ -283,6 +306,31 @@ export function UserManagement({
 
   return (
     <>
+      {tempPassword && (
+        <div className="mb-3 rounded-lg border border-border bg-muted/40 p-3">
+          <p className="text-sm">
+            Temporary password for <span className="font-medium">{tempPassword.name}</span>. It is shown once — copy it
+            now and pass it on outside the app. They must change it at next sign-in.
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="px-2 py-1 rounded bg-background border border-border text-sm">{tempPassword.password}</code>
+            <button
+              type="button"
+              onClick={() => void navigator.clipboard.writeText(tempPassword.password)}
+              className="px-2 py-1 text-xs border border-border rounded"
+            >
+              Copy
+            </button>
+            <button
+              type="button"
+              onClick={() => setTempPassword(null)}
+              className="px-2 py-1 text-xs border border-border rounded"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       <div className="bg-card rounded-lg border border-border overflow-hidden">
         <div className="p-4 border-b border-border flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">

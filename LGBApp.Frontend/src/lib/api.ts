@@ -737,6 +737,16 @@ export async function deleteUser(id: number): Promise<void> {
   return request<void>(`/api/users/${id}`, { method: 'DELETE' });
 }
 
+export async function resetUserPassword(
+  id: number,
+  newPassword?: string,
+): Promise<{ temporaryPassword: string; mustChangePassword: boolean }> {
+  return request<{ temporaryPassword: string; mustChangePassword: boolean }>(
+    `/api/users/${id}/reset-password`,
+    { method: 'POST', body: JSON.stringify({ newPassword: newPassword ?? null }) },
+  );
+}
+
 // Customers
 export async function getCustomers(search?: string): Promise<CustomerResponse[]> {
   const params = search ? `?search=${encodeURIComponent(search)}` : '';
