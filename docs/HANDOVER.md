@@ -32,7 +32,7 @@ The live database is clean of walkthrough data. Re-run §11 F (MOA chain), E2 (f
 | Wrong-password sign-in | API 401 `Invalid email or password.` shown in the form (CORS preflight 204 from Vercel origin) |
 | `GET /api/health` | 200 `{ status: ok }` |
 | Railway `LGBTesting` | SUCCESS, 1 replica, commit `ef860ba` |
-| Git `main` | Both remotes include the walkthrough results (`8476bc1`) plus this send-off refresh |
+| Git `main` | Both remotes include the walkthrough results (`8476bc1`) and this send-off (`191e076`) |
 | Postgres | Data survived the outage: 169 customers, 779 MOIs, 1079 jobs, 281 users, 0 keyless tables |
 | Schema | All 9 Postgres migrations applied including `Pg_RepairPgloaderSchema` (30 PK, 33 FK, 76 indexes) |
 | `SEED_STAFF` | `false` |
@@ -132,7 +132,7 @@ Never commit `terraform.tfvars`, `*.tfstate`, or RDS passwords.
 
 ## 3. Enhancements shipped (recent, high-signal)
 
-HEAD: **`ef860ba`** on the live API (Admin reset + purge). Git `main` also has the §11 results and this send-off refresh. Tests: **152** passing at last full run.
+HEAD: **`ef860ba`** on the live API (Admin reset + purge). Git `main` send-off is `191e076`. Tests: **152** passing at last full run.
 
 ### 3.1 Close-out build (8 Aug 2026)
 
@@ -170,7 +170,7 @@ Built the §7 remainder in dependency order. Trail in [`SYSTEM_REVIEW_7_UX.md`](
 | `ef860ba` | Admin-side password reset (`POST /api/users/{id}/reset-password` + Settings key icon) and Admin-only `ZZ TEST` purge. Live API image. `Jwt__Key` and staff seed password rotated on Railway after this deploy |
 | `32c2fba` | HANDOVER §7.1/§11, SR7 §14.5, reminder-email runbook for the AWS team |
 | `8476bc1` | Live §11 walkthrough results and screenshots |
-| (send-off tip) | This HANDOVER send-off refresh: live Cosec aliases, what to send, walkthrough coverage |
+| `191e076` | This HANDOVER send-off refresh: live Cosec aliases, what to send, walkthrough coverage |
 
 **Tests:** 152 passing at last full run (`AdminPasswordResetTests` + `TestDataPurgeTests` included). Always re-run before push.
 
