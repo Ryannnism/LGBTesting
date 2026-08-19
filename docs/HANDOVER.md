@@ -2,23 +2,25 @@
 
 **Date:** 2026-08-19 (refreshed from live check)  
 **Product:** LGB Services (MOI / MOA company-secretarial workflow)  
-**Status:** **Pilot frontend is up; live API is down.** Vercel serves https://lgb-testing.vercel.app; Railway `LGBTesting` has **zero active deployments** (service status FAILED). Postgres plugin is still attached.  
+**Status:** **Pilot is up.** Vercel UI + Railway API + Postgres. Redeployed 19 Aug 2026 21:38 UTC (`0e55cc5`). Git `main` is ahead at `a8e6ca2` (docs / login copy / seeder fix — not yet on the API replica).  
 **Handover reproduction path:** Terraform UAT (Lightsail + RDS SQL Server) in [`infra/terraform/uat/`](../infra/terraform/uat/README.md)  
 **Canonical review trail:** [`SYSTEM_REVIEW_7_UX.md`](./SYSTEM_REVIEW_7_UX.md)  
 **Audience:** next engineer, ops owner, or client admin taking ownership
 
 This document is the single place for **what shipped**, **how to operate it**, **who gets which emails**, **where secrets live**, and **what must still be closed** so the product does not need open-ended future enhancement.
 
-### Live check (2026-08-19)
+### Live check (2026-08-19, after Railway revival)
 
 | Check | Result |
 |---|---|
-| `https://lgb-testing.vercel.app` | 200 — login UI loads |
-| Sign-in against Railway API | Fails: Railway returns platform `Application not found` (no replica). The UI previously showed a local-dev “port 5003” message; that copy is corrected in this refresh |
-| `https://lgbtesting-production-4d6b.up.railway.app/api/health` | 404 platform JSON, not the app |
-| Railway `LGBTesting` | FAILED, 0 active deployments. Last successful image (`0e55cc5`, 8 Aug) was later **REMOVED** |
-| Railway Postgres | Plugin still present — data should still be on the volume. **Do not recreate the Postgres service** |
-| Restore live | Redeploy `LGBTesting` from `testing` `main` (HEAD of this refresh). Do not run `SEED_STAFF=true` |
+| `https://lgb-testing.vercel.app` | 200 — login UI |
+| Wrong-password sign-in | API 401 `Invalid email or password.` shown in the form (CORS preflight 204 from Vercel origin) |
+| `GET /api/health` | 200 `{ status: ok }` |
+| Railway `LGBTesting` | SUCCESS, 1 replica, commit `0e55cc5` |
+| Postgres | Data survived the outage: 169 customers, 779 MOIs, 1079 jobs, 281 users, 0 keyless tables |
+| Schema | All 9 Postgres migrations applied including `Pg_RepairPgloaderSchema` (30 PK, 33 FK, 76 indexes) |
+| `SEED_STAFF` | `false` |
+| Reminders / From | Worker ticks every 15 min, log-only; `Email__From` is still the Resend sandbox sender |
 
 To reproduce a standalone UAT (not Railway): apply Terraform, then ship the GitHub Actions zip — see §2.4.
 
@@ -424,7 +426,7 @@ Items 3–9 are **built and deployed** as of `2aac242` (8 Aug 2026); see [`SYSTE
 | 8 | LGB Group **MS5 empty** | ✅ code, ops data pending | The list is now editable in Admin → Workflow config. **Enter the LGB names from CubeV before the first live LGB MOA** — do not invent them |
 | 9 | MOI still **login-only** | ✅ conformant by spec | **Nothing to build.** Clause R5 requires MOI approvers to log in, so login-only is correct. Earlier entries treating this as a gap were wrong |
 | 10 | Secret rotation | ❌ handover-day action | Rotate `Email__ResendApiKey` (Resend dashboard) and `Jwt__Key` (signs everyone out — pick the moment). `SEED_STAFF=false` is already set; 19 of 21 staff still carry `MustChangePassword`. See §4.5 |
-| 11 | Live API replica | ❌ **blocking** | Railway `LGBTesting` has 0 deployments (FAILED). Redeploy from `testing` `main`; Postgres is still there — do not recreate it |
+| 11 | Live API replica | ✅ revived 19 Aug 2026 | Railway `LGBTesting` SUCCESS. Redeploy `a8e6ca2` when convenient so API matches git `main`. Take a Postgres dump before AWS. |
 
 ### 7.2 Explicitly out of scope (do not build)
 
